@@ -46,3 +46,4 @@ Two more decisive findings: **(1)** Gameland's structural twin is **Smoothcomp**
 | 11 | [Risks](docs/11-risks.md) | Plan | risk register |
 | 12 | [Tech approach](docs/12-tech-approach.md) | Plan→Build | reusable SaaS starter |
 | 13 | [Data intake](docs/13-data-intake.md) | Phase 0 | player / event / result schema for ranking + Gamer Bank |
+| 14 | [Ranking design](docs/14-ranking-design.md) | Plan | the ranking system (focus #1) — points, tiers, decay, integrity |

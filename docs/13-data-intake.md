@@ -4,6 +4,8 @@
 
 > The richest Gameland data is **yours** (competition history + player records), not public. Send what you have; missing columns are fine — we fill over time.
 
+> **Known dataset (to be delivered in a later stage):** ~**2,000 gamers** in **Excel + PDF** — phone numbers, first/last names, disciplines. The PDF portion will need **extraction/OCR** before mapping. Excel maps directly to Sheet A. Past-competition results (Sheet B/C) ingested if available → backfills the launch ranking + honors so it's not a cold start.
+
 ## Sheet A — Players (one row per gamer)
 | field | فارسی | required? | example |
 |---|---|---|---|

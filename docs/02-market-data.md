@@ -60,7 +60,8 @@ Confidence tags [H/M/L]. USD ≈ 700–750k Toman (mid-2025, volatile). Many Ira
 
 ## §5 — Gameland footprint & competitors
 
-- **Gameland digital footprint ≈ zero/invisible** [H]: @gamelandteam not indexed in any ranking, Marcocial profile dormant (0 events), no website, no press. Community is **offline / dark-social** (consistent with 70%-offline + WhatsApp). ⚠️ GTM cannot assume an existing *online* audience. Brand clashes exist (gamelandstudio.com etc.) → handle/brand clarity needed.
+- **Gameland footprint: real but research-invisible** [founder-stated]. Founder reports **~60K Instagram followers** (@gamelandteam) + a **promo network of allied gamers**, and a **~2,000-gamer database** (Excel + PDF: phone, first/last name, discipline) from past competitions. Public research tools couldn't index it (IG filtered, dark-social) — but the audience is real. (Earlier "near-zero" read was a tooling blind spot, now corrected.) Brand clashes exist (gamelandstudio.com etc.) but **name = Gameland is fixed.**
+  - → **Warm launch base:** ~60K IG + influencer promo + ~2k contactable gamers + (later) gamenets. Not a cold start.
 - **Direct competitors:**
   - **Marcoverse (مارکوورس)** — sharpest threat: gamer **social network + store + team registration + competitions**, FIFA "50M Cup" with in-person prelims in **6 cities**. Sister product of Marcocial.
   - **OxinGame** — dominant brand: physical complexes (Tehran/Isfahan/Ahvaz), **@oxingame 70K**, CS2 prize 300M T.
@@ -69,7 +70,7 @@ Confidence tags [H/M/L]. USD ≈ 700–750k Toman (mid-2025, volatile). Many Ira
 - **Market is fragmented by single game** (PUBG / CS / FIFA silos). **No one owns cross-game persistent identity + ranking + gamenet network** → confirms the whitespace from [01-benchmark](01-benchmark.md).
 - **Standard workflow:** Instagram (announce) → Telegram (register/brackets) → WhatsApp (coordinate) → Aparat (stream).
 
-→ **Implication:** position explicitly against **Marcoverse** (online-social) and **OxinGame** (venue-brand); win on **offline-first cross-game identity + ranking + the gamenet network** none of them own. Bootstrap via Gameland's **offline community + gamenet partnerships**, not online ads.
+→ **Implication:** position explicitly against **Marcoverse** (online-social) and **OxinGame** (venue-brand); win on **offline-first cross-game identity + ranking + the gamenet network** none of them own. Bootstrap via Gameland's **~60K IG + gamer-promo network + the 2k-gamer DB** (warm base; IG via ubiquitous VPN), then gamenets.
 
 ---
 
@@ -78,5 +79,5 @@ Confidence tags [H/M/L]. USD ≈ 700–750k Toman (mid-2025, volatile). Many Ira
 2. **Monetization must be legally re-architected** (sponsor-funded prizes + coin wallet + skill framing). Keystone.
 3. **Gamenet network = the defensible wedge** (no aggregator exists; gamenets are the offline backbone).
 4. **Cross-game persistent identity + ranking** is unclaimed in Iran.
-5. **GTM = offline community + gamenets**, since digital reach starts near zero and ad platforms (IG) are filtered.
+5. **GTM = warm base, not cold:** ~60K IG + gamer-promo network + ~2k-gamer DB (seed the Gamer Bank/ranking) → then gamenets. (IG filtered but reached via ubiquitous VPN.)
 6. Compete head-on with **Marcoverse**; differentiate from **OxinGame**.
