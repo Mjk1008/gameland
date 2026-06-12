@@ -17,11 +17,17 @@ This repo holds the full strategy and product plan for Gameland, produced **befo
 
 Each stage uses skills/frameworks: TAM-SAM-SOM, PESTEL, JTBD, proto-personas, positioning, opportunity-solution tree, PRD, roadmap, business model, risk register.
 
-## Status
-- [x] **Benchmark** — 11 platforms → [`docs/01-benchmark.md`](docs/01-benchmark.md)
-- [ ] **Data** — Iran market / gamenet / payments / regulation / footprint → [`docs/02`](docs/02-market-data.md), [`docs/03`](docs/03-pestel.md)
-- [ ] **Idea** — positioning / JTBD / personas / opportunity tree → [`docs/04`–`07`]
-- [ ] **Plan** — PRD / roadmap / business model / risks / tech approach → [`docs/08`–`12`]
+## Status — plan complete ✅ (build not started)
+- [x] **Benchmark** — 11 platforms → [`docs/01`](docs/01-benchmark.md)
+- [x] **Data** — Iran market / gamenet / payments / regulation / footprint → [`docs/02`](docs/02-market-data.md), [`docs/03`](docs/03-pestel.md) (raw in [`research/`](research/))
+- [x] **Idea** — positioning / JTBD / personas / opportunity tree → [`docs/04`–`07`](docs/04-positioning.md)
+- [x] **Plan** — PRD / roadmap / business model / risks / tech → [`docs/08`–`12`](docs/08-prd.md)
+- [ ] **Build** — gated on Phase 0 legal opinion (see below)
+
+## 🚨 Keystone finding (read first)
+The briefed **"buy 1–6 chances/tickets for a prize competition"** mechanic = likely **illegal gambling** in Iran (IPC Art. 705; IRCG bans player-to-player payment obligations; app stores reject it). **It must be re-architected, not dropped:** sponsor-funded prizes (not entry pools) + skill-service entry + non-convertible coin wallet — the model IRCG's own Champions Cup uses. A lawyer's opinion is a **Phase 0 gate**. Full detail: [`docs/11-risks.md`](docs/11-risks.md).
+
+Two more decisive findings: **(1)** Gameland's structural twin is **Smoothcomp** (combat-sports), not FACEIT/Start.gg ([`01`](docs/01-benchmark.md)); **(2)** the **gamenet network** is whitespace no competitor owns ([`02`](docs/02-market-data.md)) — the moat.
 
 ## Map of docs
 | # | Doc | Stage | Framework |
