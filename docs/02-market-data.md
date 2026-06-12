@@ -62,6 +62,7 @@ Confidence tags [H/M/L]. USD ≈ 700–750k Toman (mid-2025, volatile). Many Ira
 
 - **Gameland footprint: real but research-invisible** [founder-stated]. Founder reports **~60K Instagram followers** (@gamelandteam) + a **promo network of allied gamers**, and a **~2,000-gamer database** (Excel + PDF: phone, first/last name, discipline) from past competitions. Public research tools couldn't index it (IG filtered, dark-social) — but the audience is real. (Earlier "near-zero" read was a tooling blind spot, now corrected.) Brand clashes exist (gamelandstudio.com etc.) but **name = Gameland is fixed.**
   - → **Warm launch base:** ~60K IG + influencer promo + ~2k contactable gamers + (later) gamenets. Not a cold start.
+  - → **Deep-dive (confirmed):** small **gamenet-adjacent** organizer (Tehran/Sadeghieh), likely **eFootball/EA FC (console)** tournaments run via IG + Telegram; registration off-platform. → working flagship discipline = **eFootball/EA FC.** Possible physical gamenet anchor in Sadeghieh. Full: [`research/raw-06`](../research/raw-06-gameland-deepdive.md).
 - **Direct competitors:**
   - **Marcoverse (مارکوورس)** — sharpest threat: gamer **social network + store + team registration + competitions**, FIFA "50M Cup" with in-person prelims in **6 cities**. Sister product of Marcocial.
   - **OxinGame** — dominant brand: physical complexes (Tehran/Isfahan/Ahvaz), **@oxingame 70K**, CS2 prize 300M T.
