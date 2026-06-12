@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Node (for future build phase)
+node_modules/
+.next/
+dist/
+build/
+*.log
+.env
+.env.local
