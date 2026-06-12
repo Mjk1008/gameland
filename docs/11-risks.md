@@ -18,5 +18,5 @@ Rated Likelihood × Impact (L/M/H). Ordered by severity.
 | **R11** | **Multi-account / integrity** without kernel anti-cheat (offline reality). | M | M | **Identity-at-registration** (phone/ID/gamenet vouching), human-verified honors, gamenet check-in — not online kernel AC. |
 | **R12** | **Electricity / hardware (gamenet side)** — blackouts, import costs. | M | M | Platform-side resilience; position IRCG dedicated-internet hook; don't take on hardware capex. |
 
-## The one risk that gates everything
-**R1 + R2 are the keystone.** If the entry/prize structure is not legally re-architected (sponsor-funded prizes, skill-service entry, non-convertible coins, IRCG/IESA alignment), the entire monetization — and possibly the operators — are exposed. **Resolve the legal model before any build.** A qualified Iranian tech/gaming lawyer's opinion is a Phase-0 gate.
+## Founder direction on legal (2026-06-12)
+Per founder: competitions are already run widely (incl. IRCG), so **permits come later and are NOT a pre-build gate.** Accordingly R1/R2 are managed by **design**, not by a blocking gate: keep prizes **sponsor-funded** (never entry-pool), entry as a **skill-service**, coins **non-convertible**, and pursue IRCG/IESA alignment + permits **in parallel / as you scale**. The residual risk is real but **scales with cash-prize-pool size** — a qualified Iranian gaming lawyer's review is recommended **before monetizing prize pools at scale**, not before building the ranking/competition/notification MVP (which needs no prize money).

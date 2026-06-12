@@ -1,39 +1,31 @@
 # 09 — Roadmap
 
-**Stage:** Plan · **Status:** ✅ v1. Sequenced by [opportunity priority](07-opportunity-tree.md) + the legal gate.
+**Stage:** Plan · **Status:** ✅ v2 (re-scoped to founder direction, 2026-06-12).
 
-## Phase 0 — Legal & Foundation **(GATE — before any build)**
-- **Legal opinion** from an Iranian tech/gaming lawyer on the reframed entry/prize model ([11-R1/R2](11-risks.md)). ← blocks competition-engine work.
-- Explore **IRCG / IESA** partnership (legitimacy umbrella, per-competition authorization).
-- Begin **eNamad + Samandehi** registration; secure brand + handles (resolve name clashes).
-- **Discovery interviews** with Gameland's offline community (validate [personas](06-personas.md)/[JTBD](05-jtbd.md), get real community numbers).
+> **Founder direction:** focus now = **① Ranking · ② the data we have + collecting more (Gamer Bank) · ③ proper competition execution · ④ notifications/info.** Gamenet network, store, AI bot = **later**. Permits obtained **later — not a build-blocker**; monetization design kept legally-safe by default ([11-risks](11-risks.md)).
+
+## Phase 0 — Foundation (lightweight; parallel, NOT a gate)
 - Stand up the **Iran-hosted tech starter** ([12](12-tech-approach.md)).
-- **Exit:** legal model confirmed; flagship discipline chosen; brand + infra ready.
+- **Ingest Gameland's existing data** (competition history, player records) → seed ranking + Gamer Bank. ← key input from founder.
+- Brand = **Gameland** (confirmed); secure handles.
+- Legal in parallel: keep design safe (sponsor-funded prizes, non-convertible coins); pursue IRCG/IESA alignment + permits as you scale. Not a blocker to building.
 
-## Phase 1 — MVP: Identity + Info (legally safe, no prize money)
-- **Gamer Bank** profiles + **honors page**.
-- **National ranking** (organizer-entered offline results) for ONE flagship discipline.
-- **Competition info + SMS notifications + calendar**; read-only per-player roadmap.
-- **Why first:** delivers J1+J2 value with **zero gambling exposure**; builds audience while legal model finalizes.
-- **Exit:** N active competitors, a ranking the community references, M competitions logged.
+## Phase 1 — MVP: Ranking + Data + Competitions + Notifications ← **THE FOCUS**
+1. **Gamer Bank / data** — structured player profiles (identity, city, disciplines, play-style, nickname) from existing + newly collected data; honors page.
+2. **National ranking** — offline-first points (champion **1000** / 2nd **800** / 3rd **500** …; all-star **500/300/150**; top-32 **30**) × event-tier multiplier; public leaderboard + player pages.
+3. **Competition execution** — run competitions properly: 6 preliminary brackets → 128 final, the attempts ("chances") model, per-player roadmap, results feeding the ranking.
+4. **Notifications / اطلاع‌رسانی** — SMS-first: schedule, format, rules, next match — kills the WhatsApp Q&A.
+- *(monetization kept legally-safe: prizes sponsor-funded, non-convertible coins — see [11](11-risks.md))*
+- **Exit:** real competitions running on-platform; a ranking the community trusts; players have populated profiles; notifications replace WhatsApp.
 
-## Phase 2 — Competition Engine + Gamenet Wedge
-- **Competition engine:** 6 prelim brackets → 128 final, **attempts** model — skill-service entry, **sponsor-funded prizes** (post-legal).
-- **Multi-account integrity** (registration-time).
-- **Coin wallet** (Shaparak + non-convertible coins).
-- **Gamenet directory + profiles + hosting tools + discovery** → the moat + first stable B2B revenue.
-- **Exit:** first sponsor-funded ranked competitions run end-to-end; first paying gamenets.
+## Phase 2 — Gamenet network (the moat) — *later*
+- Directory + gamenet profiles + hosting/booking tools + discovery + talent scouting (استعدادیابی). Still the strategic moat; sequenced after the focus MVP proves out.
 
-## Phase 3 — Commerce & Scale
-- **Store/marketplace** (IRCG-licensed games, controllers, packages).
-- **Organizer SaaS** tools opened to third parties.
-- **Talent scouting / call-outs.**
-- Expand to more disciplines + cities.
+## Phase 3 — Commerce & intelligence — *later ideas*
+- Store/marketplace (IRCG-licensed games, controllers, packages) · AI support bot · organizer SaaS for third parties.
 
-## Phase 4 — Intelligence & Online (~1 yr+)
-- **AI support bot** (kills repetitive Q&A).
-- **Online / "ultimate" ranking** (when connectivity allows).
-- Android apps via **Cafe Bazaar / Myket**.
+## Phase 4 — Online ranking + apps (~1 yr+)
+- Online/"ultimate" ranking (when connectivity allows) · Cafe Bazaar / Myket apps · more disciplines + cities.
 
 ## Sequencing logic
-Value (Phase 1) ships **before** the legally-gated revenue (Phase 2). The **gamenet network** (moat + stable income) lands as soon as the engine exists. Commerce/AI/online come once the network + trust are real. Every phase respects offline-first + the legal guardrail.
+Ranking + data + competition execution + notifications first (founder focus; immediate value; legally clean — these need **no** prize money to deliver value). The **gamenet network** (moat) follows. Commerce, AI bot, and online ranking come later. Offline-first throughout.

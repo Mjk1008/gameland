@@ -1,5 +1,13 @@
 # 00 — Overview
 
+## Founder direction (2026-06-12 update)
+- **Mission:** bring gamers closer to gaming, *by any means.* Gameland is **one of several paths** toward this (likely the theme across all 3 businesses).
+- **Name:** **Gameland** — confirmed (keep despite unrelated "Gameland" name clashes).
+- **Market:** Iran (for now).
+- **Current focus (this build):** ① persistent **ranking** · ② the **data we already have** + collecting more (**Gamer Bank**) · ③ **proper competition execution** · ④ **notifications / info dissemination.** Gamenet network, store, and AI bot = **later ideas** (deferred — gamenet still the strategic moat).
+- **Competitive view:** no real competitor builds the *integrated* vision. Even Marcocial/Marcoverse cover only one slice (competition hosting).
+- **Legal:** competitions are already run widely (incl. IRCG itself); **permits come later — not a build-blocker.** Design is kept legally-safe by default (sponsor-funded prizes, non-convertible coins) so permits stay attainable. Risk scales with cash-prize size — see [11-risks](11-risks.md).
+
 ## Vision (working)
 A single platform that turns Gameland's offline-first gaming community into a durable digital network: where every player has a **professional identity**, every competition runs and communicates itself, a **national ranking** accumulates over time, and gaming-cafés (گیم‌نت) become connected nodes of the ecosystem.
 
