@@ -1,13 +1,18 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { COMPS, PLAYERS, DISC, statusColor, avatarBg, rankColor, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
+import { getComp, PLAYERS, DISC, statusColor, avatarBg, rankColor, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
 
 export function generateStaticParams() {
-  return COMPS.map((c) => ({ id: c.id }))
+  return [
+    { id: 'val-cl' },
+    { id: 'cs2-cup' },
+    { id: 'pubgm-ml' },
+    { id: 'fc-cup' },
+  ]
 }
 
 export default function CompetitionPage({ params }: { params: { id: string } }) {
-  const c = COMPS.find((x) => x.id === params.id)
+  const c = getComp(params.id)
   if (!c) return notFound()
 
   const disc = DISC[c.disc]

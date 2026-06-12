@@ -25,13 +25,18 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        // cache successful responses for pages + static assets
         if (res.ok) {
           const clone = res.clone()
-          caches.open(CACHE).then(c => c.put(e.request, clone))
+          caches.open(CACHE)
+            .then(c => c.put(e.request, clone))
+            .catch(() => {})
         }
         return res
       })
-      .catch(() => caches.match(e.request).then(r => r ?? caches.match('/')))
+      .catch(() =>
+        caches.match(e.request)
+          .then(r => r || caches.match('/'))
+          .then(r => r || new Response('offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
+      )
   )
 })

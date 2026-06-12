@@ -1,13 +1,13 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { PLAYERS, DISC, tierOf, rankColor, trendOf, avatarBg, sparkline, honorsFor, recentMatches } from '@/lib/mock-data'
+import { getPlayer, PLAYERS, DISC, tierOf, rankColor, trendOf, avatarBg, sparkline, honorsFor, recentMatches } from '@/lib/mock-data'
 
 export function generateStaticParams() {
   return PLAYERS.map((p) => ({ id: p.tag.toLowerCase() }))
 }
 
 export default function PlayerPage({ params }: { params: { id: string } }) {
-  const p = PLAYERS.find((x) => x.tag.toLowerCase() === params.id)
+  const p = getPlayer(params.id)
   if (!p) return notFound()
 
   const disc = DISC[p.disc]

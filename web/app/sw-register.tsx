@@ -6,7 +6,7 @@ export default function SwRegister() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .catch(() => {}) // silent in dev
+        .catch((err) => console.error('[SW] registration failed:', err))
     }
   }, [])
   return null
