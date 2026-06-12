@@ -1,16 +1,31 @@
 import './globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
+import SwRegister from './sw-register'
 
 export const metadata: Metadata = {
   title: 'Gameland — گیم‌لند',
   description: 'خانهٔ مسابقات و رنکینگ گیمرهای ایران',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'گیم‌لند',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0b0f14',
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fa" dir="rtl">
       <body className="font-sans">
+        <SwRegister />
         <header className="border-b divider sticky top-0 z-10 backdrop-blur bg-bg/80">
           <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
