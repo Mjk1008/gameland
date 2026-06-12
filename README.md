@@ -17,12 +17,19 @@ This repo holds the full strategy and product plan for Gameland, produced **befo
 
 Each stage uses skills/frameworks: TAM-SAM-SOM, PESTEL, JTBD, proto-personas, positioning, opportunity-solution tree, PRD, roadmap, business model, risk register.
 
-## Status — plan complete ✅ (build not started)
+## Status — Phase 1 UI complete ✅ · data ingest pending
 - [x] **Benchmark** — 11 platforms → [`docs/01`](docs/01-benchmark.md)
 - [x] **Data** — Iran market / gamenet / payments / regulation / footprint → [`docs/02`](docs/02-market-data.md), [`docs/03`](docs/03-pestel.md) (raw in [`research/`](research/))
 - [x] **Idea** — positioning / JTBD / personas / opportunity tree → [`docs/04`–`07`](docs/04-positioning.md)
 - [x] **Plan** — PRD / roadmap / business model / risks / tech → [`docs/08`–`12`](docs/08-prd.md)
-- [x] **Build (MVP scaffold)** — Next.js 14 + TS + Tailwind + Persian/RTL app in [`web/`](web/). Ranking engine + Gamer Bank + competition pages + notifications stub. `cd web && npm install && npm run dev`.
+- [x] **Build — UI (Phase 1)** — Next.js 14 PWA, all 6 screens (Claude Design), mock data, bottom nav. `cd web && npm install && npm run dev`.
+- [x] **DB schema** — `supabase/migrations/` (standard Postgres, runs on Liara or Supabase). See [`docs/16`](docs/16-infrastructure.md).
+- [ ] **Data ingest** — ~2,000 gamer Excel/PDF → seed real DB (pending founder data delivery)
+- [ ] **DB live** — Drizzle ORM + Liara Postgres wired
+- [ ] **Auth** — organizer login (NextAuth on Liara)
+- [ ] **SMS** — Kavenegar notifications
+
+> **Infra:** Liara (Iran) = primary · Supabase = secondary. See [`CLAUDE.md`](CLAUDE.md) and [`docs/16`](docs/16-infrastructure.md).
 
 ## ⚖️ Legal note (managed — not a blocker)
 Per founder direction: competitions are already run widely in Iran (incl. IRCG itself), so **permits come later and building proceeds now.** The design stays legally-safe **by default** — **sponsor-funded prizes** (never entry-funded pools) + **non-convertible coin wallet** + skill framing (the model IRCG's own Champions Cup uses) — so the gambling line (IPC Art. 705) isn't crossed and permits remain attainable. Risk scales with cash-prize size. Detail: [`docs/11-risks.md`](docs/11-risks.md).
@@ -48,3 +55,4 @@ Two more decisive findings: **(1)** Gameland's structural twin is **Smoothcomp**
 | 13 | [Data intake](docs/13-data-intake.md) | Phase 0 | player / event / result schema for ranking + Gamer Bank |
 | 14 | [Ranking design](docs/14-ranking-design.md) | Plan | the ranking system (focus #1) — points, tiers, decay, integrity |
 | 15 | [Competition engine](docs/15-competition-engine.md) | Plan | competition execution (focus #3) + notifications (focus #4) |
+| 16 | [Infrastructure](docs/16-infrastructure.md) | Build | Liara (primary/Iran) vs Supabase (secondary) · env vars · RLS · hosting |

@@ -1,0 +1,14 @@
+{
+  "app": "gameland",
+  "platform": "node",
+  "port": 3000,
+  "build": {
+    "command": "npm run build"
+  },
+  "start": {
+    "command": "npm run start"
+  },
+  "node": {
+    "version": "20"
+  }
+}
