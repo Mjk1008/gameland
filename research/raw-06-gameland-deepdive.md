@@ -2,20 +2,30 @@
 
 > Preserved for traceability. Note: founder states **~60K IG followers** (authoritative); tools can't crawl IG/Telegram, so public research can't see it.
 
-## Confirmed
-- **Marcocial profile** marcocial.com/p/gameland: confirms IG `@gamelandteam` + Telegram `@gamelandteam` = same entity. **0 events listed** (announcements/registration happen off-platform on IG/TG). Bio: "برای اطلاع از تاریخ مسابقات و تخفیف‌ها به پیج ما سر بزنید" [H].
-- **Physical gamenet "گیم لند" in Sadeghieh, Tehran** (didenet/tatilatmarket/kaghazbazi/dartehrankojast): console games **FIFA 18, PES 18, CoD, Tekken 7, Uncharted, Mortal Kombat, NFS** (listings ~2018–20). Phones 02144215854 / 09172200457; a listing cites IG `@gameland_club` (different handle) [M-H]. → likely the physical base/associate of the brand.
+## Confirmed (founder-stated, 2026-06-12) ✅
+- **Location: Amol (آمل), Mazandaran** — NOT Tehran/Sadeghieh. (The Sadeghieh gamenet = unrelated name collision.)
+- **Founder/operator: Arian Kordi (آرین کردی).**
+- **Brand: "برگزارکنندهٔ مسابقات در ایران"** — Iran tournament organizer.
+- **Origin reference:** "آفتاب ۱۸" (per founder; likely operating since ~2018 / 1398) — to confirm.
+- **Instagram: @gamelandteam · ~60K followers** + gamer-promo network · **Telegram: @gamelandteam.**
+- **~2,000-gamer database** (Excel + PDF: phone, name, discipline) from past competitions.
+
+## Confirmed (public research)
+- **Marcocial profile** marcocial.com/p/gameland: confirms `@gamelandteam` on both IG + Telegram. 0 events listed (registration off-platform on IG/TG) [H].
 - **Facebook** facebook.com/gamelandteam indexed (content unfetched) [L].
 
-## Best estimate
-- **Flagship discipline ≈ eFootball / EA FC (console)** — inferred from the gamenet's PS4 FIFA/PES inventory + "مسابقات/تخفیف" framing [M]. (Founder to confirm.)
-- Profile: **small, gamenet-adjacent, in-person console tournaments**, run via **IG + Telegram**; registration off-platform.
+## Best estimate / working assumption
+- **Flagship discipline ≈ eFootball / EA FC (console)** — common in Iranian community tournaments + matches the brief's mechanic; founder to confirm.
+- Operating model: **in-person, gamenet-based competitions in Amol/north Iran**; coordinated via IG + Telegram; off-platform registration today.
 
-## NOT found (explicit)
-IG/Telegram follower & post numbers (blocked); competition results / prize pools / participant counts; any sponsor or IRCG / Iran Esports Association tie; news mentions; dedicated website; Aparat/YouTube channel for the brand. Several unrelated "Gameland" entities exist (Zsoft mobile game; IRCG-licensed gamenet in Khorramabad; account-seller/tips blogs).
+## Name collisions (NOT Gameland team — flagged to avoid confusion)
+- Tehran/Sadeghieh "گیم لند" gamenet — unrelated entity.
+- IRCG-licensed gamenet "گیم لند" in Khorramabad (Lorestan, owner Pouria Ali Shahi) — unrelated.
+- "Gameland" mobile app by Zsoft Studio — unrelated.
+- gamelandacc.ir (account seller), gameland98.ir (tips blog) — unrelated.
 
 ## Implication
-Confirms the [02 §5](../docs/02-market-data.md) picture: real but dark-social brand. **Flagship = eFootball/EA FC** is the working assumption for the MVP discipline ([09-roadmap](../docs/09-roadmap.md)). Possible **physical gamenet anchor (Sadeghieh)** is an asset for the later gamenet-network pillar.
+Founder's brand = **Gameland (Amol) by Arian Kordi**, ~60K IG, ~2k-gamer DB. Real warm base, not dark-only. **Flagship = eFootball/EA FC** is the working assumption for MVP ([09-roadmap](../docs/09-roadmap.md)). North-Iran (Mazandaran) anchor gives a credible regional starting market before national scale.
 
 ## Sources
 marcocial.com/p/gameland, didenet.com, tatilatmarket.com, kaghazbazi.com, portal.ircg.ir/home/gnet_public, facebook.com/gamelandteam (indexed), ir.tgstat.com.

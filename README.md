@@ -22,7 +22,7 @@ Each stage uses skills/frameworks: TAM-SAM-SOM, PESTEL, JTBD, proto-personas, po
 - [x] **Data** — Iran market / gamenet / payments / regulation / footprint → [`docs/02`](docs/02-market-data.md), [`docs/03`](docs/03-pestel.md) (raw in [`research/`](research/))
 - [x] **Idea** — positioning / JTBD / personas / opportunity tree → [`docs/04`–`07`](docs/04-positioning.md)
 - [x] **Plan** — PRD / roadmap / business model / risks / tech → [`docs/08`–`12`](docs/08-prd.md)
-- [ ] **Build** — ready to start (legal handled in parallel, not a gate). Focus: ranking · data/Gamer Bank · competition execution · notifications.
+- [x] **Build (MVP scaffold)** — Next.js 14 + TS + Tailwind + Persian/RTL app in [`web/`](web/). Ranking engine + Gamer Bank + competition pages + notifications stub. `cd web && npm install && npm run dev`.
 
 ## ⚖️ Legal note (managed — not a blocker)
 Per founder direction: competitions are already run widely in Iran (incl. IRCG itself), so **permits come later and building proceeds now.** The design stays legally-safe **by default** — **sponsor-funded prizes** (never entry-funded pools) + **non-convertible coin wallet** + skill framing (the model IRCG's own Champions Cup uses) — so the gambling line (IPC Art. 705) isn't crossed and permits remain attainable. Risk scales with cash-prize size. Detail: [`docs/11-risks.md`](docs/11-risks.md).
