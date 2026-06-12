@@ -3,9 +3,44 @@
 @tailwind utilities;
 
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
 
 html, body { background: #0b0f14; color: #e6edf3; }
 * { -webkit-font-smoothing: antialiased; }
 
 .glow { box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 8px 30px rgba(34,211,238,.06); }
-.divider { border-color: #1a2330; }
+.divider { border-color: #1e293b; }
+
+/* Hide scrollbars */
+.gl-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.gl-scroll::-webkit-scrollbar { display: none; }
+
+/* Skeleton shimmer */
+.gl-skel {
+  background: linear-gradient(90deg, #121821 0%, #1b2433 50%, #121821 100%);
+  background-size: 400px 100%;
+  animation: glShimmer 1.2s linear infinite;
+  border-radius: 14px;
+}
+
+@keyframes glShimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.06); opacity: .85; }
+}
+
+@keyframes glLoad {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
+
+.animate-fade-up { animation: fadeUp .34s ease both; }

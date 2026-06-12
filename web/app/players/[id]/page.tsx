@@ -1,104 +1,138 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { competitions, disciplines, placements, players } from '@/lib/seed'
-import { computeRanking, honorsFor, TIER_LABEL_FA, titleCounts } from '@/lib/ranking'
+import { PLAYERS, DISC, tierOf, rankColor, trendOf, avatarBg, sparkline, honorsFor, recentMatches } from '@/lib/mock-data'
 
 export function generateStaticParams() {
-  return players.map((p) => ({ id: p.id }))
+  return PLAYERS.map((p) => ({ id: p.tag.toLowerCase() }))
 }
 
 export default function PlayerPage({ params }: { params: { id: string } }) {
-  const p = players.find((x) => x.id === params.id)
+  const p = PLAYERS.find((x) => x.tag.toLowerCase() === params.id)
   if (!p) return notFound()
-  const honors = honorsFor(p.id, competitions, placements)
-  const t = titleCounts(honors)
-  const ranks = computeRanking({
-    players, competitions, placements, disciplineId: 'efootball', windowDays: 7 * 52 * 5,
-  })
-  const myRankIndex = ranks.findIndex((r) => r.playerId === p.id)
-  const myEntry = myRankIndex >= 0 ? ranks[myRankIndex] : undefined
+
+  const disc = DISC[p.disc]
+  const tier = tierOf(p.rank)
+  const tr = trendOf(p.trend)
+  const spark = sparkline(p.points)
+  const honors = honorsFor(p.rank)
+  const matches = recentMatches(p)
+  const peakRank = p.rank <= 3 ? 1 : Math.max(1, p.rank - 3)
+  const streak = (p.points % 6) + 3
 
   return (
-    <div className="space-y-8">
-      <div className="bg-panel rounded-2xl p-6 glow flex flex-col md:flex-row gap-6">
-        <div className="w-24 h-24 rounded-2xl bg-accent/15 ring-1 ring-accent/40 grid place-items-center text-3xl font-extrabold text-accent">
-          {p.nickname.slice(0, 2).toUpperCase()}
-        </div>
-        <div className="flex-1">
-          <h1 className="text-3xl font-extrabold">{p.nickname}</h1>
-          <div className="text-muted mt-1">{p.fullName} · {p.city}{p.province && ` · ${p.province}`}</div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {p.disciplines.map((dId) => {
-              const d = disciplines.find((x) => x.id === dId)
-              return <span key={dId} className="px-2 py-1 rounded-full bg-bg/60 ring-1 ring-muted/30">{d?.nameFa ?? dId}</span>
-            })}
-            {p.playStyle && <span className="px-2 py-1 rounded-full bg-bg/60 ring-1 ring-muted/30">سبک: {p.playStyle}</span>}
-          </div>
-          {p.bio && <p className="text-sm text-muted mt-4 leading-7">{p.bio}</p>}
-        </div>
-        {myEntry && (
-          <div className="text-left md:text-right">
-            <div className="text-xs text-muted">رتبهٔ فعلی · ای‌فوتبال</div>
-            <div className="text-4xl font-extrabold text-accent">{(myRankIndex + 1).toLocaleString('fa-IR')}</div>
-            <div className="text-sm font-mono text-muted">{myEntry.points.toLocaleString('fa-IR')} امتیاز</div>
-          </div>
-        )}
+    <div className="animate-fade-up">
+      {/* Back header */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(11,15,20,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #1e293b' }}>
+        <Link href="/players" style={{ all: 'unset', cursor: 'pointer', width: 36, height: 36, borderRadius: 11, background: '#121821', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </Link>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>پروفایل گیمر</span>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
-        <Stat label="قهرمانی‌ها" value={t.champion} accent="gold" />
-        <Stat label="نایب‌قهرمانی" value={t.runnerUp} accent="silver" />
-        <Stat label="سوم" value={t.third} accent="bronze" />
-        <Stat label="حضور در تاپ-۸" value={t.top8} accent="accent" />
-      </div>
+      <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      <section>
-        <h2 className="text-xl font-bold mb-3">صفحهٔ افتخارات</h2>
-        <div className="bg-panel rounded-2xl glow overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="text-muted">
-              <tr className="border-b divider">
-                <th className="text-right px-5 py-3">مسابقه</th>
-                <th className="text-right px-5 py-3">تاریخ</th>
-                <th className="text-right px-5 py-3">رده</th>
-                <th className="text-right px-5 py-3">مقام</th>
-              </tr>
-            </thead>
-            <tbody>
-              {honors.length === 0 && (
-                <tr><td colSpan={4} className="text-center text-muted py-6">هنوز افتخاری ثبت نشده.</td></tr>
-              )}
-              {honors.map((h) => (
-                <tr key={h.competitionId} className="border-b divider last:border-b-0">
-                  <td className="px-5 py-3">
-                    <Link href={`/competitions/${h.competitionId}`} className="hover:text-accent font-semibold">
-                      {h.competitionName}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3 text-muted">{h.date.slice(0, 10)}</td>
-                  <td className="px-5 py-3 text-muted">{TIER_LABEL_FA[h.tier]}</td>
-                  <td className="px-5 py-3 font-bold">
-                    {h.rank === 1 ? <span className="text-gold">🏆 قهرمان</span>
-                      : h.rank === 2 ? <span className="text-silver">🥈 نایب‌قهرمان</span>
-                      : h.rank === 3 ? <span className="text-bronze">🥉 سوم</span>
-                      : <span>رتبهٔ {h.rank.toLocaleString('fa-IR')}</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Hero */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 13, paddingTop: 6 }}>
+          <div style={{ position: 'absolute', top: -8, width: 190, height: 130, borderRadius: '50%', background: `radial-gradient(circle, ${p.color}22 0%, transparent 70%)`, filter: 'blur(4px)' }} />
+          <div style={{ position: 'relative', width: 88, height: 88, borderRadius: 24, background: avatarBg(p.color), border: `1.5px solid ${p.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 30px -10px ${p.color}` }}>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 40, color: p.color }}>{p.tag[0]}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#f1f5f9' }}>{p.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#64748b' }}>
+              <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, color: '#94a3b8' }}>@{p.tag}</span>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#334155' }} />
+              <span>{p.city}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: tier.color, background: '#121821', border: '1px solid #1e293b', padding: '6px 13px', borderRadius: 999 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, transform: 'rotate(45deg)', background: tier.color }} />
+              {tier.label}
+            </span>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 12, fontWeight: 700, color: disc.color, background: avatarBg(disc.color), padding: '6px 12px', borderRadius: 999 }}>{disc.name}</span>
+          </div>
         </div>
-      </section>
-    </div>
-  )
-}
 
-function Stat({ label, value, accent }: { label: string; value: number; accent: 'gold'|'silver'|'bronze'|'accent' }) {
-  const cls = { gold: 'text-gold', silver: 'text-silver', bronze: 'text-bronze', accent: 'text-accent' }[accent]
-  return (
-    <div className="bg-panel rounded-2xl p-5 glow">
-      <div className="text-xs text-muted">{label}</div>
-      <div className={`text-3xl font-extrabold mt-1 ${cls}`}>{value.toLocaleString('fa-IR')}</div>
+        {/* Rank banner */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(90deg, rgba(245,200,75,.08), #121821)', border: '1px solid rgba(245,200,75,.25)', borderRadius: 18, padding: '16px 18px' }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>رتبهٔ ملی</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>از میان ۸٬۴۰۰ گیمر فعال</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 20, color: '#f5c84b' }}>#</span>
+            <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 48, lineHeight: 1, color: '#f5c84b', textShadow: '0 0 22px rgba(245,200,75,.35)' }}>{p.rank}</span>
+          </div>
+        </div>
+
+        {/* 6 stat tiles */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          {[
+            { val: p.points.toLocaleString('en-US'), label: 'امتیاز',      color: '#22d3ee' },
+            { val: `${p.winrate}٪`,                  label: 'نرخ برد',     color: '#e2e8f0' },
+            { val: p.matches.toLocaleString('en-US'),label: 'مسابقه',      color: '#e2e8f0' },
+            { val: `#${peakRank}`,                   label: 'بهترین رتبه', color: '#f5c84b' },
+            { val: String(streak),                   label: 'برد پیاپی',   color: '#34d399' },
+            { val: tr.label,                         label: 'تغییر هفته',  color: tr.color  },
+          ].map((s, i) => (
+            <div key={i} style={{ background: '#121821', border: '1px solid #1e293b', borderRadius: 14, padding: '13px 10px', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+              <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 22, color: s.color }}>{s.val}</span>
+              <span style={{ fontSize: 10, color: '#64748b' }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Sparkline */}
+        <div style={{ background: '#121821', border: '1px solid #1e293b', borderRadius: 16, padding: 15 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>روند امتیاز</span>
+            <span style={{ fontSize: 11, color: '#64748b' }}>۸ هفتهٔ اخیر</span>
+          </div>
+          <svg viewBox="0 0 100 32" preserveAspectRatio="none" style={{ width: '100%', height: 56, overflow: 'visible' }}>
+            <polyline points={spark} fill="none" stroke="#22d3ee" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+
+        {/* Honors */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>صفحهٔ افتخارات</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {honors.map((h, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 13, background: '#121821', border: '1px solid #1e293b', borderRadius: 14, padding: '12px 14px' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 11, border: `1px solid ${h.color}`, background: '#0b0f14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 18, color: h.color }}>{h.place}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>{h.title}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>مقام {h.place} · {h.year}</div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={h.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 9h12v3a6 6 0 0 1-12 0z"/><path d="M9 18h6M10 21h4"/><path d="M6 9H4a2 2 0 0 1 0-4h2M18 9h2a2 2 0 0 0 0-4h-2"/>
+                </svg>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent matches */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>مسابقات اخیر</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {matches.map((m, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, background: '#121821', border: '1px solid #1e293b', borderRadius: 13, padding: '10px 13px' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: m.resColor, background: m.resBg, padding: '4px 10px', borderRadius: 8, flexShrink: 0 }}>{m.resLabel}</span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>مقابل</span>
+                  <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, fontSize: 13, color: m.oppColor }}>{m.oppAt}</span>
+                </div>
+                <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 14, color: '#cbd5e1' }}>{m.score}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }
