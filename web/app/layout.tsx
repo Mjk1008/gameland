@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import SwRegister from './sw-register'
 import BottomNav from '@/components/BottomNav'
+import Providers from './providers'
 
 export const metadata: Metadata = {
   title: 'Gameland — گیم‌لند',
@@ -21,10 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fa" dir="rtl">
       <body className="font-sans" style={{ background: '#0b0f14', minHeight: '100vh' }}>
-        <main style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 88, minHeight: '100vh' }}>
-          {children}
-        </main>
-        <BottomNav />
+        <Providers>
+          <main style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 88, minHeight: '100vh' }}>
+            {children}
+          </main>
+          <BottomNav />
+        </Providers>
         <SwRegister />
       </body>
     </html>

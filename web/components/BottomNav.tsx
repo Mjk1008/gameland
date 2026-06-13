@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 const TABS = [
   {
@@ -41,10 +42,35 @@ const TABS = [
   },
 ]
 
+const ME_TAB = {
+  href: '/me',
+  label: 'من',
+  icon: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="9" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/>
+    </svg>
+  ),
+}
+const LOGIN_TAB = {
+  href: '/login',
+  label: 'ورود',
+  icon: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/>
+    </svg>
+  ),
+}
+
 export default function BottomNav() {
   const path = usePathname()
+  const { data: session, status } = useSession()
+  const tabs = [...TABS, status === 'authenticated' ? ME_TAB : LOGIN_TAB]
+
+  // Hide bottom nav on auth pages and admin pages
+  if (path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/admin')) return null
+
   const active = (href: string) =>
-    href === '/' ? path === '/' : path.startsWith(href)
+    href === '/' ? path === '/' : path?.startsWith(href)
 
   return (
     <nav
@@ -58,7 +84,7 @@ export default function BottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const on = active(t.href)
         return (
           <Link

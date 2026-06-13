@@ -1,0 +1,111 @@
+'use client'
+import { Suspense, useState } from 'react'
+import { signIn } from 'next-auth/react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+
+export default function LoginPage() {
+  return <Suspense fallback={null}><LoginInner /></Suspense>
+}
+
+function LoginInner() {
+  const router = useRouter()
+  const search = useSearchParams()
+  const callbackUrl = search.get('callbackUrl') || '/me'
+
+  const [step, setStep] = useState<'phone' | 'code'>('phone')
+  const [phone, setPhone] = useState('')
+  const [code,  setCode]  = useState('')
+  const [busy,  setBusy]  = useState(false)
+  const [err,   setErr]   = useState<string | null>(null)
+
+  async function sendCode(e: React.FormEvent) {
+    e.preventDefault(); setErr(null); setBusy(true)
+    try {
+      const res = await fetch('/api/otp', { method: 'POST', body: JSON.stringify({ phone }), headers: { 'Content-Type': 'application/json' } })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || 'خطا')
+      setStep('code')
+    } catch (e: any) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
+  async function submitCode(e: React.FormEvent) {
+    e.preventDefault(); setErr(null); setBusy(true)
+    try {
+      const r = await signIn('credentials', { phone, code, redirect: false, callbackUrl })
+      if (r?.error) throw new Error('کد اشتباه یا منقضی شده')
+      // Check if user exists; if not signed in via __new__ flow, push to signup
+      const session = await (await fetch('/api/auth/session')).json()
+      if (session?.uid === '__new__' || (!session?.uid && r?.ok)) {
+        router.push(`/signup?phone=${encodeURIComponent(phone)}&code=${encodeURIComponent(code)}`)
+      } else {
+        router.push(callbackUrl)
+        router.refresh()
+      }
+    } catch (e: any) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 18px' }}>
+      <div style={{ marginBottom: 28, textAlign: 'center' }}>
+        <Link href="/" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 32, letterSpacing: '.05em', color: '#22d3ee', textDecoration: 'none' }} dir="ltr">GAMELAND</Link>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ورود به حساب</div>
+      </div>
+
+      <form onSubmit={step === 'phone' ? sendCode : submitCode} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>شمارهٔ موبایل</span>
+          <input
+            dir="ltr"
+            inputMode="numeric"
+            pattern="09\d{9}"
+            placeholder="09120000000"
+            value={phone}
+            disabled={step === 'code'}
+            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+            style={{ background: '#121821', border: '1px solid #1e293b', borderRadius: 12, padding: '13px 14px', color: '#e2e8f0', fontFamily: 'Rajdhani, sans-serif', fontSize: 17, textAlign: 'left', letterSpacing: '.05em', outline: 'none' }}
+            required
+          />
+        </label>
+
+        {step === 'code' && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>کد ارسال‌شده</span>
+            <input
+              dir="ltr"
+              inputMode="numeric"
+              pattern="\d{6}"
+              placeholder="123456"
+              value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              style={{ background: '#121821', border: '1px solid #1e293b', borderRadius: 12, padding: '13px 14px', color: '#e2e8f0', fontFamily: 'Rajdhani, sans-serif', fontSize: 22, textAlign: 'center', letterSpacing: '.3em', outline: 'none' }}
+              autoFocus
+              required
+            />
+            <span style={{ fontSize: 11, color: '#475569', textAlign: 'center' }}>برای تست: کد <b dir="ltr">123456</b> همیشه کار می‌کنه</span>
+          </label>
+        )}
+
+        {err && <div style={{ fontSize: 12, color: '#fb7185', background: '#fb71851a', border: '1px solid #fb718533', padding: 10, borderRadius: 10 }}>{err}</div>}
+
+        <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 12, opacity: busy ? 0.6 : 1 }}>
+          {busy ? '...' : step === 'phone' ? 'ارسال کد' : 'تأیید و ورود'}
+        </button>
+
+        {step === 'code' && (
+          <button type="button" onClick={() => { setStep('phone'); setCode(''); setErr(null) }} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', fontSize: 12, color: '#64748b' }}>
+            تغییر شماره
+          </button>
+        )}
+
+        <div style={{ marginTop: 18, padding: 12, background: '#121821', border: '1px solid #1e293b', borderRadius: 10, fontSize: 11, color: '#64748b', lineHeight: 1.8 }}>
+          <div>حساب تست:</div>
+          <div>• ادمین → <span dir="ltr">09120000000</span> / کد <span dir="ltr">123456</span></div>
+          <div>• گیمر → <span dir="ltr">09121111111</span> / کد <span dir="ltr">123456</span></div>
+        </div>
+      </form>
+    </div>
+  )
+}

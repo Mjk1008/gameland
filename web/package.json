@@ -11,11 +11,14 @@
     "icons": "node scripts/gen-icons.mjs"
   },
   "dependencies": {
+    "bcryptjs": "2.4.3",
     "next": "14.2.33",
+    "next-auth": "4.24.10",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "2.4.6",
     "@types/node": "20.16.10",
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.0",
