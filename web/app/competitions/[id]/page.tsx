@@ -1,19 +1,19 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { getComp, PLAYERS, DISC, statusColor, avatarBg, rankColor, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
+import { getRegistration } from '@/lib/store'
 
-export function generateStaticParams() {
-  return [
-    { id: 'val-cl' },
-    { id: 'cs2-cup' },
-    { id: 'pubgm-ml' },
-    { id: 'fc-cup' },
-  ]
-}
+export const dynamic = 'force-dynamic'
 
-export default function CompetitionPage({ params }: { params: { id: string } }) {
+export default async function CompetitionPage({ params }: { params: { id: string } }) {
   const c = getComp(params.id)
   if (!c) return notFound()
+
+  const session = await getServerSession(authOptions)
+  const uid = (session as any)?.uid as string | undefined
+  const reg = uid ? getRegistration(uid, params.id) : undefined
 
   const disc = DISC[c.disc]
   const sc = statusColor(c.status)
@@ -54,6 +54,19 @@ export default function CompetitionPage({ params }: { params: { id: string } }) 
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
             <span style={{ fontSize: 13, color: '#94a3b8' }}>{c.date}</span>
           </div>
+
+          {/* Registration CTA */}
+          {c.status !== 'done' && (
+            reg ? (
+              <Link href={`/competitions/${c.id}/me`} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#121821', border: '1px solid #f5c84b', borderRadius: 13, padding: '13px 0', color: '#f5c84b', fontWeight: 700, fontSize: 14 }}>
+                روندنمای من ({reg.attempts} شانس) ›
+              </Link>
+            ) : (
+              <Link href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 800, fontSize: 15, padding: '14px 0', borderRadius: 13 }}>
+                {uid ? 'ثبت‌نام در این مسابقه' : 'ورود برای ثبت‌نام'}
+              </Link>
+            )
+          )}
         </div>
 
         {/* Prize pool */}
