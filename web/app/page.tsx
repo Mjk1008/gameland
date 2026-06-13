@@ -154,6 +154,17 @@ export default async function HomePage() {
         </div>
       </div>
 
+      {/* Footer */}
+      <div style={{ marginTop: 8, padding: '12px 0 0', borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'center', gap: 14, fontSize: 11, color: '#475569' }}>
+        <Link href="/about"    style={{ color: '#64748b', textDecoration: 'none' }}>درباره</Link>
+        <span>·</span>
+        <Link href="/rules"    style={{ color: '#64748b', textDecoration: 'none' }}>قوانین</Link>
+        <span>·</span>
+        <Link href="/sponsors" style={{ color: '#64748b', textDecoration: 'none' }}>حامیان</Link>
+        <span>·</span>
+        <Link href="/gamenets" style={{ color: '#64748b', textDecoration: 'none' }}>گیم‌نت</Link>
+      </div>
+
     </div>
   )
 }

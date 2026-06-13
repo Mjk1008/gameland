@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, coinBalance } from '@/lib/store'
 import { COMPS, DISC, avatarBg } from '@/lib/mock-data'
 
 export default async function MePage() {
@@ -32,13 +32,17 @@ export default async function MePage() {
       </div>
 
       {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9, marginBottom: 18 }}>
+        <Link href="/me/wallet" style={tile}>
+          <span style={{ fontSize: 11, color: '#64748b' }}>سکه</span>
+          <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 22, color: '#f5c84b' }}>{coinBalance(uid).toLocaleString('en-US')}</span>
+        </Link>
         <Link href="/me/competitions" style={tile}>
-          <span style={{ fontSize: 11, color: '#64748b' }}>مسابقات من</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>مسابقات</span>
           <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 22, color: '#22d3ee' }}>{regs.length}</span>
         </Link>
         <Link href="/me/notifications" style={tile}>
-          <span style={{ fontSize: 11, color: '#64748b' }}>اعلان‌ها</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>اعلان</span>
           <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 22, color: unread > 0 ? '#f5c84b' : '#e2e8f0' }}>{unread > 0 ? unread : '—'}</span>
         </Link>
       </div>
@@ -94,12 +98,20 @@ export default async function MePage() {
         </div>
       )}
 
-      {/* Logout */}
-      <form action="/api/auth/signout" method="POST" style={{ marginTop: 24 }}>
-        <button type="submit" style={{ all: 'unset', cursor: 'pointer', width: '100%', textAlign: 'center', padding: '12px 0', fontSize: 12, color: '#64748b', border: '1px solid #1e293b', borderRadius: 11 }}>
-          خروج
-        </button>
-      </form>
+      {/* Settings + footer */}
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Link href="/me/settings" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#121821', border: '1px solid #1e293b', borderRadius: 11 }}>
+          <span style={{ fontSize: 13, color: '#e2e8f0' }}>تنظیمات</span>
+          <span style={{ color: '#475569' }}>›</span>
+        </Link>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 4, fontSize: 10, color: '#475569' }}>
+          <Link href="/about" style={{ color: '#475569' }}>درباره</Link>
+          <span>·</span>
+          <Link href="/rules" style={{ color: '#475569' }}>قوانین</Link>
+          <span>·</span>
+          <Link href="/sponsors" style={{ color: '#475569' }}>حامیان</Link>
+        </div>
+      </div>
     </div>
   )
 }

@@ -32,16 +32,26 @@ See full details → [`docs/16-infrastructure.md`](docs/16-infrastructure.md)
 
 ## DB migrations
 
-Folder: `supabase/migrations/` — **standard Postgres SQL, not Supabase-specific**.
-The folder name is a convention; the SQL runs on Liara Postgres identically.
+Two migration files exist; they target different scopes:
 
-To apply on Liara:
+| File | Purpose |
+|---|---|
+| `supabase/migrations/20260101000000_initial_schema.sql` | Full domain schema (14 tables, RLS, ranking MATVIEW, coin ledger view, trigger) — designed for production with auth wired. |
+| `web/lib/db/init.sql` | Lean app-prefix schema (`app_*` tables) matching `lib/db/schema.ts` — the runtime Drizzle layer reads/writes these. Apply this first to make the app persist. |
+
+To go live on Liara Postgres:
 ```bash
-psql $DATABASE_URL -f supabase/migrations/20260101000000_initial_schema.sql
-psql $DATABASE_URL -f supabase/seed.sql
+# 1. Provision DB on Liara → grab connection URL
+# 2. Apply the app schema
+psql $DATABASE_URL -f web/lib/db/init.sql
+# 3. Set on the app
+liara env set DATABASE_URL=postgresql://... -a gameland -f
+# 4. Restart will auto-pick up; lib/db/client.ts lazy-connects on first request
 ```
 
-To apply on Supabase: use the Supabase dashboard or `supabase db push`.
+Until `DATABASE_URL` is set, `lib/store.ts` runs in-memory (data resets on restart). With `DATABASE_URL` set, the persistence shim writes through to Postgres.
+
+To apply on Supabase: use the Supabase dashboard SQL editor or `supabase db push`.
 
 ## RLS note
 

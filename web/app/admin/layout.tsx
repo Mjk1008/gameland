@@ -7,10 +7,13 @@ import { getUserById } from '@/lib/store'
 export const dynamic = 'force-dynamic'
 
 const TABS = [
-  { href: '/admin',          label: 'داشبورد' },
-  { href: '/admin/events',   label: 'مسابقات' },
-  { href: '/admin/gamers',   label: 'گیمرها' },
-  { href: '/admin/notify',   label: 'اعلان' },
+  { href: '/admin',             label: 'داشبورد' },
+  { href: '/admin/events',      label: 'مسابقات' },
+  { href: '/admin/gamers',      label: 'گیمرها' },
+  { href: '/admin/gamenets',    label: 'گیم‌نت‌ها' },
+  { href: '/admin/disciplines', label: 'رشته‌ها' },
+  { href: '/admin/sponsors',    label: 'حامیان' },
+  { href: '/admin/notify',      label: 'اعلان' },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

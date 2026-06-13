@@ -1,8 +1,14 @@
-// In-memory store for MVP. Each entity has a clean read/write API
-// matching what a Drizzle/Postgres layer will look like later.
-// Swap one entity at a time to real DB once DATABASE_URL is set.
+// In-memory store with write-through to Postgres when DATABASE_URL is set.
+// All public APIs are sync (reads from memory cache); DB writes are
+// fire-and-forget. On first request, ensureHydrated() pulls existing rows
+// from DB into the cache.
+//
+// Buyer flip: provision Postgres → apply lib/db/init.sql → set DATABASE_URL
+// → restart. Data persists across restarts automatically.
 
 import { PLAYERS as MOCK_PLAYERS, Player, Disc } from './mock-data'
+import { persist, startHydration } from './db/persistence'
+import { usingDb } from './db/client'
 
 // ─── Users ──────────────────────────────────────────────────────────────────
 
@@ -17,6 +23,7 @@ export interface User {
   primaryDisc: Disc | null
   nationalId?: string
   role: Role
+  coinBalance: number
   createdAt: number
   playerId?: string
 }
@@ -27,6 +34,32 @@ const usersByTag = new Map<string, string>()
 
 // Seed a default admin so you can log in immediately (phone: 09120000000, OTP: 123456)
 seedAdmin()
+
+// Trigger DB hydration on module load. Loaders merge into the same maps so
+// in-memory queries see persisted rows after the async load completes.
+ensureHydrated()
+function ensureHydrated() {
+  startHydration({
+    loadUser:  (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
+    loadEvent: (e: Event) => { events.set(e.id, e) },
+    loadReg:   (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
+    loadNotif: (n: Notification) => { notifs.push(n) },
+  })
+}
+
+function upsertUserInMemory(u: User, fromDb = false) {
+  const existing = users.get(u.id)
+  if (existing) {
+    Object.assign(existing, u)
+    usersByPhone.set(existing.phone, existing.id)
+    usersByTag.set(existing.tag.toLowerCase(), existing.id)
+    return existing
+  }
+  users.set(u.id, u)
+  usersByPhone.set(u.phone, u.id)
+  usersByTag.set(u.tag.toLowerCase(), u.id)
+  return u
+}
 function seedAdmin() {
   const id = 'u_admin'
   const admin: User = {
@@ -37,6 +70,7 @@ function seedAdmin() {
     city: 'تهران',
     primaryDisc: null,
     role: 'admin',
+    coinBalance: 0,
     createdAt: Date.now(),
   }
   users.set(id, admin)
@@ -53,6 +87,7 @@ function seedAdmin() {
     city: z.city,
     primaryDisc: z.disc,
     role: 'gamer',
+    coinBalance: 1000, // starter coins
     createdAt: Date.now(),
     playerId: 'p_zeus',
   }
@@ -75,21 +110,22 @@ export function getUserByTag(tag: string): User | undefined {
   return id ? users.get(id) : undefined
 }
 
-export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role'> & { role?: Role }): User {
+export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'> & { role?: Role; coinBalance?: number }): User {
   if (usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
   if (usersByTag.has(input.tag.toLowerCase())) throw new Error('TAG_TAKEN')
   if (input.nationalId) {
     for (const u of users.values()) if (u.nationalId === input.nationalId) throw new Error('NATIONAL_ID_TAKEN')
   }
   const id = 'u_' + Math.random().toString(36).slice(2, 10)
-  const u: User = { ...input, id, role: input.role ?? 'gamer', createdAt: Date.now() }
+  const u: User = { ...input, id, role: input.role ?? 'gamer', coinBalance: input.coinBalance ?? 100, createdAt: Date.now() }
   users.set(id, u)
   usersByPhone.set(u.phone, id)
   usersByTag.set(u.tag.toLowerCase(), id)
+  persist.user.insert(u)
   return u
 }
 
-export function updateUser(id: string, patch: Partial<Omit<User, 'id' | 'createdAt' | 'role'>>): User {
+export function updateUser(id: string, patch: Partial<Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'>>): User {
   const u = users.get(id)
   if (!u) throw new Error('USER_NOT_FOUND')
   if (patch.tag && patch.tag.toLowerCase() !== u.tag.toLowerCase()) {
@@ -98,6 +134,7 @@ export function updateUser(id: string, patch: Partial<Omit<User, 'id' | 'created
     usersByTag.set(patch.tag.toLowerCase(), id)
   }
   Object.assign(u, patch)
+  persist.user.update(id, patch)
   return u
 }
 
@@ -155,6 +192,7 @@ export function createEvent(input: Omit<Event, 'id' | 'createdAt'>): Event {
   const id = 'e_' + Math.random().toString(36).slice(2, 10)
   const e: Event = { ...input, id, createdAt: Date.now() }
   events.set(id, e)
+  persist.event.insert(e)
   return e
 }
 
@@ -191,6 +229,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     createdAt: Date.now(),
   }
   regs.set(key, r)
+  persist.reg.insert(r)
   return r
 }
 
@@ -220,6 +259,7 @@ export function recordPrelimOutcome(regId: string, outcome: 'advance' | 'elimina
     r.seedsEarned += 1
   }
   r.prelimsCompleted += 1
+  persist.reg.update(r.id, { seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted })
   return r
 }
 
@@ -249,6 +289,7 @@ export function pushNotif(userId: string, type: NotifType, title: string, body: 
     read: false, createdAt: Date.now(),
   }
   notifs.unshift(n)
+  persist.notif.insert(n)
 
   // Fire-and-forget SMS for important types
   if (SMS_TRIGGERS.includes(type)) {
@@ -271,8 +312,224 @@ export function markNotifRead(id: string) {
 
 export function markAllNotifsRead(userId: string) {
   for (const n of notifs) if (n.userId === userId && !n.read) n.read = true
+  persist.notif.markAllRead(userId)
 }
 
 export function unreadCount(userId: string): number {
   return notifs.filter(n => n.userId === userId && !n.read).length
 }
+
+// ─── Coin wallet ────────────────────────────────────────────────────────────
+// Append-only ledger; balance derived from sum of deltas.
+// Reasons: 'topup' (credit), 'attempt' (debit for tournament entry),
+// 'refund' (credit), 'bonus' (credit), 'fee' (debit).
+// Coins are non-convertible to cash (legal safety per docs/11-risks).
+
+export interface CoinTxn {
+  id: string
+  userId: string
+  delta: number
+  reason: 'topup' | 'attempt' | 'refund' | 'bonus' | 'fee'
+  ref?: string
+  createdAt: number
+}
+
+const coinTxns: CoinTxn[] = []
+
+export function coinTxnsForUser(userId: string): CoinTxn[] {
+  return coinTxns.filter(t => t.userId === userId).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+export function coinBalance(userId: string): number {
+  const u = users.get(userId)
+  return u?.coinBalance ?? 0
+}
+
+export function applyCoinTxn(userId: string, delta: number, reason: CoinTxn['reason'], ref?: string): CoinTxn {
+  const u = users.get(userId)
+  if (!u) throw new Error('USER_NOT_FOUND')
+  if (delta < 0 && u.coinBalance + delta < 0) throw new Error('INSUFFICIENT_BALANCE')
+  u.coinBalance += delta
+  const t: CoinTxn = {
+    id: 't_' + Math.random().toString(36).slice(2, 10),
+    userId, delta, reason, ref,
+    createdAt: Date.now(),
+  }
+  coinTxns.unshift(t)
+  persist.user.setCoinBalance(userId, u.coinBalance)
+  persist.coinTxn.insert(t.id, userId, delta, reason, ref)
+  return t
+}
+
+// ─── Gamenets ───────────────────────────────────────────────────────────────
+
+export interface Gamenet {
+  id: string
+  ownerId: string
+  name: string
+  city: string
+  address: string
+  phone?: string
+  stations: number
+  disciplines: string[] // disc ids
+  verified: boolean
+  createdAt: number
+}
+
+const gamenets = new Map<string, Gamenet>()
+
+export function createGamenet(input: Omit<Gamenet, 'id' | 'createdAt' | 'verified'>): Gamenet {
+  const id = 'gn_' + Math.random().toString(36).slice(2, 10)
+  const g: Gamenet = { ...input, id, verified: false, createdAt: Date.now() }
+  gamenets.set(id, g)
+  return g
+}
+
+export function allGamenets(): Gamenet[] {
+  return Array.from(gamenets.values()).sort((a, b) => Number(b.verified) - Number(a.verified) || b.createdAt - a.createdAt)
+}
+
+export function getGamenet(id: string): Gamenet | undefined {
+  return gamenets.get(id)
+}
+
+export function gamenetsForOwner(ownerId: string): Gamenet[] {
+  return Array.from(gamenets.values()).filter(g => g.ownerId === ownerId)
+}
+
+export function gamenetsByCity(city: string): Gamenet[] {
+  return Array.from(gamenets.values()).filter(g => g.city.includes(city))
+}
+
+export function verifyGamenet(id: string, verified: boolean) {
+  const g = gamenets.get(id)
+  if (g) g.verified = verified
+}
+
+// Seed a couple of demo gamenets
+;(function seedGamenets() {
+  if (gamenets.size > 0) return
+  createGamenet({ ownerId: 'u_admin', name: 'گیم‌نت پارادایس', city: 'تهران', address: 'سعادت‌آباد، خ کاج', phone: '02122334455', stations: 24, disciplines: ['valorant', 'cs2'] })
+  createGamenet({ ownerId: 'u_admin', name: 'استدیو وی پلی',  city: 'مشهد',  address: 'سجاد، نبش امام رضا', phone: '05133445566', stations: 18, disciplines: ['valorant', 'fc'] })
+  // Mark first as verified
+  const first = Array.from(gamenets.values())[0]
+  if (first) first.verified = true
+})()
+
+// ─── Disciplines (admin-managed) ───────────────────────────────────────────
+// Currently mirrors DISC in mock-data.ts; admin can add more.
+
+export interface DisciplineRow {
+  id: string
+  name: string
+  short: string
+  color: string
+  active: boolean
+}
+
+const disciplines = new Map<string, DisciplineRow>()
+
+;(function seedDisciplines() {
+  if (disciplines.size > 0) return
+  const seed: DisciplineRow[] = [
+    { id: 'valorant', name: 'ولورنت',       short: 'VAL',   color: '#fb7185', active: true },
+    { id: 'cs2',      name: 'کانتر ۲',      short: 'CS2',   color: '#fbbf24', active: true },
+    { id: 'pubgm',    name: 'پابجی موبایل', short: 'PUBGM', color: '#34d399', active: true },
+    { id: 'fc',       name: 'EA FC',        short: 'FC',    color: '#38bdf8', active: true },
+  ]
+  for (const d of seed) disciplines.set(d.id, d)
+})()
+
+export function allDisciplines(): DisciplineRow[] {
+  return Array.from(disciplines.values())
+}
+export function createDiscipline(d: DisciplineRow): DisciplineRow {
+  if (disciplines.has(d.id)) throw new Error('DISCIPLINE_EXISTS')
+  disciplines.set(d.id, d)
+  return d
+}
+export function updateDiscipline(id: string, patch: Partial<DisciplineRow>): DisciplineRow {
+  const d = disciplines.get(id)
+  if (!d) throw new Error('DISCIPLINE_NOT_FOUND')
+  Object.assign(d, patch)
+  return d
+}
+
+// ─── Sponsors (admin-managed) ──────────────────────────────────────────────
+
+export interface SponsorRow {
+  id: string
+  name: string
+  logoUrl?: string
+  website?: string
+}
+
+const sponsors = new Map<string, SponsorRow>()
+
+;(function seedSponsors() {
+  if (sponsors.size > 0) return
+  const seed: SponsorRow[] = [
+    { id: 's-cube',    name: 'مکعب',     website: 'https://maka3b.ir' },
+    { id: 's-oxin',    name: 'اوکسین',  website: 'https://oxin.io' },
+    { id: 's-tapsell', name: 'تپسل',     website: 'https://tapsell.ir' },
+    { id: 's-ngg',     name: 'NG Games', website: 'https://nggames.io' },
+  ]
+  for (const s of seed) sponsors.set(s.id, s)
+})()
+
+export function allSponsors(): SponsorRow[] {
+  return Array.from(sponsors.values())
+}
+export function createSponsor(s: SponsorRow): SponsorRow {
+  if (sponsors.has(s.id)) throw new Error('SPONSOR_EXISTS')
+  sponsors.set(s.id, s)
+  return s
+}
+export function updateSponsor(id: string, patch: Partial<SponsorRow>): SponsorRow {
+  const s = sponsors.get(id)
+  if (!s) throw new Error('SPONSOR_NOT_FOUND')
+  Object.assign(s, patch)
+  return s
+}
+
+// ─── Matches (real bracket draws + match-level results) ────────────────────
+
+export interface Match {
+  id: string
+  compId: string
+  bracket: number       // 0 = final, 1-6 = prelim
+  round: number
+  slot: number
+  p1UserId?: string
+  p2UserId?: string
+  winnerUserId?: string
+  score?: string
+  status: 'pending' | 'ready' | 'done'
+  createdAt: number
+}
+
+const matches: Match[] = []
+
+export function matchesForComp(compId: string): Match[] {
+  return matches.filter(m => m.compId === compId).sort((a, b) => a.bracket - b.bracket || a.round - b.round || a.slot - b.slot)
+}
+
+export function clearMatchesForComp(compId: string) {
+  for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId) matches.splice(i, 1)
+}
+
+export function pushMatch(m: Match) {
+  matches.push(m)
+}
+
+export function getMatch(id: string): Match | undefined {
+  return matches.find(m => m.id === id)
+}
+
+export function findNextMatch(compId: string, bracket: number, round: number, slot: number): Match | undefined {
+  // Winner of round R slot S feeds round R+1 slot floor(S/2)
+  return matches.find(m => m.compId === compId && m.bracket === bracket && m.round === round + 1 && m.slot === Math.floor(slot / 2))
+}
+
+// usingDb is exported for callers that want to know the persistence mode
+export { usingDb }

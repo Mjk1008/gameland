@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { COMPS, DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { allEvents, registrationsForComp, getUserById } from '@/lib/store'
+import { allEvents, registrationsForComp, getUserById, matchesForComp } from '@/lib/store'
 import ResultControls from './result-controls'
+import DrawButton from './draw-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,8 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         <Stat label="شانس کل" value={totalAttempts} color="#94a3b8"/>
         <Stat label="seed به فاینال" value={totalSeeds} color="#f5c84b"/>
       </div>
+
+      <DrawButton compId={c.id} drawn={matchesForComp(c.id).length > 0} regCount={regs.length}/>
 
       <ResultControls compId={c.id} regs={regs.map(r => ({ id: r.id, userId: r.userId, attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, userName: getUserById(r.userId)?.name || '?', userTag: getUserById(r.userId)?.tag || '?' }))}/>
 
