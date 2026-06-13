@@ -64,6 +64,58 @@
 - [x] Logged-in users see champion + leaderboard + active comps dashboard
 - [x] BottomNav shows "ورود" for guests, "من" for logged-in
 
+## Phase F — DB persistence ✅
+
+- [x] Drizzle ORM + postgres-js driver, lazy connection via DATABASE_URL
+- [x] Schema mirrors all runtime entities (users, events, regs, notifs, coin txns, matches, gamenets, disciplines, sponsors)
+- [x] `lib/db/init.sql` — single-file migration with seed
+- [x] Write-through persistence shim (reads from memory cache, writes fire-and-forget to DB, hydrates from DB on cold start)
+- [x] Documented in CLAUDE.md: buyer provisions DB → applies init.sql → sets DATABASE_URL → restart
+
+## Phase G — Coin wallet ✅
+
+- [x] `coinBalance`, `applyCoinTxn`, `coinTxnsForUser` (append-only ledger)
+- [x] `/me/wallet` — balance hero, quick topup buttons (+100/+500/+1000/+5000), txn history
+- [x] `/api/wallet/topup` — Shaparak gateway stub (instant credit in dev)
+- [x] Registration deducts 100 coins/attempt; `INSUFFICIENT_BALANCE` blocked
+- [x] Wallet tile + balance shown on `/me` dashboard
+
+## Phase H — Real bracket + match results ✅
+
+- [x] `lib/bracket.ts` — deterministic shuffle into 6 prelim brackets, full bracket tree per round
+- [x] `/api/admin/draw` — generates the draw, notifies all participants
+- [x] `/api/admin/match` — admin records winner + score, auto-advances winner to next round
+- [x] Bracket view (`/competitions/[id]/bracket`) shows real matches when drawn, placeholder otherwise
+- [x] Bye handling via power-of-2 padding
+
+## Phase I — Gamenet directory ✅
+
+- [x] `/gamenets` directory + `/gamenets/[id]` profile
+- [x] `/gamenets/new` self-registration (any authed user)
+- [x] `/admin/gamenets` verify toggle
+- [x] BottomNav "گیم‌نت" tab
+
+## Phase J — Search + filter ✅
+
+- [x] Functional discipline chips on leaderboard
+- [x] Search across name / tag / city
+- [x] Live counter X/Y, empty state
+
+## Phase K — Disciplines + sponsors admin ✅
+
+- [x] `/admin/disciplines` (admin-only add)
+- [x] `/admin/sponsors` (admin-only add)
+- [x] Admin layout now has 7 tabs
+
+## Phase L — Polish ✅
+
+- [x] `/about` (4 pillars + legal framing + contact)
+- [x] `/rules` (structure / scoring / tiebreakers / financial / conduct)
+- [x] `/sponsors` public listing
+- [x] `/me/settings` (account, gamenet, about, logout)
+- [x] `/not-found` 404 page
+- [x] Footer links on home page
+
 ## Phase F — Real data + DB
 
 - [ ] Provision Postgres on Liara
