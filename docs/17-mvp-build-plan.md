@@ -20,50 +20,49 @@
 
 ---
 
-## Phase A — Foundation (auth + sessions + data store)
+## Phase A — Foundation (auth + sessions + data store) ✅
 
-- [ ] NextAuth route + credentials provider (phone + OTP stub)
-- [ ] Login page `/login` (phone → OTP step)
-- [ ] Signup page `/signup` (new user: name, tag, city, primary discipline)
-- [ ] Session context + logout
-- [ ] Add `users`, `attempts`, `seeds`, `bracket_matches`, `notifications` to in-memory store (DB schema already exists in `supabase/migrations/`)
-- [ ] Middleware: redirect un-authed users away from gated pages
-- [ ] Role check helper
+- [x] NextAuth route + credentials provider (phone + OTP stub)
+- [x] Login page `/login` (phone → OTP step)
+- [x] Signup page `/signup` (new user: name, tag, city, primary discipline)
+- [x] Session context + logout
+- [x] In-memory store with `users`, `events`, `registrations`, `notifications`
+- [x] Role check (gamer / organizer / admin) in `/admin/*` layout
+- [x] Seeded test users — admin (09120000000) + ZEUS gamer (09121111111), OTP 123456
 
-## Phase B — Gamer flows
+## Phase B — Gamer flows ✅
 
-- [ ] Profile edit `/me/edit` (Gamer Bank — city, disciplines, contact, play-style)
-- [ ] My dashboard `/me` (registrations, notifications, roadmap shortcuts)
-- [ ] Tournament registration `/competitions/[id]/register` — buy 1–6 attempts (legal-safe coin model, not cash)
-- [ ] My competitions `/me/competitions` — list of registered events
-- [ ] Bracket view `/competitions/[id]/bracket` — preliminary brackets + final
-- [ ] My roadmap `/competitions/[id]/me` — per-player view: which seed, which match next
-- [ ] Honors page is already part of `/players/[tag]` — verify ingest
+- [x] Profile edit `/me/edit` (name, tag, city, disc, national ID)
+- [x] My dashboard `/me` (registrations, notifications, open events, admin CTA)
+- [x] Tournament registration `/competitions/[id]/register` — 1–6 attempts picker, 100 coins/attempt, legal-safe disclaimer
+- [x] My competitions `/me/competitions`
+- [x] Bracket view `/competitions/[id]/bracket` — 6 prelim brackets + final
+- [x] My roadmap `/competitions/[id]/me` — per-attempt status + stage timeline
 
-## Phase C — Admin / organizer panel
+## Phase C — Admin / organizer panel ✅
 
-- [ ] Admin layout `/admin/*` with role-gate
-- [ ] Admin dashboard `/admin` — active events, recent registrations, pending results
-- [ ] Event list `/admin/events`
-- [ ] Event create `/admin/events/new` — discipline, dates, prize, format, tier, sponsors
-- [ ] Event detail `/admin/events/[id]` — participants, brackets, status controls
-- [ ] Bracket generator `/admin/events/[id]/draw` — 1–6 prelim brackets, seed top N to final
-- [ ] Result entry `/admin/events/[id]/results` — pick winner per match → triggers ranking + notif
-- [ ] Gamer admin `/admin/gamers` — search, multi-account detection flags
-- [ ] Notification composer `/admin/notify` — send to filtered audience
+- [x] Admin layout `/admin/*` (role-gated)
+- [x] Admin dashboard `/admin` — counts + quick CTAs + event list
+- [x] Event list `/admin/events`
+- [x] Event create `/admin/events/new` — title, season, disc, prize, teams, format, date, status
+- [x] Event detail `/admin/events/[id]` — registrations, advance/eliminate per attempt
+- [x] Result entry — advance triggers seed +1, eliminate just consumes attempt
+- [x] Gamer admin `/admin/gamers` — list + role badge + missing-national-ID flag
+- [x] Notification composer `/admin/notify` — broadcast to all / gamers-only
 
-## Phase D — Notifications
+## Phase D — Notifications ✅
 
-- [ ] Notification entity (id, recipient_id, channel, type, payload, status)
-- [ ] In-app notification bell on header
-- [ ] Notification list `/me/notifications`
-- [ ] SMS adapter (Kavenegar, stub mode if no API key)
-- [ ] Triggers: registration confirmed, draw published, match in N min, result entered, you advance
+- [x] Notification entity in store
+- [x] Notification list `/me/notifications` (auto-marks read on view)
+- [x] SMS adapter `lib/sms.ts` (Kavenegar with verify-lookup + raw send; dev stub when no key)
+- [x] Auto-push triggers: registration, result (advance/eliminate), broadcast
+- [x] BottomNav unread badge (polled via `/api/notif-count`)
 
-## Phase E — Landing for non-authed
+## Phase E — Landing for non-authed ✅
 
-- [ ] Better landing `/` for guests (hero, value props, "register / login" CTAs)
-- [ ] Auth-aware home: if logged in → show dashboard; if not → show landing
+- [x] Auth-aware home: guest hero banner ("خانهٔ گیمرهای ایران") + CTAs
+- [x] Logged-in users see champion + leaderboard + active comps dashboard
+- [x] BottomNav shows "ورود" for guests, "من" for logged-in
 
 ## Phase F — Real data + DB
 
