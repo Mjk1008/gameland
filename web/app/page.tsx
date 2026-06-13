@@ -1,7 +1,13 @@
 import Link from 'next/link'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { PLAYERS, COMPS, DISC, tierOf, rankColor, trendOf, avatarBg, statusColor } from '@/lib/mock-data'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const session = await getServerSession(authOptions)
+  const signedIn = !!(session as any)?.uid
   const champ = PLAYERS[0]
   const champDisc = DISC[champ.disc]
   const champTrend = trendOf(champ.trend)
@@ -22,6 +28,25 @@ export default function HomePage() {
           <span style={{ fontSize: 10, color: '#94a3b8' }}>آنلاین</span>
         </div>
       </div>
+
+      {/* Guest CTA banner */}
+      {!signedIn && (
+        <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0d1b2a 0%, #0b0f14 100%)', border: '1px solid #22d3ee33', borderRadius: 18, padding: '18px 16px' }}>
+          <div style={{ position: 'absolute', top: -20, left: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, #22d3ee22 0%, transparent 70%)' }}/>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9' }}>خانهٔ گیمرهای ایران</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6, lineHeight: 1.7 }}>
+                Gamer Bank · رنکینگ ملی · مسابقات حرفه‌ای · صفحهٔ افتخارات
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Link href="/login" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 800, fontSize: 13, padding: '11px 0', borderRadius: 11 }}>ورود</Link>
+              <Link href="/login" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#121821', color: '#22d3ee', fontWeight: 700, fontSize: 13, padding: '11px 0', borderRadius: 11, border: '1px solid #22d3ee44' }}>ثبت‌نام رایگان</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Champion hero */}
       <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 20, border: '1px solid rgba(245,200,75,.28)', background: '#121821', padding: 16 }}>

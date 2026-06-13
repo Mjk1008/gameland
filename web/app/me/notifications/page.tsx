@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, notifsForUser } from '@/lib/store'
+import { getUserById, notifsForUser, markAllNotifsRead } from '@/lib/store'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +21,8 @@ export default async function NotificationsPage() {
   if (!uid || !getUserById(uid)) redirect('/login?callbackUrl=/me/notifications')
 
   const list = notifsForUser(uid)
+  // Mark all as read on view
+  markAllNotifsRead(uid)
 
   return (
     <div className="animate-fade-up">

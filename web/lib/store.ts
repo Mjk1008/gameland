@@ -239,6 +239,9 @@ export interface Notification {
 
 const notifs: Notification[] = []
 
+// SMS triggers for high-importance notification types (mirror to phone)
+const SMS_TRIGGERS: NotifType[] = ['registration', 'draw', 'match_ready', 'advance']
+
 export function pushNotif(userId: string, type: NotifType, title: string, body: string): Notification {
   const n: Notification = {
     id: 'n_' + Math.random().toString(36).slice(2, 10),
@@ -246,6 +249,14 @@ export function pushNotif(userId: string, type: NotifType, title: string, body: 
     read: false, createdAt: Date.now(),
   }
   notifs.unshift(n)
+
+  // Fire-and-forget SMS for important types
+  if (SMS_TRIGGERS.includes(type)) {
+    const u = users.get(userId)
+    if (u) {
+      import('./sms').then(m => m.sendSms({ to: u.phone, text: `${title}\n${body}` })).catch(() => {})
+    }
+  }
   return n
 }
 
@@ -256,6 +267,10 @@ export function notifsForUser(userId: string): Notification[] {
 export function markNotifRead(id: string) {
   const n = notifs.find(x => x.id === id)
   if (n) n.read = true
+}
+
+export function markAllNotifsRead(userId: string) {
+  for (const n of notifs) if (n.userId === userId && !n.read) n.read = true
 }
 
 export function unreadCount(userId: string): number {

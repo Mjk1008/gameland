@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { useEffect, useState } from 'react'
 
 const TABS = [
   {
@@ -66,6 +67,16 @@ export default function BottomNav() {
   const { data: session, status } = useSession()
   const tabs = [...TABS, status === 'authenticated' ? ME_TAB : LOGIN_TAB]
 
+  const [notifCount, setNotifCount] = useState(0)
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    let cancelled = false
+    const tick = () => fetch('/api/notif-count').then(r => r.json()).then(j => { if (!cancelled) setNotifCount(j.count || 0) }).catch(() => {})
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [status, path])
+
   // Hide bottom nav on auth pages and admin pages
   if (path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/admin')) return null
 
@@ -95,12 +106,16 @@ export default function BottomNav() {
               justifyContent: 'center', gap: 4, textDecoration: 'none',
               color: on ? '#22d3ee' : '#64748b',
               transition: 'color .15s',
+              position: 'relative',
             }}
           >
             {t.icon}
             <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'Vazirmatn, sans-serif' }}>
               {t.label}
             </span>
+            {t.href === '/me' && notifCount > 0 && (
+              <span style={{ position: 'absolute', top: 8, right: 'calc(50% - 22px)', minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999, background: '#f5c84b', color: '#0b0f14', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }} dir="ltr">{notifCount > 9 ? '9+' : notifCount}</span>
+            )}
           </Link>
         )
       })}
