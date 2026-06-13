@@ -206,6 +206,23 @@ export function registrationsForComp(compId: string): Registration[] {
   return Array.from(regs.values()).filter(r => r.compId === compId)
 }
 
+export function getRegistrationById(id: string): Registration | undefined {
+  for (const r of regs.values()) if (r.id === id) return r
+  return undefined
+}
+
+export function recordPrelimOutcome(regId: string, outcome: 'advance' | 'eliminate'): Registration {
+  const r = getRegistrationById(regId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  if (r.prelimsCompleted >= r.attempts) throw new Error('NO_ATTEMPTS_LEFT')
+  if (outcome === 'advance') {
+    if (r.seedsEarned >= 3) throw new Error('MAX_SEEDS_REACHED')
+    r.seedsEarned += 1
+  }
+  r.prelimsCompleted += 1
+  return r
+}
+
 // ─── Notifications ──────────────────────────────────────────────────────────
 
 export type NotifType = 'registration' | 'draw' | 'match_ready' | 'result' | 'advance' | 'announcement'
