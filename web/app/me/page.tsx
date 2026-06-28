@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { getUserById, registrationsForUser, notifsForUser, unreadCount, coinBalance } from '@/lib/store'
-import { COMPS, DISC, avatarBg } from '@/lib/mock-data'
+import { DISC, avatarBg } from '@/lib/mock-data'
+import { allEvents } from '@/lib/store'
 
 export default async function MePage() {
   const session = await getServerSession(authOptions)
@@ -61,8 +62,8 @@ export default async function MePage() {
           <Link href="/competitions" style={{ fontSize: 11, color: '#22d3ee', textDecoration: 'none' }}>همه ›</Link>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {COMPS.filter(c => c.status === 'open' || c.status === 'live' || c.status === 'soon').slice(0, 3).map(c => {
-            const d = DISC[c.disc]
+          {allEvents().filter(c => c.status === 'open' || c.status === 'live' || c.status === 'soon').slice(0, 3).map(c => {
+            const d = DISC[c.disc as keyof typeof DISC]
             const reg = regs.find(r => r.compId === c.id)
             return (
               <Link key={c.id} href={reg ? `/competitions/${c.id}/me` : `/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#121821', border: '1px solid #1e293b', borderRadius: 12 }}>

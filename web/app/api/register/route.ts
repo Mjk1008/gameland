@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, pushNotif, getUserById, applyCoinTxn, coinBalance } from '@/lib/store'
-import { COMPS } from '@/lib/mock-data'
+import { createRegistration, pushNotif, getUserById, applyCoinTxn, coinBalance, getEvent } from '@/lib/store'
 
 const COINS_PER_ATTEMPT = 100
 
@@ -16,7 +15,7 @@ export async function POST(req: Request) {
   const compId = (body.compId ?? '').toString()
   const attempts = Number(body.attempts)
   if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد شانس باید ۱ تا ۶ باشد' }, { status: 400 })
-  const c = COMPS.find(x => x.id === compId)
+  const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
   if (c.status === 'done')  return NextResponse.json({ error: 'این مسابقه پایان یافته' }, { status: 400 })
 

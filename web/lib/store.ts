@@ -40,10 +40,11 @@ seedAdmin()
 ensureHydrated()
 function ensureHydrated() {
   startHydration({
-    loadUser:  (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
-    loadEvent: (e: Event) => { events.set(e.id, e) },
-    loadReg:   (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
-    loadNotif: (n: Notification) => { notifs.push(n) },
+    loadUser:      (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
+    loadEvent:     (e: Event) => { events.set(e.id, e) },
+    loadReg:       (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
+    loadNotif:     (n: Notification) => { notifs.push(n) },
+    loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
   })
 }
 
@@ -176,6 +177,7 @@ export interface Event {
   title: string
   season: string
   disc: Disc
+  tier: 'S' | 'A' | 'B' | 'C'
   prize: number
   teams: number
   status: 'live' | 'open' | 'soon' | 'done'
@@ -190,10 +192,17 @@ const events = new Map<string, Event>()
 
 export function createEvent(input: Omit<Event, 'id' | 'createdAt'>): Event {
   const id = 'e_' + Math.random().toString(36).slice(2, 10)
-  const e: Event = { ...input, id, createdAt: Date.now() }
+  const e: Event = { tier: 'A', ...input, id, createdAt: Date.now() }
   events.set(id, e)
   persist.event.insert(e)
   return e
+}
+
+export function updateEventStatus(id: string, status: Event['status'], statusLabel: string) {
+  const e = events.get(id)
+  if (!e) throw new Error('EVENT_NOT_FOUND')
+  e.status = status
+  e.statusLabel = statusLabel
 }
 
 export function allEvents(): Event[] {
@@ -476,6 +485,41 @@ const sponsors = new Map<string, SponsorRow>()
   ]
   for (const s of seed) sponsors.set(s.id, s)
 })()
+
+// ─── Placements (final competition results → feeds ranking engine) ─────────
+
+export interface Placement {
+  id: string
+  userId: string
+  compId: string
+  disc: Disc
+  rank: number           // 1 = champion
+  createdAt: number
+}
+
+const placements: Placement[] = []
+
+export function storePlacement(userId: string, compId: string, disc: Disc, rank: number): Placement {
+  const existing = placements.find(p => p.userId === userId && p.compId === compId)
+  if (existing) { existing.rank = rank; return existing }
+  const pl: Placement = {
+    id: 'pl_' + Math.random().toString(36).slice(2, 10),
+    userId, compId, disc, rank, createdAt: Date.now(),
+  }
+  placements.push(pl)
+  persist.placement.insert(pl)
+  return pl
+}
+
+export function allPlacements(): Placement[] { return [...placements] }
+
+export function placementsForUser(userId: string): Placement[] {
+  return placements.filter(p => p.userId === userId)
+}
+
+export function placementsForComp(compId: string): Placement[] {
+  return placements.filter(p => p.compId === compId)
+}
 
 export function allSponsors(): SponsorRow[] {
   return Array.from(sponsors.values())

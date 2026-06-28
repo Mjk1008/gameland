@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS app_events (
   title         TEXT NOT NULL,
   season        TEXT NOT NULL,
   disc          TEXT NOT NULL,
+  tier          TEXT NOT NULL DEFAULT 'A',
   prize         INTEGER NOT NULL,
   teams         INTEGER NOT NULL,
   status        TEXT NOT NULL,
@@ -29,6 +30,19 @@ CREATE TABLE IF NOT EXISTS app_events (
   organizer_id  TEXT NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE app_events ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'A';
+
+CREATE TABLE IF NOT EXISTS app_placements (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL,
+  comp_id     TEXT NOT NULL,
+  disc        TEXT NOT NULL,
+  rank        INTEGER NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, comp_id)
+);
+CREATE INDEX IF NOT EXISTS pl_user_idx ON app_placements (user_id);
+CREATE INDEX IF NOT EXISTS pl_comp_idx ON app_placements (comp_id);
 
 CREATE TABLE IF NOT EXISTS app_registrations (
   id                 TEXT PRIMARY KEY,

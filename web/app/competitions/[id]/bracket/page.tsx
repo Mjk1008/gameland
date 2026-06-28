@@ -1,20 +1,19 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { COMPS, PLAYERS, DISC, avatarBg } from '@/lib/mock-data'
-import { matchesForComp, getUserByTag, getUserById } from '@/lib/store'
+import { DISC, avatarBg } from '@/lib/mock-data'
+import { getEvent, matchesForComp, getUserById } from '@/lib/store'
 
 export const dynamic = 'force-dynamic'
 
 export default function BracketPage({ params }: { params: { id: string } }) {
-  const c = COMPS.find(x => x.id === params.id)
+  const c = getEvent(params.id)
   if (!c) return notFound()
-  const d = DISC[c.disc]
+  const d = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: '#94a3b8' }
 
   const real = matchesForComp(c.id)
   const drawn = real.length > 0
 
   if (drawn) {
-    // Group matches by bracket then round
     const byBracket: Record<number, Record<number, typeof real>> = {}
     for (const m of real) {
       byBracket[m.bracket] ??= {}
@@ -53,34 +52,33 @@ export default function BracketPage({ params }: { params: { id: string } }) {
     )
   }
 
-  // Not drawn yet — show placeholder bracket from PLAYERS pool for context
-  const pool = PLAYERS.filter(p => p.disc === c.disc)
-  const slots = Array.from({ length: 24 }, (_, i) => pool[i % pool.length])
-  const brackets = Array.from({ length: 6 }, (_, b) => slots.slice(b * 4, b * 4 + 4))
+  // Not drawn yet — show empty numbered slots
+  const BRACKET_COUNT = 6
+  const SLOTS_PER_BRACKET = 4
 
   return (
     <div className="animate-fade-up">
       <Header c={c}/>
       <div style={{ padding: '14px 16px 28px' }}>
-        <Info text="هنوز قرعه‌کشی انجام نشده. نمونهٔ زیر شکل کلی براکت رو نشون می‌ده."/>
+        <Info text="هنوز قرعه‌کشی انجام نشده. پس از ثبت‌نام‌ها، ادمین قرعه‌کشی رو انجام می‌ده."/>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>
-          {brackets.map((bracket, bi) => (
+          {Array.from({ length: BRACKET_COUNT }, (_, bi) => (
             <div key={bi}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>براکت {bi + 1}</span>
-                <span style={{ fontSize: 10, color: '#64748b' }}>۴ نفر · حذفی تک</span>
+                <span style={{ fontSize: 10, color: '#64748b' }}>{SLOTS_PER_BRACKET} نفر · حذفی تک</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', background: '#121821', border: '1px solid #1e293b', borderRadius: 13, padding: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <PlaceholderSlot p={bracket[0]}/>
-                  <PlaceholderSlot p={bracket[1]}/>
+                  <EmptySlot label={`${bi * SLOTS_PER_BRACKET + 1}`}/>
+                  <EmptySlot label={`${bi * SLOTS_PER_BRACKET + 2}`}/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, color: '#475569' }}>
                   <Line/><Line/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <PlaceholderSlot p={bracket[2]}/>
-                  <PlaceholderSlot p={bracket[3]}/>
+                  <EmptySlot label={`${bi * SLOTS_PER_BRACKET + 3}`}/>
+                  <EmptySlot label={`${bi * SLOTS_PER_BRACKET + 4}`}/>
                 </div>
               </div>
             </div>
@@ -129,14 +127,13 @@ function UserCell({ u, isWinner, d }: { u: any; isWinner: boolean; d: any }) {
     </div>
   )
 }
-function PlaceholderSlot({ p }: { p: any }) {
-  if (!p) return <div style={{ padding: '8px 10px', background: '#0b0f14', border: '1px dashed #1e293b', borderRadius: 9, fontSize: 11, color: '#475569', textAlign: 'center' }}>—</div>
+function EmptySlot({ label }: { label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#0b0f14', border: '1px solid #1e293b', borderRadius: 9, opacity: 0.6 }}>
-      <div style={{ width: 22, height: 22, borderRadius: 6, background: avatarBg(p.color), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 11, color: p.color }}>{p.tag[0]}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#0b0f14', border: '1px dashed #1e293b', borderRadius: 9, opacity: 0.5 }}>
+      <div style={{ width: 22, height: 22, borderRadius: 6, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 11, color: '#475569' }}>{label}</span>
       </div>
-      <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 11, fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{p.tag}</span>
+      <span style={{ fontSize: 11, color: '#334155' }}>در انتظار قرعه‌کشی</span>
     </div>
   )
 }

@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { allUsers, allEvents } from '@/lib/store'
-import { COMPS } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
 
 export default function AdminHome() {
   const userCount = allUsers().length
   const events = allEvents()
-  const liveComps = COMPS.filter(c => c.status === 'live' || c.status === 'open').length
+  const liveComps = events.filter(c => c.status === 'live' || c.status === 'open').length
 
   return (
     <div style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -28,7 +27,7 @@ export default function AdminHome() {
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 }}>مسابقات</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {COMPS.map(c => (
+          {events.map(c => (
             <Link key={c.id} href={`/admin/events/${c.id}`} style={row}>
               <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0', flex: 1 }}>{c.title}</span>
               <span style={{ fontSize: 11, color: '#64748b' }}>{c.statusLabel}</span>

@@ -1,14 +1,14 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { COMPS, DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { allEvents, registrationsForComp, getUserById, matchesForComp } from '@/lib/store'
+import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
+import { getEvent, registrationsForComp, getUserById, matchesForComp } from '@/lib/store'
 import ResultControls from './result-controls'
 import DrawButton from './draw-button'
 
 export const dynamic = 'force-dynamic'
 
 export default function AdminEventPage({ params }: { params: { id: string } }) {
-  const c = COMPS.find(x => x.id === params.id) ?? allEvents().find(x => x.id === params.id)
+  const c = getEvent(params.id)
   if (!c) return notFound()
 
   const d = DISC[c.disc as keyof typeof DISC]

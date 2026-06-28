@@ -17,10 +17,11 @@ let hydrating: Promise<void> | null = null
 let hydrated = false
 
 export function startHydration(loaders: {
-  loadUser:  (u: any) => void
-  loadEvent: (e: any) => void
-  loadReg:   (r: any) => void
-  loadNotif: (n: any) => void
+  loadUser:      (u: any) => void
+  loadEvent:     (e: any) => void
+  loadReg:       (r: any) => void
+  loadNotif:     (n: any) => void
+  loadPlacement: (pl: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -38,11 +39,19 @@ export function startHydration(loaders: {
       const ev = await d.select().from(schema.events)
       for (const e of ev) loaders.loadEvent({
         id: e.id, title: e.title, season: e.season, disc: e.disc,
+        tier: (e as any).tier ?? 'A',
         prize: e.prize, teams: e.teams, status: e.status as any,
         statusLabel: e.statusLabel, format: e.format, date: e.date ?? '',
         organizerId: e.organizerId,
         createdAt: e.createdAt instanceof Date ? e.createdAt.getTime() : Date.now(),
       })
+      const pls = await d.select().from(schema.placements)
+      for (const pl of pls) loaders.loadPlacement({
+        id: pl.id, userId: pl.userId, compId: pl.compId,
+        disc: pl.disc, rank: pl.rank,
+        createdAt: pl.createdAt instanceof Date ? pl.createdAt.getTime() : Date.now(),
+      })
+      console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs')
       const rg = await d.select().from(schema.registrations)
       for (const r of rg) loaders.loadReg({
         id: r.id, userId: r.userId, compId: r.compId,
@@ -55,7 +64,6 @@ export function startHydration(loaders: {
         body: n.body, read: n.read,
         createdAt: n.createdAt instanceof Date ? n.createdAt.getTime() : Date.now(),
       })
-      console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', ns.length, 'notifs')
     } catch (err) {
       console.error('[db] hydration failed; continuing in-memory:', err)
     } finally {
@@ -107,6 +115,7 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.events).values({
         id: e.id, title: e.title, season: e.season, disc: e.disc,
+        tier: e.tier ?? 'A',
         prize: e.prize, teams: e.teams, status: e.status,
         statusLabel: e.statusLabel, format: e.format, date: e.date,
         organizerId: e.organizerId,
@@ -149,6 +158,14 @@ export const persist = {
     insert(id: string, userId: string, delta: number, reason: string, ref?: string) {
       const d = db(); if (!d) return
       fire(d.insert(schema.coinTxns).values({ id, userId, delta, reason, ref }))
+    },
+  },
+  placement: {
+    insert(pl: { id: string; userId: string; compId: string; disc: string; rank: number }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.placements).values({
+        id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
+      }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
     },
   },
 }

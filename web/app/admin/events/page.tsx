@@ -1,15 +1,11 @@
 import Link from 'next/link'
 import { allEvents } from '@/lib/store'
-import { COMPS, DISC, avatarBg, statusColor } from '@/lib/mock-data'
+import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
 
 export default function AdminEventsPage() {
-  const newEvents = allEvents()
-  const all = [
-    ...newEvents.map(e => ({ id: e.id, title: e.title, disc: e.disc, status: e.status, statusLabel: e.statusLabel, season: e.season, prize: e.prize, teams: e.teams, isNew: true })),
-    ...COMPS.map(c => ({ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, season: c.season, prize: c.prize, teams: c.teams, isNew: false })),
-  ]
+  const all = allEvents().map(e => ({ id: e.id, title: e.title, disc: e.disc, status: e.status, statusLabel: e.statusLabel, season: e.season, prize: e.prize, teams: e.teams }))
 
   return (
     <div style={{ padding: '14px 16px 28px' }}>

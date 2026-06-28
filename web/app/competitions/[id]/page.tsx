@@ -2,24 +2,33 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getComp, PLAYERS, DISC, statusColor, avatarBg, rankColor, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
-import { getRegistration } from '@/lib/store'
+import { DISC, statusColor, avatarBg, rankColor, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
+import { getRegistration, getEvent, placementsForComp, getUserById } from '@/lib/store'
 
 export const dynamic = 'force-dynamic'
 
 export default async function CompetitionPage({ params }: { params: { id: string } }) {
-  const c = getComp(params.id)
+  const c = getEvent(params.id)
   if (!c) return notFound()
 
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid as string | undefined
   const reg = uid ? getRegistration(uid, params.id) : undefined
 
-  const disc = DISC[c.disc]
+  const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: '#94a3b8' }
   const sc = statusColor(c.status)
   const breakdown = prizeBreakdown(c.prize)
   const roadmap = roadmapStages(c.status)
-  const topPlayers = PLAYERS.filter((p) => p.disc === c.disc).slice(0, 4)
+
+  // Top finishers from real placements
+  const compPlacements = placementsForComp(params.id)
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 4)
+    .map(pl => {
+      const u = getUserById(pl.userId)
+      return u ? { rank: pl.rank, name: u.name, tag: u.tag, city: u.city } : null
+    })
+    .filter(Boolean) as { rank: number; name: string; tag: string; city: string }[]
 
   return (
     <div className="animate-fade-up">
@@ -125,22 +134,26 @@ export default async function CompetitionPage({ params }: { params: { id: string
           </div>
         </div>
 
-        {/* Top players */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>گیمرهای شاخص</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {topPlayers.map((p) => (
-              <Link key={p.rank} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: '#121821', border: '1px solid #1e293b', borderRadius: 13, padding: '10px 13px' }}>
-                <span dir="ltr" style={{ width: 22, textAlign: 'center', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 16, color: rankColor(p.rank) }}>{p.rank}</span>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: avatarBg(p.color), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 15, color: p.color }}>{p.tag[0]}</span>
-                </div>
-                <span style={{ flex: 1, fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>{p.name}</span>
-                <span dir="ltr" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 15, color: '#cbd5e1' }}>{p.points.toLocaleString('en-US')}</span>
-              </Link>
-            ))}
+        {/* Top finishers */}
+        {compPlacements.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>نتایج نهایی</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {compPlacements.map((p) => (
+                <Link key={p.rank} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: '#121821', border: '1px solid #1e293b', borderRadius: 13, padding: '10px 13px' }}>
+                  <span dir="ltr" style={{ width: 22, textAlign: 'center', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 16, color: rankColor(p.rank) }}>{p.rank}</span>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 15, color: '#94a3b8' }}>{p.tag[0]}</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>{p.city}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

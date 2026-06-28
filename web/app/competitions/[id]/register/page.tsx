@@ -1,14 +1,14 @@
 import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { COMPS, DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration } from '@/lib/store'
+import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
+import { getUserById, getRegistration, getEvent } from '@/lib/store'
 import RegisterForm from './form'
 
 export const dynamic = 'force-dynamic'
 
 export default async function RegisterPage({ params }: { params: { id: string } }) {
-  const c = COMPS.find(x => x.id === params.id)
+  const c = getEvent(params.id)
   if (!c) return notFound()
 
   const session = await getServerSession(authOptions)

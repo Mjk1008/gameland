@@ -13,6 +13,7 @@ export default function NewEventForm() {
   const [teams,  setTeams]  = useState(64)
   const [format, setFormat] = useState('حذفی دوگانه')
   const [date,   setDate]   = useState('')
+  const [tier,   setTier]   = useState<'S' | 'A' | 'B' | 'C'>('A')
   const [status, setStatus] = useState<'open' | 'soon' | 'live'>('open')
   const [busy,   setBusy]   = useState(false)
   const [err,    setErr]    = useState<string | null>(null)
@@ -26,7 +27,7 @@ export default function NewEventForm() {
     try {
       const res = await fetch('/api/admin/events', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, season, disc, prize, teams, format, date, status, statusLabel: statusLabels[status] }),
+        body: JSON.stringify({ title, season, disc, tier, prize, teams, format, date, status, statusLabel: statusLabels[status] }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'خطا')
@@ -64,6 +65,14 @@ export default function NewEventForm() {
         <Field label="تعداد تیم"><input type="number" min="2" value={teams} onChange={e => setTeams(Number(e.target.value))} required style={inp}/></Field>
       </div>
 
+      <Field label="تایر مسابقه (برای امتیازبندی)">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {([['S','ماژور'],['A','گیم‌لند'],['B','آل‌استار'],['C','محلی']] as const).map(([k, label]) => {
+            const on = tier === k
+            return <button key={k} type="button" onClick={() => setTier(k)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '9px 0', border: `1px solid ${on ? '#f5c84b' : '#1e293b'}`, borderRadius: 10, background: on ? '#f5c84b22' : '#121821', color: on ? '#f5c84b' : '#94a3b8', fontWeight: 600, fontSize: 12 }}>{label}</button>
+          })}
+        </div>
+      </Field>
       <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی دوگانه / سوئیسی + حذفی / امتیازی"/></Field>
       <Field label="تاریخ (متن)"><input value={date} onChange={e => setDate(e.target.value)} style={inp} placeholder="۱۲ – ۲۸ تیر ۱۴۰۵"/></Field>
 

@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser } from '@/lib/store'
-import { COMPS, DISC, avatarBg, statusColor } from '@/lib/mock-data'
+import { getUserById, registrationsForUser, getEvent } from '@/lib/store'
+import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +32,7 @@ export default async function MyCompetitionsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
             {regs.map(r => {
-              const c = COMPS.find(x => x.id === r.compId)
+              const c = getEvent(r.compId)
               if (!c) return null
               const d = DISC[c.disc], sc = statusColor(c.status)
               return (

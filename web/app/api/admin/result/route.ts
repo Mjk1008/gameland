@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, recordPrelimOutcome, pushNotif, getRegistrationById } from '@/lib/store'
-import { COMPS } from '@/lib/mock-data'
+import { getUserById, recordPrelimOutcome, pushNotif, getRegistrationById, getEvent } from '@/lib/store'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -19,7 +18,7 @@ export async function POST(req: Request) {
 
   try {
     const r = recordPrelimOutcome(regId, outcome)
-    const c = COMPS.find(x => x.id === compId)
+    const c = getEvent(compId)
     const title = outcome === 'advance' ? 'به فاینال راه یافتی! 🎉' : 'حذف از مقدماتی'
     const body  = c
       ? `${c.title} — شانس ${r.prelimsCompleted}/${r.attempts} ${outcome === 'advance' ? 'صعود کرد' : 'حذف شد'}`

@@ -22,6 +22,7 @@ export const events = pgTable('app_events', {
   title:        text('title').notNull(),
   season:       text('season').notNull(),
   disc:         text('disc').notNull(),
+  tier:         text('tier').notNull().default('A'),
   prize:        integer('prize').notNull(),
   teams:        integer('teams').notNull(),
   status:       text('status').notNull(),
@@ -31,6 +32,18 @@ export const events = pgTable('app_events', {
   organizerId:  text('organizer_id').notNull(),
   createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const placements = pgTable('app_placements', {
+  id:        text('id').primaryKey(),
+  userId:    text('user_id').notNull(),
+  compId:    text('comp_id').notNull(),
+  disc:      text('disc').notNull(),
+  rank:      integer('rank').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  byUser: index('pl_user_idx').on(t.userId),
+  byComp: index('pl_comp_idx').on(t.compId),
+}))
 
 export const registrations = pgTable('app_registrations', {
   id:               text('id').primaryKey(),
