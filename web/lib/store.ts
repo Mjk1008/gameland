@@ -16,7 +16,10 @@ export type Role = 'gamer' | 'organizer' | 'admin'
 
 export interface User {
   id: string
-  phone: string
+  email?: string
+  googleSub?: string
+  avatarUrl?: string
+  phone?: string
   name: string
   tag: string
   city: string
@@ -25,12 +28,15 @@ export interface User {
   role: Role
   coinBalance: number
   createdAt: number
+  deletedAt?: number
   playerId?: string
 }
 
 const users = new Map<string, User>()
 const usersByPhone = new Map<string, string>()
 const usersByTag = new Map<string, string>()
+const usersByEmail = new Map<string, string>()
+const usersByGoogleSub = new Map<string, string>()
 
 // Seed a default admin so you can log in immediately (phone: 09120000000, OTP: 123456)
 seedAdmin()
@@ -45,20 +51,26 @@ function ensureHydrated() {
     loadReg:       (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
     loadNotif:     (n: Notification) => { notifs.push(n) },
     loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
+    loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
   })
+}
+
+function indexUser(u: User) {
+  if (u.phone) usersByPhone.set(u.phone, u.id)
+  usersByTag.set(u.tag.toLowerCase(), u.id)
+  if (u.email) usersByEmail.set(u.email.toLowerCase(), u.id)
+  if (u.googleSub) usersByGoogleSub.set(u.googleSub, u.id)
 }
 
 function upsertUserInMemory(u: User, fromDb = false) {
   const existing = users.get(u.id)
   if (existing) {
     Object.assign(existing, u)
-    usersByPhone.set(existing.phone, existing.id)
-    usersByTag.set(existing.tag.toLowerCase(), existing.id)
+    indexUser(existing)
     return existing
   }
   users.set(u.id, u)
-  usersByPhone.set(u.phone, u.id)
-  usersByTag.set(u.tag.toLowerCase(), u.id)
+  indexUser(u)
   return u
 }
 function seedAdmin() {
@@ -75,8 +87,7 @@ function seedAdmin() {
     createdAt: Date.now(),
   }
   users.set(id, admin)
-  usersByPhone.set(admin.phone, id)
-  usersByTag.set(admin.tag.toLowerCase(), id)
+  indexUser(admin)
 
   // Also seed a default gamer (phone: 09121111111, OTP: 123456) linked to PLAYERS[0]
   const z = MOCK_PLAYERS[0]
@@ -93,8 +104,7 @@ function seedAdmin() {
     playerId: 'p_zeus',
   }
   users.set(g.id, g)
-  usersByPhone.set(g.phone, g.id)
-  usersByTag.set(g.tag.toLowerCase(), g.id)
+  indexUser(g)
 }
 
 export function getUserByPhone(phone: string): User | undefined {
@@ -111,8 +121,55 @@ export function getUserByTag(tag: string): User | undefined {
   return id ? users.get(id) : undefined
 }
 
+export function getUserByEmail(email: string): User | undefined {
+  const id = usersByEmail.get(email.toLowerCase())
+  return id ? users.get(id) : undefined
+}
+
+export function getUserByGoogleSub(sub: string): User | undefined {
+  const id = usersByGoogleSub.get(sub)
+  return id ? users.get(id) : undefined
+}
+
+// Google sign-in: find existing user by sub/email, or create a shell account
+// that still needs profile completion (no tag/city yet → needsProfile=true).
+export function upsertGoogleUser(input: { googleSub: string; email: string; name: string; avatarUrl?: string }): User {
+  const existing = getUserByGoogleSub(input.googleSub) || getUserByEmail(input.email)
+  if (existing) {
+    const patch: Partial<User> = {}
+    if (!existing.googleSub) patch.googleSub = input.googleSub
+    if (!existing.avatarUrl && input.avatarUrl) patch.avatarUrl = input.avatarUrl
+    if (Object.keys(patch).length) {
+      Object.assign(existing, patch)
+      indexUser(existing)
+      persist.user.update(existing.id, patch)
+    }
+    return existing
+  }
+  const id = 'u_' + Math.random().toString(36).slice(2, 10)
+  // Provisional tag from email local-part; user completes profile on first login.
+  const base = (input.email.split('@')[0] || 'gamer').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'gamer'
+  let tag = base
+  let n = 1
+  while (usersByTag.has(tag.toLowerCase())) tag = `${base}${n++}`
+  const u: User = {
+    id, email: input.email, googleSub: input.googleSub, avatarUrl: input.avatarUrl,
+    name: input.name, tag, city: '', primaryDisc: null,
+    role: 'gamer', coinBalance: 0, createdAt: Date.now(),
+  }
+  users.set(id, u)
+  indexUser(u)
+  persist.user.insert(u)
+  return u
+}
+
+// A Google user still needs to complete their profile when city/disc are unset.
+export function userNeedsProfile(u: User): boolean {
+  return !u.city || !u.primaryDisc
+}
+
 export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'> & { role?: Role; coinBalance?: number }): User {
-  if (usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
+  if (input.phone && usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
   if (usersByTag.has(input.tag.toLowerCase())) throw new Error('TAG_TAKEN')
   if (input.nationalId) {
     for (const u of users.values()) if (u.nationalId === input.nationalId) throw new Error('NATIONAL_ID_TAKEN')
@@ -120,8 +177,7 @@ export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coin
   const id = 'u_' + Math.random().toString(36).slice(2, 10)
   const u: User = { ...input, id, role: input.role ?? 'gamer', coinBalance: input.coinBalance ?? 100, createdAt: Date.now() }
   users.set(id, u)
-  usersByPhone.set(u.phone, id)
-  usersByTag.set(u.tag.toLowerCase(), id)
+  indexUser(u)
   persist.user.insert(u)
   return u
 }
@@ -180,19 +236,22 @@ export interface Event {
   tier: 'S' | 'A' | 'B' | 'C'
   prize: number
   teams: number
+  maxPlayers?: number
   status: 'live' | 'open' | 'soon' | 'done'
   statusLabel: string
   format: string
   date: string
+  startsAt?: number
+  regDeadline?: number
   organizerId: string
   createdAt: number
 }
 
 const events = new Map<string, Event>()
 
-export function createEvent(input: Omit<Event, 'id' | 'createdAt'>): Event {
+export function createEvent(input: Omit<Event, 'id' | 'createdAt' | 'tier'> & { tier?: Event['tier'] }): Event {
   const id = 'e_' + Math.random().toString(36).slice(2, 10)
-  const e: Event = { tier: 'A', ...input, id, createdAt: Date.now() }
+  const e: Event = { ...input, tier: input.tier ?? 'A', id, createdAt: Date.now() }
   events.set(id, e)
   persist.event.insert(e)
   return e
@@ -203,6 +262,7 @@ export function updateEventStatus(id: string, status: Event['status'], statusLab
   if (!e) throw new Error('EVENT_NOT_FOUND')
   e.status = status
   e.statusLabel = statusLabel
+  persist.event.updateStatus(id, status, statusLabel)
 }
 
 export function allEvents(): Event[] {
@@ -303,8 +363,9 @@ export function pushNotif(userId: string, type: NotifType, title: string, body: 
   // Fire-and-forget SMS for important types
   if (SMS_TRIGGERS.includes(type)) {
     const u = users.get(userId)
-    if (u) {
-      import('./sms').then(m => m.sendSms({ to: u.phone, text: `${title}\n${body}` })).catch(() => {})
+    if (u && u.phone) {
+      const phone = u.phone
+      import('./sms').then(m => m.sendSms({ to: phone, text: `${title}\n${body}` })).catch(() => {})
     }
   }
   return n
@@ -560,10 +621,16 @@ export function matchesForComp(compId: string): Match[] {
 
 export function clearMatchesForComp(compId: string) {
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId) matches.splice(i, 1)
+  persist.match.clearForComp(compId)
 }
 
 export function pushMatch(m: Match) {
   matches.push(m)
+  persist.match.insert(m)
+}
+
+export function saveMatch(m: Match) {
+  persist.match.insert(m)
 }
 
 export function getMatch(id: string): Match | undefined {

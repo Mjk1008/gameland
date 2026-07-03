@@ -14,3 +14,8 @@ build/
 *.log
 .env
 .env.local
+
+# local npm cache (permission workaround)
+.npmcache/
+/web/.next/
+web/tsconfig.tsbuildinfo

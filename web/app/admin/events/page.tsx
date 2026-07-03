@@ -26,7 +26,6 @@ export default function AdminEventsPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0' }}>{c.title}</span>
-                  {c.isNew && <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', background: '#34d39922', padding: '2px 6px', borderRadius: 5 }}>جدید</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, fontSize: 11 }}>
                   <span style={{ color: sc, fontWeight: 700 }}>{c.statusLabel}</span>

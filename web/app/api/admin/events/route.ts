@@ -13,9 +13,11 @@ export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}))
   if (!b.title || !b.disc) return NextResponse.json({ error: 'عنوان و رشته الزامی' }, { status: 400 })
 
+  const tier = ['S', 'A', 'B', 'C'].includes(b.tier) ? b.tier : 'A'
   const e = createEvent({
-    title: b.title, season: b.season || 'فصل ۱', disc: b.disc,
+    title: b.title, season: b.season || 'فصل ۱', disc: b.disc, tier,
     prize: Number(b.prize) || 0, teams: Number(b.teams) || 32,
+    maxPlayers: b.maxPlayers ? Number(b.maxPlayers) : undefined,
     status: b.status || 'open', statusLabel: b.statusLabel || 'ثبت‌نام باز',
     format: b.format || 'حذفی تک', date: b.date || '',
     organizerId: uid,

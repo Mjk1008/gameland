@@ -10,6 +10,7 @@
 // should swap store.ts for direct async Drizzle calls. For Liara single-
 // instance MVP this is sufficient.
 
+import { eq, and } from 'drizzle-orm'
 import { db, schema } from './client'
 import type { User, Event, Registration, Notification } from '../store'
 
@@ -22,48 +23,66 @@ export function startHydration(loaders: {
   loadReg:       (r: any) => void
   loadNotif:     (n: any) => void
   loadPlacement: (pl: any) => void
+  loadMatch:     (m: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
   if (!d) { hydrated = true; return Promise.resolve() }
   hydrating = (async () => {
     try {
+      const ms = (v: any) => (v instanceof Date ? v.getTime() : Date.now())
+
       const us = await d.select().from(schema.users)
       for (const u of us) loaders.loadUser({
-        id: u.id, phone: u.phone, name: u.name, tag: u.tag, city: u.city,
+        id: u.id, email: u.email ?? undefined, googleSub: u.googleSub ?? undefined,
+        avatarUrl: u.avatarUrl ?? undefined,
+        phone: u.phone ?? undefined, name: u.name, tag: u.tag, city: u.city,
         primaryDisc: u.primaryDisc, nationalId: u.nationalId ?? undefined,
         role: u.role as any, coinBalance: u.coinBalance,
-        createdAt: u.createdAt instanceof Date ? u.createdAt.getTime() : Date.now(),
+        createdAt: ms(u.createdAt), deletedAt: u.deletedAt ? ms(u.deletedAt) : undefined,
         playerId: u.playerId ?? undefined,
       })
+
       const ev = await d.select().from(schema.events)
       for (const e of ev) loaders.loadEvent({
         id: e.id, title: e.title, season: e.season, disc: e.disc,
-        tier: (e as any).tier ?? 'A',
-        prize: e.prize, teams: e.teams, status: e.status as any,
-        statusLabel: e.statusLabel, format: e.format, date: e.date ?? '',
-        organizerId: e.organizerId,
-        createdAt: e.createdAt instanceof Date ? e.createdAt.getTime() : Date.now(),
+        tier: (e.tier as any) ?? 'A',
+        prize: e.prize, teams: e.teams, maxPlayers: e.maxPlayers ?? undefined,
+        status: e.status as any, statusLabel: e.statusLabel, format: e.format,
+        date: e.date ?? '',
+        startsAt: e.startsAt ? ms(e.startsAt) : undefined,
+        regDeadline: e.regDeadline ? ms(e.regDeadline) : undefined,
+        organizerId: e.organizerId, createdAt: ms(e.createdAt),
       })
-      const pls = await d.select().from(schema.placements)
-      for (const pl of pls) loaders.loadPlacement({
-        id: pl.id, userId: pl.userId, compId: pl.compId,
-        disc: pl.disc, rank: pl.rank,
-        createdAt: pl.createdAt instanceof Date ? pl.createdAt.getTime() : Date.now(),
-      })
-      console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs')
+
       const rg = await d.select().from(schema.registrations)
       for (const r of rg) loaders.loadReg({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
-        createdAt: r.createdAt instanceof Date ? r.createdAt.getTime() : Date.now(),
+        createdAt: ms(r.createdAt),
       })
+
+      const pls = await d.select().from(schema.placements)
+      for (const pl of pls) loaders.loadPlacement({
+        id: pl.id, userId: pl.userId, compId: pl.compId,
+        disc: pl.disc, rank: pl.rank, createdAt: ms(pl.createdAt),
+      })
+
       const ns = await d.select().from(schema.notifications).orderBy(schema.notifications.createdAt)
       for (const n of ns.reverse()) loaders.loadNotif({
         id: n.id, userId: n.userId, type: n.type as any, title: n.title,
-        body: n.body, read: n.read,
-        createdAt: n.createdAt instanceof Date ? n.createdAt.getTime() : Date.now(),
+        body: n.body, read: n.read, createdAt: ms(n.createdAt),
       })
+
+      const mt = await d.select().from(schema.matches)
+      for (const m of mt) loaders.loadMatch({
+        id: m.id, compId: m.compId, bracket: m.bracket, round: m.round, slot: m.slot,
+        p1UserId: m.p1UserId ?? undefined, p2UserId: m.p2UserId ?? undefined,
+        winnerUserId: m.winnerUserId ?? undefined, score: m.score ?? undefined,
+        status: m.status as any, createdAt: ms(m.createdAt),
+      })
+
+      console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
       console.error('[db] hydration failed; continuing in-memory:', err)
     } finally {
@@ -86,27 +105,29 @@ export const persist = {
     insert(u: User) {
       const d = db(); if (!d) return
       fire(d.insert(schema.users).values({
-        id: u.id, phone: u.phone, name: u.name, tag: u.tag, city: u.city,
+        id: u.id, email: u.email, googleSub: u.googleSub, avatarUrl: u.avatarUrl,
+        phone: u.phone, name: u.name, tag: u.tag, city: u.city,
         primaryDisc: u.primaryDisc, nationalId: u.nationalId,
-        role: u.role, coinBalance: 0,
+        role: u.role, coinBalance: u.coinBalance ?? 0,
         playerId: u.playerId,
       }).onConflictDoNothing())
     },
     update(id: string, patch: Partial<User>) {
       const d = db(); if (!d) return
       const set: any = {}
-      if (patch.name !== undefined) set.name = patch.name
-      if (patch.tag !== undefined) set.tag = patch.tag
-      if (patch.city !== undefined) set.city = patch.city
+      if (patch.name !== undefined)        set.name = patch.name
+      if (patch.tag !== undefined)         set.tag = patch.tag
+      if (patch.city !== undefined)        set.city = patch.city
       if (patch.primaryDisc !== undefined) set.primaryDisc = patch.primaryDisc
-      if (patch.nationalId !== undefined) set.nationalId = patch.nationalId
+      if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
+      if (patch.email !== undefined)       set.email = patch.email
+      if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
+      if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
       if (Object.keys(set).length === 0) return
-      const { eq } = require('drizzle-orm')
       fire(d.update(schema.users).set(set).where(eq(schema.users.id, id)))
     },
     setCoinBalance(id: string, balance: number) {
       const d = db(); if (!d) return
-      const { eq } = require('drizzle-orm')
       fire(d.update(schema.users).set({ coinBalance: balance }).where(eq(schema.users.id, id)))
     },
   },
@@ -116,10 +137,16 @@ export const persist = {
       fire(d.insert(schema.events).values({
         id: e.id, title: e.title, season: e.season, disc: e.disc,
         tier: e.tier ?? 'A',
-        prize: e.prize, teams: e.teams, status: e.status,
-        statusLabel: e.statusLabel, format: e.format, date: e.date,
+        prize: e.prize, teams: e.teams, maxPlayers: e.maxPlayers,
+        status: e.status, statusLabel: e.statusLabel, format: e.format, date: e.date,
+        startsAt: e.startsAt ? new Date(e.startsAt) : undefined,
+        regDeadline: e.regDeadline ? new Date(e.regDeadline) : undefined,
         organizerId: e.organizerId,
       }).onConflictDoNothing())
+    },
+    updateStatus(id: string, status: Event['status'], statusLabel: string) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.events).set({ status, statusLabel }).where(eq(schema.events.id, id)))
     },
   },
   reg: {
@@ -133,11 +160,27 @@ export const persist = {
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
       const set: any = {}
-      if (patch.seedsEarned !== undefined) set.seedsEarned = patch.seedsEarned
+      if (patch.seedsEarned !== undefined)      set.seedsEarned = patch.seedsEarned
       if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
       if (Object.keys(set).length === 0) return
-      const { eq } = require('drizzle-orm')
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
+    },
+  },
+  match: {
+    insert(m: { id: string; compId: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; score?: string; status: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.matches).values({
+        id: m.id, compId: m.compId, bracket: m.bracket, round: m.round, slot: m.slot,
+        p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId,
+        score: m.score, status: m.status as any,
+      }).onConflictDoUpdate({
+        target: schema.matches.id,
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, score: m.score, status: m.status as any },
+      }))
+    },
+    clearForComp(compId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.matches).where(eq(schema.matches.compId, compId)))
     },
   },
   notif: {
@@ -150,7 +193,6 @@ export const persist = {
     },
     markAllRead(userId: string) {
       const d = db(); if (!d) return
-      const { eq, and } = require('drizzle-orm')
       fire(d.update(schema.notifications).set({ read: true }).where(and(eq(schema.notifications.userId, userId), eq(schema.notifications.read, false))))
     },
   },
