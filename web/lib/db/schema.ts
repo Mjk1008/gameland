@@ -36,9 +36,16 @@ export const users = pgTable('app_users', {
   avatarUrl:   text('avatar_url'),
   phone:       text('phone').unique(),
   name:        text('name').notNull(),
+  firstName:   text('first_name'),
+  lastName:    text('last_name'),
   tag:         text('tag').notNull().unique(),          // CITEXT in DB; text over the wire
+  province:    text('province'),
   city:        text('city').notNull().default(''),
+  messenger:   text('messenger'),
   primaryDisc: text('primary_disc').references(() => disciplines.id, { onDelete: 'set null' }),
+  discs:       text('discs').notNull().default(''),     // csv of discipline ids
+  experienceYears: integer('experience_years'),
+  teamName:    text('team_name'),
   nationalId:  text('national_id').unique(),
   role:        userRoleEnum('role').notNull().default('gamer'),
   coinBalance: integer('coin_balance').notNull().default(0),

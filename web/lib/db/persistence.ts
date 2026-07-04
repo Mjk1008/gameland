@@ -36,8 +36,15 @@ export function startHydration(loaders: {
       for (const u of us) loaders.loadUser({
         id: u.id, email: u.email ?? undefined, googleSub: u.googleSub ?? undefined,
         avatarUrl: u.avatarUrl ?? undefined,
-        phone: u.phone ?? undefined, name: u.name, tag: u.tag, city: u.city,
-        primaryDisc: u.primaryDisc, nationalId: u.nationalId ?? undefined,
+        phone: u.phone ?? undefined, name: u.name,
+        firstName: u.firstName ?? undefined, lastName: u.lastName ?? undefined,
+        tag: u.tag, province: u.province ?? undefined, city: u.city,
+        messenger: (u.messenger as any) ?? undefined,
+        primaryDisc: u.primaryDisc,
+        discs: u.discs ? u.discs.split(',').filter(Boolean) : undefined,
+        experienceYears: u.experienceYears ?? undefined,
+        teamName: u.teamName ?? undefined,
+        nationalId: u.nationalId ?? undefined,
         role: u.role as any, coinBalance: u.coinBalance,
         createdAt: ms(u.createdAt), deletedAt: u.deletedAt ? ms(u.deletedAt) : undefined,
         playerId: u.playerId ?? undefined,
@@ -106,8 +113,11 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.users).values({
         id: u.id, email: u.email, googleSub: u.googleSub, avatarUrl: u.avatarUrl,
-        phone: u.phone, name: u.name, tag: u.tag, city: u.city,
-        primaryDisc: u.primaryDisc, nationalId: u.nationalId,
+        phone: u.phone, name: u.name, firstName: u.firstName, lastName: u.lastName,
+        tag: u.tag, province: u.province, city: u.city, messenger: u.messenger,
+        primaryDisc: u.primaryDisc, discs: (u.discs ?? []).join(','),
+        experienceYears: u.experienceYears, teamName: u.teamName,
+        nationalId: u.nationalId,
         role: u.role, coinBalance: u.coinBalance ?? 0,
         playerId: u.playerId,
       }).onConflictDoNothing())
@@ -116,9 +126,16 @@ export const persist = {
       const d = db(); if (!d) return
       const set: any = {}
       if (patch.name !== undefined)        set.name = patch.name
+      if (patch.firstName !== undefined)   set.firstName = patch.firstName
+      if (patch.lastName !== undefined)    set.lastName = patch.lastName
       if (patch.tag !== undefined)         set.tag = patch.tag
+      if (patch.province !== undefined)    set.province = patch.province
       if (patch.city !== undefined)        set.city = patch.city
+      if (patch.messenger !== undefined)   set.messenger = patch.messenger
       if (patch.primaryDisc !== undefined) set.primaryDisc = patch.primaryDisc
+      if (patch.discs !== undefined)       set.discs = (patch.discs ?? []).join(',')
+      if (patch.experienceYears !== undefined) set.experienceYears = patch.experienceYears
+      if (patch.teamName !== undefined)    set.teamName = patch.teamName
       if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
       if (patch.email !== undefined)       set.email = patch.email
       if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub

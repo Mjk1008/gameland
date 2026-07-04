@@ -48,9 +48,16 @@ CREATE TABLE IF NOT EXISTS app_users (
   avatar_url    TEXT,
   phone         TEXT UNIQUE,                          -- optional now (was OTP key)
   name          TEXT NOT NULL,
+  first_name    TEXT,
+  last_name     TEXT,
   tag           CITEXT NOT NULL UNIQUE,               -- @Handle, case-insensitive
+  province      TEXT,
   city          TEXT NOT NULL DEFAULT '',
+  messenger     TEXT,                                 -- whatsapp | telegram | both
   primary_disc  TEXT REFERENCES app_disciplines(id) ON DELETE SET NULL,
+  discs         TEXT NOT NULL DEFAULT '',             -- csv of discipline ids
+  experience_years INTEGER,
+  team_name     TEXT,
   national_id   TEXT UNIQUE,
   role          user_role NOT NULL DEFAULT 'gamer',
   coin_balance  INTEGER NOT NULL DEFAULT 0,
@@ -59,6 +66,15 @@ CREATE TABLE IF NOT EXISTS app_users (
   deleted_at    TIMESTAMPTZ                            -- soft delete only
 );
 CREATE INDEX IF NOT EXISTS users_active_city_idx ON app_users (city) WHERE deleted_at IS NULL;
+
+-- Profile v2 columns (idempotent for already-created DBs)
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS first_name       TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_name        TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS province         TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS messenger        TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS discs            TEXT NOT NULL DEFAULT '';
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS experience_years INTEGER;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS team_name        TEXT;
 
 -- ─── Events (competitions) ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS app_events (
@@ -216,14 +232,15 @@ CREATE OR REPLACE VIEW leaderboard AS
 -- then staff/demo users.
 -- =============================================================
 INSERT INTO app_disciplines (id, name, short, color) VALUES
-  ('valorant', 'ولورنت',        'VAL',   '#fb7185'),
-  ('cs2',      'کانتر ۲',       'CS2',   '#fbbf24'),
-  ('pubgm',    'پابجی موبایل',  'PUBGM', '#34d399'),
-  ('fc',       'EA FC',         'FC',    '#38bdf8')
+  ('fc26',      'فیفا ۲۶',    'FC26', '#38bdf8'),
+  ('pes21',     'پ‌اس ۲۱',     'PES',  '#34d399'),
+  ('efootball', 'ای‌فوتبال',   'EF',   '#22d3ee'),
+  ('ufc6',      'یو‌اف‌سی ۶',  'UFC',  '#fb7185'),
+  ('tekken',    'تکن ۲۱',      'TK',   '#a78bfa')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO app_users (id, phone, name, tag, city, primary_disc, role, coin_balance)
 VALUES
-  ('u_admin', '09120000000', 'مدیر گیم‌لند', 'admin', 'تهران', NULL,       'admin', 0),
-  ('u_zeus',  '09121111111', 'آرش رستمی',    'ZEUS',  'تهران', 'valorant', 'gamer', 1000)
+  ('u_admin', '09120000000', 'مدیر گیم‌لند', 'admin', 'تهران', NULL,   'admin', 0),
+  ('u_zeus',  '09121111111', 'آرش رستمی',    'ZEUS',  'تهران', 'fc26', 'gamer', 1000)
 ON CONFLICT (id) DO NOTHING;

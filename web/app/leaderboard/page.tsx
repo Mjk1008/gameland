@@ -7,7 +7,7 @@ import LeaderboardClient from './client'
 export const dynamic = 'force-dynamic'
 
 const DISC_COLOR: Record<string, string> = {
-  valorant: '#fb7185', cs2: '#fbbf24', pubgm: '#34d399', fc: '#38bdf8',
+  fc26: '#38bdf8', pes21: '#34d399', efootball: '#22d3ee', ufc6: '#fb7185', tekken: '#a78bfa',
 }
 
 export default function LeaderboardPage() {
@@ -39,7 +39,7 @@ export default function LeaderboardPage() {
       rank: i + 1,
       name: u.name,
       tag: u.tag,
-      disc: (u.primaryDisc ?? 'valorant') as Disc,
+      disc: (u.primaryDisc ?? 'fc26') as Disc,
       points: pointsAcc.get(u.id) ?? 0,
       winrate: 0,
       matches: eventsAcc.get(u.id) ?? 0,

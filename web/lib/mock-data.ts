@@ -1,13 +1,14 @@
 // Design-system mock data — matches Claude Design prototype exactly.
 // Replace with DB queries once Postgres/Supabase is wired (docs/12).
 
-export type Disc = 'valorant' | 'cs2' | 'pubgm' | 'fc'
+export type Disc = 'fc26' | 'pes21' | 'efootball' | 'ufc6' | 'tekken'
 
 export const DISC: Record<Disc, { name: string; short: string; color: string }> = {
-  valorant: { name: 'ولورنت',       short: 'VAL',   color: '#fb7185' },
-  cs2:      { name: 'کانتر ۲',      short: 'CS2',   color: '#fbbf24' },
-  pubgm:    { name: 'پابجی موبایل', short: 'PUBGM', color: '#34d399' },
-  fc:       { name: 'EA FC',        short: 'FC',    color: '#38bdf8' },
+  fc26:      { name: 'فیفا ۲۶',    short: 'FC26', color: '#38bdf8' },
+  pes21:     { name: 'پ‌اس ۲۱',     short: 'PES',  color: '#34d399' },
+  efootball: { name: 'ای‌فوتبال',   short: 'EF',   color: '#22d3ee' },
+  ufc6:      { name: 'یو‌اف‌سی ۶',  short: 'UFC',  color: '#fb7185' },
+  tekken:    { name: 'تکن ۲۱',      short: 'TK',   color: '#a78bfa' },
 }
 
 export interface Player {
@@ -17,18 +18,18 @@ export interface Player {
 }
 
 const RAW: [string, string, Disc, number, number, number, number, string, string][] = [
-  ['آرش رستمی',    'ZEUS',    'valorant', 2847, 68, 412,  2, '#22d3ee', 'تهران'],
-  ['سینا کاظمی',   'v1per',   'cs2',      2790, 71, 389, -1, '#f5c84b', 'کرج'],
-  ['مهدی نوری',    'Phantom', 'valorant', 2731, 64, 366,  1, '#a78bfa', 'مشهد'],
-  ['علی موسوی',    'RAGE',    'pubgm',    2655, 59, 501,  3, '#34d399', 'اصفهان'],
-  ['رضا احمدی',    'Shadow',  'cs2',      2602, 66, 344, -2, '#38bdf8', 'شیراز'],
-  ['امیر صادقی',   'Falcon',  'valorant', 2554, 61, 298,  0, '#fb7185', 'تبریز'],
-  ['حسین کریمی',   'Maestro', 'fc',       2498, 73, 255,  1, '#fbbf24', 'اهواز'],
-  ['پارسا یزدانی', 'Frost',   'pubgm',    2447, 57, 433, -1, '#22d3ee', 'رشت'],
-  ['نیما رحیمی',   'Blaze',   'valorant', 2390, 60, 312,  4, '#a3e635', 'قم'],
-  ['سامان فلاحی',  'Vortex',  'cs2',      2350, 63, 287, -1, '#a78bfa', 'یزد'],
-  ['کیان مرادی',   'Echo',    'fc',       2299, 69, 221,  2, '#34d399', 'کرمان'],
-  ['آرمان بهرامی', 'Nyx',     'pubgm',    2245, 55, 398, -3, '#fb7185', 'ارومیه'],
+  ['آرش رستمی',    'ZEUS',    'fc26',      2847, 68, 412,  2, '#22d3ee', 'تهران'],
+  ['سینا کاظمی',   'v1per',   'pes21',     2790, 71, 389, -1, '#f5c84b', 'کرج'],
+  ['مهدی نوری',    'Phantom', 'fc26',      2731, 64, 366,  1, '#a78bfa', 'مشهد'],
+  ['علی موسوی',    'RAGE',    'efootball', 2655, 59, 501,  3, '#34d399', 'اصفهان'],
+  ['رضا احمدی',    'Shadow',  'pes21',     2602, 66, 344, -2, '#38bdf8', 'شیراز'],
+  ['امیر صادقی',   'Falcon',  'fc26',      2554, 61, 298,  0, '#fb7185', 'تبریز'],
+  ['حسین کریمی',   'Maestro', 'ufc6',      2498, 73, 255,  1, '#fbbf24', 'اهواز'],
+  ['پارسا یزدانی', 'Frost',   'efootball', 2447, 57, 433, -1, '#22d3ee', 'رشت'],
+  ['نیما رحیمی',   'Blaze',   'fc26',      2390, 60, 312,  4, '#a3e635', 'قم'],
+  ['سامان فلاحی',  'Vortex',  'tekken',    2350, 63, 287, -1, '#a78bfa', 'یزد'],
+  ['کیان مرادی',   'Echo',    'ufc6',      2299, 69, 221,  2, '#34d399', 'کرمان'],
+  ['آرمان بهرامی', 'Nyx',     'tekken',    2245, 55, 398, -3, '#fb7185', 'ارومیه'],
 ]
 
 export const PLAYERS: Player[] = RAW.map((r, i) => ({
@@ -68,10 +69,10 @@ export interface Competition {
 }
 
 export const COMPS: Competition[] = [
-  { id: 'val-cl',   title: 'لیگ قهرمانان ولورنت', season: 'فصل ۵',   disc: 'valorant', prize: 250, teams: 64,  status: 'live', statusLabel: 'در حال برگزاری', format: 'حذفی دوگانه',   date: '۱۲ – ۲۸ تیر ۱۴۰۵' },
-  { id: 'cs2-cup',  title: 'کاپ پاییزهٔ CS2',      season: 'دورهٔ ۳', disc: 'cs2',      prize: 120, teams: 32,  status: 'open', statusLabel: 'ثبت‌نام باز',    format: 'سوئیسی + حذفی', date: '۵ مهر ۱۴۰۵' },
-  { id: 'pubgm-ml', title: 'مستر لیگ پابجی',        season: 'فصل ۲',   disc: 'pubgm',    prize:  80, teams: 48,  status: 'soon', statusLabel: 'به‌زودی',         format: 'امتیازی',        date: '۲۰ مهر ۱۴۰۵' },
-  { id: 'fc-cup',   title: 'جام EA FC',              season: '۱۴۰۴',    disc: 'fc',       prize:  40, teams: 128, status: 'done', statusLabel: 'پایان‌یافته',     format: 'حذفی تک',        date: 'اسفند ۱۴۰۴' },
+  { id: 'fc26-cl',  title: 'لیگ قهرمانان فیفا ۲۶', season: 'فصل ۵',   disc: 'fc26',      prize: 250, teams: 64,  status: 'live', statusLabel: 'در حال برگزاری', format: 'حذفی دوگانه',   date: '۱۲ – ۲۸ تیر ۱۴۰۵' },
+  { id: 'pes-cup',  title: 'کاپ پاییزهٔ پ‌اس',      season: 'دورهٔ ۳', disc: 'pes21',     prize: 120, teams: 32,  status: 'open', statusLabel: 'ثبت‌نام باز',    format: 'سوئیسی + حذفی', date: '۵ مهر ۱۴۰۵' },
+  { id: 'ef-ml',    title: 'مستر لیگ ای‌فوتبال',    season: 'فصل ۲',   disc: 'efootball', prize:  80, teams: 48,  status: 'soon', statusLabel: 'به‌زودی',         format: 'امتیازی',        date: '۲۰ مهر ۱۴۰۵' },
+  { id: 'ufc-cup',  title: 'جام یو‌اف‌سی ۶',        season: '۱۴۰۴',    disc: 'ufc6',      prize:  40, teams: 128, status: 'done', statusLabel: 'پایان‌یافته',     format: 'حذفی تک',        date: 'اسفند ۱۴۰۴' },
 ]
 
 export function getComp(id: string): Competition | undefined {
@@ -122,10 +123,11 @@ export function honorsFor(rank: number) {
 export function recentMatches(p: Player) {
   const opps = PLAYERS.filter((o) => o.disc === p.disc && o.rank !== p.rank).slice(0, 5)
   const scoreMap: Record<Disc, string[]> = {
-    valorant: ['13-8', '13-10', '11-13', '13-6', '9-13'],
-    cs2:      ['16-12', '13-16', '16-9', '16-14', '10-16'],
-    pubgm:    ['#1 · 18k', '#3 · 11k', '#5 · 8k', '#2 · 14k', '#7 · 6k'],
-    fc:       ['3-1', '2-2', '0-2', '4-2', '1-3'],
+    fc26:      ['3-1', '2-2', '0-2', '4-2', '1-3'],
+    pes21:     ['2-0', '1-1', '0-3', '3-2', '1-2'],
+    efootball: ['4-1', '2-2', '1-4', '3-0', '2-3'],
+    ufc6:      ['KO ۲', 'TKO ۱', 'باخت', 'KO ۳', 'باخت'],
+    tekken:    ['3-1', '3-2', '1-3', '3-0', '2-3'],
   }
   return opps.map((o, i) => {
     const win = i !== 2 && i !== 4

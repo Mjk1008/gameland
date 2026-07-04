@@ -5,7 +5,7 @@ import { DISC, rankColor, avatarBg } from '@/lib/mock-data'
 export const dynamic = 'force-dynamic'
 
 const DISC_COLOR: Record<string, string> = {
-  valorant: '#fb7185', cs2: '#fbbf24', pubgm: '#34d399', fc: '#38bdf8',
+  fc26: '#38bdf8', pes21: '#34d399', efootball: '#22d3ee', ufc6: '#fb7185', tekken: '#a78bfa',
 }
 
 export default function PlayersPage() {

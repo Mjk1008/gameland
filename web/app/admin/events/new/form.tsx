@@ -8,7 +8,7 @@ export default function NewEventForm() {
   const router = useRouter()
   const [title,  setTitle]  = useState('')
   const [season, setSeason] = useState('فصل ۱')
-  const [disc,   setDisc]   = useState<keyof typeof DISC>('valorant')
+  const [disc,   setDisc]   = useState<keyof typeof DISC>('fc26')
   const [prize,  setPrize]  = useState(100)
   const [teams,  setTeams]  = useState(64)
   const [format, setFormat] = useState('حذفی دوگانه')

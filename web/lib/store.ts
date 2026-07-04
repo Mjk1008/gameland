@@ -14,6 +14,8 @@ import { usingDb } from './db/client'
 
 export type Role = 'gamer' | 'organizer' | 'admin'
 
+export type Messenger = 'whatsapp' | 'telegram' | 'both'
+
 export interface User {
   id: string
   email?: string
@@ -21,9 +23,16 @@ export interface User {
   avatarUrl?: string
   phone?: string
   name: string
+  firstName?: string
+  lastName?: string
   tag: string
+  province?: string
   city: string
+  messenger?: Messenger
   primaryDisc: Disc | null
+  discs?: Disc[]           // all disciplines the player competes in
+  experienceYears?: number
+  teamName?: string
   nationalId?: string
   role: Role
   coinBalance: number
@@ -198,6 +207,17 @@ export function updateUser(id: string, patch: Partial<Omit<User, 'id' | 'created
     if (usersByTag.has(patch.tag.toLowerCase())) throw new Error('TAG_TAKEN')
     usersByTag.delete(u.tag.toLowerCase())
     usersByTag.set(patch.tag.toLowerCase(), id)
+  }
+  // Derive full name from first/last when provided.
+  if (patch.firstName !== undefined || patch.lastName !== undefined) {
+    const fn = patch.firstName ?? u.firstName ?? ''
+    const ln = patch.lastName ?? u.lastName ?? ''
+    const full = `${fn} ${ln}`.trim()
+    if (full) patch.name = full
+  }
+  // Keep primaryDisc in sync with the first selected discipline.
+  if (patch.discs && patch.discs.length && !patch.primaryDisc) {
+    patch.primaryDisc = patch.discs[0]
   }
   Object.assign(u, patch)
   persist.user.update(id, patch)
@@ -511,10 +531,11 @@ const disciplines = new Map<string, DisciplineRow>()
 ;(function seedDisciplines() {
   if (disciplines.size > 0) return
   const seed: DisciplineRow[] = [
-    { id: 'valorant', name: 'ولورنت',       short: 'VAL',   color: '#fb7185', active: true },
-    { id: 'cs2',      name: 'کانتر ۲',      short: 'CS2',   color: '#fbbf24', active: true },
-    { id: 'pubgm',    name: 'پابجی موبایل', short: 'PUBGM', color: '#34d399', active: true },
-    { id: 'fc',       name: 'EA FC',        short: 'FC',    color: '#38bdf8', active: true },
+    { id: 'fc26',      name: 'فیفا ۲۶',    short: 'FC26', color: '#38bdf8', active: true },
+    { id: 'pes21',     name: 'پ‌اس ۲۱',     short: 'PES',  color: '#34d399', active: true },
+    { id: 'efootball', name: 'ای‌فوتبال',   short: 'EF',   color: '#22d3ee', active: true },
+    { id: 'ufc6',      name: 'یو‌اف‌سی ۶',  short: 'UFC',  color: '#fb7185', active: true },
+    { id: 'tekken',    name: 'تکن ۲۱',      short: 'TK',   color: '#a78bfa', active: true },
   ]
   for (const d of seed) disciplines.set(d.id, d)
 })()

@@ -6,11 +6,12 @@ import { DISC, rankColor, trendOf, avatarBg, Player, Disc } from '@/lib/mock-dat
 type DiscFilter = 'all' | Disc
 
 const DISCS: { id: DiscFilter; name: string }[] = [
-  { id: 'all',      name: 'همه رشته‌ها' },
-  { id: 'valorant', name: 'ولورنت' },
-  { id: 'cs2',      name: 'CS2' },
-  { id: 'pubgm',    name: 'پابجی' },
-  { id: 'fc',       name: 'EA FC' },
+  { id: 'all',       name: 'همه رشته‌ها' },
+  { id: 'fc26',      name: 'فیفا ۲۶' },
+  { id: 'pes21',     name: 'پ‌اس ۲۱' },
+  { id: 'efootball', name: 'ای‌فوتبال' },
+  { id: 'ufc6',      name: 'یو‌اف‌سی ۶' },
+  { id: 'tekken',    name: 'تکن ۲۱' },
 ]
 
 export default function LeaderboardClient({ initial }: { initial: Player[] }) {
