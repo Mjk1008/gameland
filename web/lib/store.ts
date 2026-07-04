@@ -6,7 +6,7 @@
 // Buyer flip: provision Postgres → apply lib/db/init.sql → set DATABASE_URL
 // → restart. Data persists across restarts automatically.
 
-import { PLAYERS as MOCK_PLAYERS, Player, Disc } from './mock-data'
+import { Disc } from './mock-data'
 import { persist, startHydration } from './db/persistence'
 import { usingDb } from './db/client'
 
@@ -97,23 +97,7 @@ function seedAdmin() {
   }
   users.set(id, admin)
   indexUser(admin)
-
-  // Also seed a default gamer (phone: 09121111111, OTP: 123456) linked to PLAYERS[0]
-  const z = MOCK_PLAYERS[0]
-  const g: User = {
-    id: 'u_zeus',
-    phone: '09121111111',
-    name: z.name,
-    tag: z.tag,
-    city: z.city,
-    primaryDisc: z.disc,
-    role: 'gamer',
-    coinBalance: 1000, // starter coins
-    createdAt: Date.now(),
-    playerId: 'p_zeus',
-  }
-  users.set(g.id, g)
-  indexUser(g)
+  // No demo gamer — clean slate. Real users create their profile on first login.
 }
 
 export function getUserByPhone(phone: string): User | undefined {
