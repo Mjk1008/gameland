@@ -533,9 +533,9 @@ const disciplines = new Map<string, DisciplineRow>()
   const seed: DisciplineRow[] = [
     { id: 'fc26',      name: 'فیفا ۲۶',    short: 'FC26', color: '#38bdf8', active: true },
     { id: 'pes21',     name: 'پ‌اس ۲۱',     short: 'PES',  color: '#34d399', active: true },
-    { id: 'efootball', name: 'ای‌فوتبال',   short: 'EF',   color: '#22d3ee', active: true },
+    { id: 'efootball', name: 'ای‌فوتبال ۲۶', short: 'EF',   color: '#22d3ee', active: true },
     { id: 'ufc6',      name: 'یو‌اف‌سی ۶',  short: 'UFC',  color: '#fb7185', active: true },
-    { id: 'tekken',    name: 'تکن ۲۱',      short: 'TK',   color: '#a78bfa', active: true },
+    { id: 'nba2k26',   name: 'NBA 2K26',    short: '2K',   color: '#f5c84b', active: true },
   ]
   for (const d of seed) disciplines.set(d.id, d)
 })()

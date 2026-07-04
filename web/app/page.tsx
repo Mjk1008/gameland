@@ -9,7 +9,7 @@ import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
 export const dynamic = 'force-dynamic'
 
 const DISC_COLOR: Record<string, string> = {
-  fc26: '#38bdf8', pes21: '#34d399', efootball: '#22d3ee', ufc6: '#fb7185', tekken: '#a78bfa',
+  fc26: '#38bdf8', pes21: '#34d399', efootball: '#22d3ee', ufc6: '#fb7185', nba2k26: '#f5c84b',
 }
 
 export default async function HomePage() {

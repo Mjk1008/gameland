@@ -1,14 +1,14 @@
 // Design-system mock data — matches Claude Design prototype exactly.
 // Replace with DB queries once Postgres/Supabase is wired (docs/12).
 
-export type Disc = 'fc26' | 'pes21' | 'efootball' | 'ufc6' | 'tekken'
+export type Disc = 'fc26' | 'pes21' | 'efootball' | 'ufc6' | 'nba2k26'
 
 export const DISC: Record<Disc, { name: string; short: string; color: string }> = {
-  fc26:      { name: 'فیفا ۲۶',    short: 'FC26', color: '#38bdf8' },
-  pes21:     { name: 'پ‌اس ۲۱',     short: 'PES',  color: '#34d399' },
-  efootball: { name: 'ای‌فوتبال',   short: 'EF',   color: '#22d3ee' },
-  ufc6:      { name: 'یو‌اف‌سی ۶',  short: 'UFC',  color: '#fb7185' },
-  tekken:    { name: 'تکن ۲۱',      short: 'TK',   color: '#a78bfa' },
+  fc26:      { name: 'فیفا ۲۶',     short: 'FC26', color: '#38bdf8' },
+  pes21:     { name: 'پ‌اس ۲۱',      short: 'PES',  color: '#34d399' },
+  efootball: { name: 'ای‌فوتبال ۲۶', short: 'EF',   color: '#22d3ee' },
+  ufc6:      { name: 'یو‌اف‌سی ۶',   short: 'UFC',  color: '#fb7185' },
+  nba2k26:   { name: 'NBA 2K26',    short: '2K',   color: '#f5c84b' },
 }
 
 export interface Player {
@@ -27,9 +27,9 @@ const RAW: [string, string, Disc, number, number, number, number, string, string
   ['حسین کریمی',   'Maestro', 'ufc6',      2498, 73, 255,  1, '#fbbf24', 'اهواز'],
   ['پارسا یزدانی', 'Frost',   'efootball', 2447, 57, 433, -1, '#22d3ee', 'رشت'],
   ['نیما رحیمی',   'Blaze',   'fc26',      2390, 60, 312,  4, '#a3e635', 'قم'],
-  ['سامان فلاحی',  'Vortex',  'tekken',    2350, 63, 287, -1, '#a78bfa', 'یزد'],
+  ['سامان فلاحی',  'Vortex',  'nba2k26',    2350, 63, 287, -1, '#a78bfa', 'یزد'],
   ['کیان مرادی',   'Echo',    'ufc6',      2299, 69, 221,  2, '#34d399', 'کرمان'],
-  ['آرمان بهرامی', 'Nyx',     'tekken',    2245, 55, 398, -3, '#fb7185', 'ارومیه'],
+  ['آرمان بهرامی', 'Nyx',     'nba2k26',    2245, 55, 398, -3, '#fb7185', 'ارومیه'],
 ]
 
 export const PLAYERS: Player[] = RAW.map((r, i) => ({
@@ -127,7 +127,7 @@ export function recentMatches(p: Player) {
     pes21:     ['2-0', '1-1', '0-3', '3-2', '1-2'],
     efootball: ['4-1', '2-2', '1-4', '3-0', '2-3'],
     ufc6:      ['KO ۲', 'TKO ۱', 'باخت', 'KO ۳', 'باخت'],
-    tekken:    ['3-1', '3-2', '1-3', '3-0', '2-3'],
+    nba2k26:   ['88-74', '91-95', '102-88', '77-80', '110-99'],
   }
   return opps.map((o, i) => {
     const win = i !== 2 && i !== 4

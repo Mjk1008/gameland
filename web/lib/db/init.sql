@@ -234,9 +234,9 @@ CREATE OR REPLACE VIEW leaderboard AS
 INSERT INTO app_disciplines (id, name, short, color) VALUES
   ('fc26',      'فیفا ۲۶',    'FC26', '#38bdf8'),
   ('pes21',     'پ‌اس ۲۱',     'PES',  '#34d399'),
-  ('efootball', 'ای‌فوتبال',   'EF',   '#22d3ee'),
+  ('efootball', 'ای‌فوتبال ۲۶', 'EF',   '#22d3ee'),
   ('ufc6',      'یو‌اف‌سی ۶',  'UFC',  '#fb7185'),
-  ('tekken',    'تکن ۲۱',      'TK',   '#a78bfa')
+  ('nba2k26',   'NBA 2K26',    '2K',   '#f5c84b')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO app_users (id, phone, name, tag, city, primary_disc, role, coin_balance)

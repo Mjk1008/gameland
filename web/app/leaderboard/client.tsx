@@ -11,7 +11,7 @@ const DISCS: { id: DiscFilter; name: string }[] = [
   { id: 'pes21',     name: 'پ‌اس ۲۱' },
   { id: 'efootball', name: 'ای‌فوتبال' },
   { id: 'ufc6',      name: 'یو‌اف‌سی ۶' },
-  { id: 'tekken',    name: 'تکن ۲۱' },
+  { id: 'nba2k26',   name: 'NBA 2K26' },
 ]
 
 export default function LeaderboardClient({ initial }: { initial: Player[] }) {
