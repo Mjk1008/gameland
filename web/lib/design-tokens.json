@@ -1,0 +1,40 @@
+{
+  "$comment": "Gameland design tokens — source of truth: docs/22-brand-book.md",
+  "color": {
+    "ink": "#0A0E13",
+    "surface1": "#111823",
+    "surface2": "#18212E",
+    "line": "#23303F",
+    "line2": "#2E3E50",
+    "brand": "#22D3EE",
+    "brandStrong": "#06B6D4",
+    "brandSoft": "rgba(34,211,238,.12)",
+    "gold": "#F5C84B",
+    "goldSoft": "rgba(245,200,75,.12)",
+    "textHi": "#F2F6FA",
+    "text": "#93A4B5",
+    "textMut": "#5D6B7A",
+    "win": "#34D399",
+    "live": "#FB7185",
+    "info": "#A78BFA",
+    "discipline": {
+      "fc26": "#38BDF8",
+      "pes21": "#34D399",
+      "efootball": "#22D3EE",
+      "ufc6": "#FB7185",
+      "nba2k26": "#F5C84B"
+    }
+  },
+  "font": {
+    "fa": "Vazirmatn, Tahoma, sans-serif",
+    "latin": "Inter, -apple-system, sans-serif",
+    "display": "Rajdhani, 'Chakra Petch', sans-serif"
+  },
+  "fontSize": {
+    "display": 40, "h1": 24, "h2": 19, "h3": 15,
+    "body": 14, "small": 12.5, "caption": 11
+  },
+  "space": { "1": 4, "2": 8, "3": 12, "4": 16, "5": 20, "6": 24, "8": 32, "10": 40, "12": 48, "16": 64 },
+  "radius": { "sm": 8, "md": 11, "lg": 14, "xl": 16, "pill": 999 },
+  "motion": { "fast": "150ms", "base": "250ms", "ease": "cubic-bezier(.4,0,.2,1)" }
+}

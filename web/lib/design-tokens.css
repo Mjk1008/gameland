@@ -1,0 +1,70 @@
+/* Gameland design tokens — source of truth = docs/22-brand-book.md
+   Import once at the app root. Modern/minimal dark system. */
+:root {
+  /* ── ground & surfaces ── */
+  --gl-ink:        #0A0E13;
+  --gl-surface-1:  #111823;
+  --gl-surface-2:  #18212E;
+  --gl-line:       #23303F;
+  --gl-line-2:     #2E3E50;
+
+  /* ── brand (single hero accent) ── */
+  --gl-brand:        #22D3EE;
+  --gl-brand-strong: #06B6D4;
+  --gl-brand-soft:   rgba(34, 211, 238, .12);
+
+  /* ── prestige (champions / prizes only) ── */
+  --gl-gold:      #F5C84B;
+  --gl-gold-soft: rgba(245, 200, 75, .12);
+
+  /* ── text ── */
+  --gl-text-hi:  #F2F6FA;
+  --gl-text:     #93A4B5;
+  --gl-text-mut: #5D6B7A;
+
+  /* ── semantic (state, not accent) ── */
+  --gl-win:       #34D399;  --gl-win-soft:  rgba(52, 211, 153, .12);
+  --gl-live:      #FB7185;  --gl-live-soft: rgba(251, 113, 133, .12);
+  --gl-info:      #A78BFA;  --gl-info-soft: rgba(167, 139, 250, .12);
+
+  /* ── discipline accents (badges only) ── */
+  --gl-disc-fc26:      #38BDF8;
+  --gl-disc-pes21:     #34D399;
+  --gl-disc-efootball: #22D3EE;
+  --gl-disc-ufc6:      #FB7185;
+  --gl-disc-nba2k26:   #F5C84B;
+
+  /* ── typography ── */
+  --gl-font-fa:      'Vazirmatn', Tahoma, sans-serif;
+  --gl-font-latin:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --gl-font-display: 'Rajdhani', 'Chakra Petch', sans-serif;  /* headings, wordmark, numbers */
+
+  --gl-fs-display: 40px; --gl-lh-display: 44px;
+  --gl-fs-h1: 24px;      --gl-lh-h1: 30px;
+  --gl-fs-h2: 19px;      --gl-lh-h2: 26px;
+  --gl-fs-h3: 15px;      --gl-lh-h3: 22px;
+  --gl-fs-body: 14px;    --gl-lh-body: 22px;
+  --gl-fs-small: 12.5px; --gl-lh-small: 18px;
+  --gl-fs-caption: 11px; --gl-lh-caption: 14px;
+  --gl-ls-label: .08em;
+  --gl-ls-wordmark: .14em;
+
+  /* ── spacing (4px grid) ── */
+  --gl-s1: 4px;  --gl-s2: 8px;  --gl-s3: 12px; --gl-s4: 16px;
+  --gl-s5: 20px; --gl-s6: 24px; --gl-s8: 32px; --gl-s10: 40px;
+  --gl-s12: 48px; --gl-s16: 64px;
+
+  /* ── radius ── */
+  --gl-r-sm: 8px; --gl-r-md: 11px; --gl-r-lg: 14px; --gl-r-xl: 16px; --gl-r-pill: 999px;
+
+  /* ── elevation (minimal — prefer borders) ── */
+  --gl-elev-1: 0 0 0 1px var(--gl-line);
+  --gl-elev-2: 0 8px 30px rgba(0, 0, 0, .45);
+
+  /* ── motion ── */
+  --gl-dur-fast: 150ms; --gl-dur: 250ms; --gl-ease: cubic-bezier(.4, 0, .2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --gl-dur-fast: 0ms; --gl-dur: 0ms; }
+}
