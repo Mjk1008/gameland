@@ -130,6 +130,10 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.update(schema.users).set({ coinBalance: balance }).where(eq(schema.users.id, id)))
     },
+    setRole(id: string, role: string) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.users).set({ role: role as any }).where(eq(schema.users.id, id)))
+    },
   },
   event: {
     insert(e: Event) {

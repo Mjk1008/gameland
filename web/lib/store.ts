@@ -133,16 +133,23 @@ export function getUserByGoogleSub(sub: string): User | undefined {
 
 // Google sign-in: find existing user by sub/email, or create a shell account
 // that still needs profile completion (no tag/city yet → needsProfile=true).
-export function upsertGoogleUser(input: { googleSub: string; email: string; name: string; avatarUrl?: string }): User {
+// isAdmin (from the email allow-list) promotes the account to role=admin.
+export function upsertGoogleUser(input: { googleSub: string; email: string; name: string; avatarUrl?: string; isAdmin?: boolean }): User {
   const existing = getUserByGoogleSub(input.googleSub) || getUserByEmail(input.email)
   if (existing) {
     const patch: Partial<User> = {}
     if (!existing.googleSub) patch.googleSub = input.googleSub
     if (!existing.avatarUrl && input.avatarUrl) patch.avatarUrl = input.avatarUrl
+    if (!existing.email) patch.email = input.email
     if (Object.keys(patch).length) {
       Object.assign(existing, patch)
       indexUser(existing)
       persist.user.update(existing.id, patch)
+    }
+    // Promote to admin if allow-listed and not already staff.
+    if (input.isAdmin && existing.role === 'gamer') {
+      existing.role = 'admin'
+      persist.user.setRole(existing.id, 'admin')
     }
     return existing
   }
@@ -155,7 +162,7 @@ export function upsertGoogleUser(input: { googleSub: string; email: string; name
   const u: User = {
     id, email: input.email, googleSub: input.googleSub, avatarUrl: input.avatarUrl,
     name: input.name, tag, city: '', primaryDisc: null,
-    role: 'gamer', coinBalance: 0, createdAt: Date.now(),
+    role: input.isAdmin ? 'admin' : 'gamer', coinBalance: 0, createdAt: Date.now(),
   }
   users.set(id, u)
   indexUser(u)
@@ -163,8 +170,10 @@ export function upsertGoogleUser(input: { googleSub: string; email: string; name
   return u
 }
 
-// A Google user still needs to complete their profile when city/disc are unset.
+// A gamer still needs to complete their profile when city/disc are unset.
+// Staff (admin/organizer) don't need a gamer profile.
 export function userNeedsProfile(u: User): boolean {
+  if (u.role !== 'gamer') return false
   return !u.city || !u.primaryDisc
 }
 
