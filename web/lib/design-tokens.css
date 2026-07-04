@@ -1,43 +1,43 @@
-/* Gameland design tokens — source of truth = docs/22-brand-book.md
-   Import once at the app root. Modern/minimal dark system. */
+/* Gameland design tokens — source of truth = docs/23-design-direction.md ("Broadcast")
+   Import once at the app root. Warm-dark, one amber accent, broadcast numerals. */
 :root {
-  /* ── ground & surfaces ── */
-  --gl-ink:        #0A0E13;
-  --gl-surface-1:  #111823;
-  --gl-surface-2:  #18212E;
-  --gl-line:       #23303F;
-  --gl-line-2:     #2E3E50;
+  /* ── ground & surfaces (warm near-black) ── */
+  --gl-ink:        #14110D;
+  --gl-surface-1:  #1E1A14;
+  --gl-surface-2:  #262019;
+  --gl-line:       #322A1F;
+  --gl-line-2:     #40362A;
 
-  /* ── brand (single hero accent) ── */
-  --gl-brand:        #22D3EE;
-  --gl-brand-strong: #06B6D4;
-  --gl-brand-soft:   rgba(34, 211, 238, .12);
+  /* ── accent (the one hero — electric amber) ── */
+  --gl-brand:        #FF6A1A;
+  --gl-brand-strong: #E85D0A;
+  --gl-brand-soft:   rgba(255, 106, 26, .14);
 
   /* ── prestige (champions / prizes only) ── */
-  --gl-gold:      #F5C84B;
-  --gl-gold-soft: rgba(245, 200, 75, .12);
+  --gl-gold:      #F5A623;
+  --gl-gold-soft: rgba(245, 166, 35, .12);
 
-  /* ── text ── */
-  --gl-text-hi:  #F2F6FA;
-  --gl-text:     #93A4B5;
-  --gl-text-mut: #5D6B7A;
+  /* ── text (warm) ── */
+  --gl-text-hi:  #F6EFE4;
+  --gl-text:     #A89A88;
+  --gl-text-mut: #6E6252;
 
-  /* ── semantic (state, not accent) ── */
-  --gl-win:       #34D399;  --gl-win-soft:  rgba(52, 211, 153, .12);
-  --gl-live:      #FB7185;  --gl-live-soft: rgba(251, 113, 133, .12);
-  --gl-info:      #A78BFA;  --gl-info-soft: rgba(167, 139, 250, .12);
+  /* ── semantic (state, not accent — muted) ── */
+  --gl-win:       #3FBE86;  --gl-win-soft:  rgba(63, 190, 134, .14);
+  --gl-live:      #FF5A4E;  --gl-live-soft: rgba(255, 90, 78, .14);
+  --gl-info:      #C6A6FF;  --gl-info-soft: rgba(198, 166, 255, .14);
 
-  /* ── discipline accents (badges only) ── */
-  --gl-disc-fc26:      #38BDF8;
-  --gl-disc-pes21:     #34D399;
-  --gl-disc-efootball: #22D3EE;
-  --gl-disc-ufc6:      #FB7185;
-  --gl-disc-nba2k26:   #F5C84B;
+  /* ── discipline dots (chip stays neutral; dot carries the hue) ── */
+  --gl-disc-fc26:      #4AA3FF;
+  --gl-disc-pes21:     #3FBE86;
+  --gl-disc-efootball: #FF6A1A;
+  --gl-disc-ufc6:      #FF5A4E;
+  --gl-disc-nba2k26:   #F5A623;
 
   /* ── typography ── */
   --gl-font-fa:      'Vazirmatn', Tahoma, sans-serif;
   --gl-font-latin:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --gl-font-display: 'Rajdhani', 'Chakra Petch', sans-serif;  /* headings, wordmark, numbers */
+  --gl-font-display: 'Saira Condensed', 'Rajdhani', sans-serif;  /* headings, numerals (broadcast) */
 
   --gl-fs-display: 40px; --gl-lh-display: 44px;
   --gl-fs-h1: 24px;      --gl-lh-h1: 30px;

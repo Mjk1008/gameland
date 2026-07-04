@@ -1,40 +1,37 @@
 {
-  "$comment": "Gameland design tokens — source of truth: docs/22-brand-book.md",
+  "$comment": "Gameland design tokens — source of truth: docs/23-design-direction.md (Broadcast)",
   "color": {
-    "ink": "#0A0E13",
-    "surface1": "#111823",
-    "surface2": "#18212E",
-    "line": "#23303F",
-    "line2": "#2E3E50",
-    "brand": "#22D3EE",
-    "brandStrong": "#06B6D4",
-    "brandSoft": "rgba(34,211,238,.12)",
-    "gold": "#F5C84B",
-    "goldSoft": "rgba(245,200,75,.12)",
-    "textHi": "#F2F6FA",
-    "text": "#93A4B5",
-    "textMut": "#5D6B7A",
-    "win": "#34D399",
-    "live": "#FB7185",
-    "info": "#A78BFA",
+    "ink": "#14110D",
+    "surface1": "#1E1A14",
+    "surface2": "#262019",
+    "line": "#322A1F",
+    "line2": "#40362A",
+    "accent": "#FF6A1A",
+    "accentStrong": "#E85D0A",
+    "accentSoft": "rgba(255,106,26,.14)",
+    "gold": "#F5A623",
+    "goldSoft": "rgba(245,166,35,.12)",
+    "textHi": "#F6EFE4",
+    "text": "#A89A88",
+    "textMut": "#6E6252",
+    "win": "#3FBE86",
+    "live": "#FF5A4E",
+    "info": "#C6A6FF",
     "discipline": {
-      "fc26": "#38BDF8",
-      "pes21": "#34D399",
-      "efootball": "#22D3EE",
-      "ufc6": "#FB7185",
-      "nba2k26": "#F5C84B"
+      "fc26": "#4AA3FF",
+      "pes21": "#3FBE86",
+      "efootball": "#FF6A1A",
+      "ufc6": "#FF5A4E",
+      "nba2k26": "#F5A623"
     }
   },
   "font": {
     "fa": "Vazirmatn, Tahoma, sans-serif",
     "latin": "Inter, -apple-system, sans-serif",
-    "display": "Rajdhani, 'Chakra Petch', sans-serif"
+    "display": "'Saira Condensed', Rajdhani, sans-serif"
   },
-  "fontSize": {
-    "display": 40, "h1": 24, "h2": 19, "h3": 15,
-    "body": 14, "small": 12.5, "caption": 11
-  },
+  "fontSize": { "display": 44, "h1": 24, "h2": 19, "h3": 15, "body": 14, "small": 12.5, "caption": 11 },
   "space": { "1": 4, "2": 8, "3": 12, "4": 16, "5": 20, "6": 24, "8": 32, "10": 40, "12": 48, "16": 64 },
   "radius": { "sm": 8, "md": 11, "lg": 14, "xl": 16, "pill": 999 },
-  "motion": { "fast": "150ms", "base": "250ms", "ease": "cubic-bezier(.4,0,.2,1)" }
+  "motion": { "fast": "150ms", "base": "260ms", "ease": "cubic-bezier(.2,.7,.2,1)" }
 }
