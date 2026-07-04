@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, pushNotif, getUserById, applyCoinTxn, coinBalance, getEvent } from '@/lib/store'
-
-const COINS_PER_ATTEMPT = 100
+import { createRegistration, pushNotif, getUserById, getEvent } from '@/lib/store'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -17,17 +15,17 @@ export async function POST(req: Request) {
   if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد شانس باید ۱ تا ۶ باشد' }, { status: 400 })
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
-  if (c.status === 'done')  return NextResponse.json({ error: 'این مسابقه پایان یافته' }, { status: 400 })
-
-  const cost = attempts * COINS_PER_ATTEMPT
-  if (coinBalance(uid) < cost) {
-    return NextResponse.json({ error: `سکهٔ کافی نداری. نیاز: ${cost}, موجودی: ${coinBalance(uid)}` }, { status: 400 })
+  // V1: registration is free (sponsor-funded prizes). Only open events accept it.
+  if (c.status !== 'open') {
+    const why = c.status === 'done' ? 'این مسابقه پایان یافته'
+      : c.status === 'live' ? 'ثبت‌نام بسته شده — مسابقه در حال برگزاری است'
+      : 'ثبت‌نام این مسابقه هنوز باز نشده'
+    return NextResponse.json({ error: why }, { status: 400 })
   }
 
   try {
     const r = createRegistration(uid, compId, attempts)
-    applyCoinTxn(uid, -cost, 'attempt', r.id)
-    pushNotif(uid, 'registration', 'ثبت‌نام موفق', `${c.title} با ${attempts} شانس ثبت شد. ${cost} سکه کسر شد. منتظر قرعه‌کشی باش.`)
+    pushNotif(uid, 'registration', 'ثبت‌نام موفق', `${c.title} با ${attempts} شانس ثبت شد. منتظر قرعه‌کشی باش.`)
     return NextResponse.json({ ok: true, registration: r })
   } catch (e: any) {
     const map: Record<string, string> = {

@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getEvent, registrationsForComp, getUserById, matchesForComp } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp } from '@/lib/store'
 import ResultControls from './result-controls'
 import DrawButton from './draw-button'
+import StatusControl from './status-control'
+import FinalizeControls from './finalize-controls'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +18,12 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const regs = registrationsForComp(c.id)
   const totalAttempts = regs.reduce((s, r) => s + r.attempts, 0)
   const totalSeeds    = regs.reduce((s, r) => s + r.seedsEarned, 0)
+
+  const participants = regs.map(r => {
+    const u = getUserById(r.userId)
+    return { userId: r.userId, name: u?.name || '?', tag: u?.tag || '?' }
+  })
+  const alreadyFinalized = placementsForComp(c.id).length > 0
 
   return (
     <div style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -44,9 +52,13 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         <Stat label="seed به فاینال" value={totalSeeds} color="#f5c84b"/>
       </div>
 
+      <StatusControl compId={c.id} status={c.status}/>
+
       <DrawButton compId={c.id} drawn={matchesForComp(c.id).length > 0} regCount={regs.length}/>
 
       <ResultControls compId={c.id} regs={regs.map(r => ({ id: r.id, userId: r.userId, attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, userName: getUserById(r.userId)?.name || '?', userTag: getUserById(r.userId)?.tag || '?' }))}/>
+
+      <FinalizeControls compId={c.id} participants={participants} done={alreadyFinalized}/>
 
       <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#121821', border: '1px solid #22d3ee', borderRadius: 12, padding: '11px 0', color: '#22d3ee', fontWeight: 700, fontSize: 13 }}>
         مشاهدهٔ براکت کامل ›
