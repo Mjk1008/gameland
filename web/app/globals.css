@@ -2,45 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fonts — Vazirmatn (UI fa), Saira Condensed (display/numerals), Inter (Latin body) */
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-html, body { background: #0b0f14; color: #e6edf3; }
-* { -webkit-font-smoothing: antialiased; }
+/* ── Broadcast tokens (docs/23) ── */
+:root {
+  --ink:#14110D; --sf1:#1E1A14; --sf2:#262019; --line:#322A1F; --line2:#40362A;
+  --accent:#FF6A1A; --accent-strong:#E85D0A; --accent-soft:rgba(255,106,26,.14);
+  --gold:#F5A623; --gold-soft:rgba(245,166,35,.12);
+  --thi:#F6EFE4; --tbody:#A89A88; --tmut:#6E6252;
+  --win:#3FBE86; --win-soft:rgba(63,190,134,.14);
+  --live:#FF5A4E; --live-soft:rgba(255,90,78,.14);
+  --info:#C6A6FF; --info-soft:rgba(198,166,255,.14);
+  --font-fa:'Vazirmatn',Tahoma,sans-serif;
+  --font-disp:'Saira Condensed','Rajdhani',sans-serif;
+  --font-latin:'Inter',-apple-system,sans-serif;
+}
 
-.glow { box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 8px 30px rgba(34,211,238,.06); }
-.divider { border-color: #1e293b; }
+html, body { background: var(--ink); color: var(--tbody); }
+body { font-family: var(--font-fa); }
+* { -webkit-font-smoothing: antialiased; box-sizing: border-box; }
 
-/* Hide scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+
+/* numerals — broadcast, tabular, LTR */
+.gl-num { font-family: var(--font-disp); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+.gl-label { font-family: var(--font-latin); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+
 .gl-scroll { scrollbar-width: none; -ms-overflow-style: none; }
 .gl-scroll::-webkit-scrollbar { display: none; }
 
-/* Skeleton shimmer */
-.gl-skel {
-  background: linear-gradient(90deg, #121821 0%, #1b2433 50%, #121821 100%);
-  background-size: 400px 100%;
-  animation: glShimmer 1.2s linear infinite;
-  border-radius: 14px;
-}
+/* Skeleton */
+.gl-skel { background: var(--sf2); border-radius: 12px; animation: glSkel 1.4s ease-in-out infinite; }
+@keyframes glSkel { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
 
-@keyframes glShimmer {
-  0%   { background-position: -200px 0; }
-  100% { background-position: 200px 0; }
-}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-up { animation: fadeUp .3s ease both; }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+@keyframes glTick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-@keyframes glPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%       { transform: scale(1.06); opacity: .85; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .gl-skel { animation: none; }
 }
-
-@keyframes glLoad {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(220%); }
-}
-
-.animate-fade-up { animation: fadeUp .34s ease both; }
