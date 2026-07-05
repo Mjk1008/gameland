@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { allUsers, allEvents } from '@/lib/store'
+import { allUsers, allEvents, pendingRegistrations } from '@/lib/store'
 import { C, Num, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -8,6 +8,7 @@ export default function AdminHome() {
   const userCount = allUsers().length
   const events = allEvents()
   const liveComps = events.filter(c => c.status === 'live' || c.status === 'open').length
+  const pending = pendingRegistrations().length
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -18,6 +19,14 @@ export default function AdminHome() {
         <Stat label="فعال" value={liveComps} color={C.win} />
         <Stat label="کل ایونت" value={events.length} color={C.gold} />
       </div>
+
+      {pending > 0 && (
+        <Link href="/admin/requests" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent }} />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.accent }}>درخواست ثبت‌نام در انتظار تایید</span>
+          <Num size={18} color={C.accent}>{pending}</Num>
+        </Link>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <CTA href="/admin/events/new" label="+ ساخت ایونت جدید" primary />

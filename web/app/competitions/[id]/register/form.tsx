@@ -23,7 +23,7 @@ export default function RegisterForm({ comp }: Props) {
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'خطا')
-      router.push(`/competitions/${comp.id}/me`); router.refresh()
+      router.push(`/competitions/${comp.id}/pay`); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 

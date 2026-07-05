@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS app_registrations (
   user_id            TEXT NOT NULL REFERENCES app_users(id)  ON DELETE CASCADE,
   comp_id            TEXT NOT NULL REFERENCES app_events(id) ON DELETE CASCADE,
   attempts           INTEGER NOT NULL CHECK (attempts BETWEEN 1 AND 6),
+  status             TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | rejected
   seeds_earned       INTEGER NOT NULL DEFAULT 0 CHECK (seeds_earned BETWEEN 0 AND 3),
   prelims_completed  INTEGER NOT NULL DEFAULT 0 CHECK (prelims_completed >= 0),
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS app_registrations (
 );
 CREATE INDEX IF NOT EXISTS reg_comp_idx ON app_registrations (comp_id);
 CREATE INDEX IF NOT EXISTS reg_user_idx ON app_registrations (user_id);
+ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
 
 -- ─── Matches (bracket) ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS app_matches (

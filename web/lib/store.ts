@@ -288,11 +288,14 @@ export function getEvent(id: string): Event | undefined {
 
 // ─── Registrations (1-6 attempts per gamer per competition) ─────────────────
 
+export type RegStatus = 'pending' | 'approved' | 'rejected'
+
 export interface Registration {
   id: string
   userId: string
   compId: string
   attempts: number          // 1-6
+  status: RegStatus         // pending payment/approval → approved by admin
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
   createdAt: number
@@ -307,11 +310,20 @@ export function createRegistration(userId: string, compId: string, attempts: num
   const r: Registration = {
     id: 'r_' + Math.random().toString(36).slice(2, 10),
     userId, compId, attempts,
+    status: 'pending',
     seedsEarned: 0, prelimsCompleted: 0,
     createdAt: Date.now(),
   }
   regs.set(key, r)
   persist.reg.insert(r)
+  return r
+}
+
+export function setRegistrationStatus(regId: string, status: RegStatus): Registration {
+  const r = getRegistrationById(regId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  r.status = status
+  persist.reg.update(r.id, { status } as any)
   return r
 }
 
@@ -325,6 +337,16 @@ export function registrationsForUser(userId: string): Registration[] {
 
 export function registrationsForComp(compId: string): Registration[] {
   return Array.from(regs.values()).filter(r => r.compId === compId)
+}
+
+// Only approved registrations enter the draw / bracket.
+export function approvedRegistrationsForComp(compId: string): Registration[] {
+  return Array.from(regs.values()).filter(r => r.compId === compId && r.status === 'approved')
+}
+
+// All pending requests across events (admin approval queue).
+export function pendingRegistrations(): Registration[] {
+  return Array.from(regs.values()).filter(r => r.status === 'pending').sort((a, b) => a.createdAt - b.createdAt)
 }
 
 export function getRegistrationById(id: string): Registration | undefined {

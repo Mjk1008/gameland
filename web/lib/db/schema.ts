@@ -85,6 +85,7 @@ export const registrations = pgTable('app_registrations', {
   userId:           text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   compId:           text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   attempts:         integer('attempts').notNull(),
+  status:           text('status').notNull().default('pending'),  // pending | approved | rejected
   seedsEarned:      integer('seeds_earned').notNull().default(0),
   prelimsCompleted: integer('prelims_completed').notNull().default(0),
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

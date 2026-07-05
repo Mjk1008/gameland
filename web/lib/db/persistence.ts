@@ -65,7 +65,8 @@ export function startHydration(loaders: {
       const rg = await d.select().from(schema.registrations)
       for (const r of rg) loaders.loadReg({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
+        attempts: r.attempts, status: (r as any).status ?? 'approved',
+        seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
         createdAt: ms(r.createdAt),
       })
 
@@ -175,7 +176,7 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
       }).onConflictDoNothing())
     },
     update(id: string, patch: Partial<Registration>) {
@@ -183,6 +184,7 @@ export const persist = {
       const set: any = {}
       if (patch.seedsEarned !== undefined)      set.seedsEarned = patch.seedsEarned
       if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
+      if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
     },

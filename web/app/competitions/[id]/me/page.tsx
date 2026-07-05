@@ -25,6 +25,36 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
   const r = getRegistration(uid, params.id)
   if (!r) redirect(`/competitions/${params.id}/register`)
 
+  // Not yet approved → payment/approval gate, not the bracket roadmap.
+  if (r.status !== 'approved') {
+    const rejected = r.status === 'rejected'
+    return (
+      <div className="animate-fade-up">
+        <BackHeader title="روندنمای من" href={`/competitions/${c.id}`} />
+        <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: C.thi }}>{c.title}</div>
+              <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 2 }}>{DISC[c.disc]?.name}</div>
+            </div>
+          </div>
+          <div style={{ background: C.sf1, border: `1px solid ${rejected ? C.live : C.accent}55`, borderRadius: 14, padding: 18, textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: rejected ? C.live : C.accent, marginBottom: 8 }}>
+              {rejected ? 'ثبت‌نامت رد شد' : 'در انتظار تایید پرداخت'}
+            </div>
+            <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
+              {rejected
+                ? 'اگر فکر می‌کنی اشتباهی رخ داده، با پشتیبانی در تماس باش.'
+                : 'مبلغ را کارت‌به‌کارت کن و رسید را بفرست. پس از تایید ادمین، براکت و روندنمای مسابقه‌ات همین‌جا فعال می‌شود.'}
+            </div>
+          </div>
+          {!rejected && <Button href={`/competitions/${c.id}/pay`}>پرداخت و ارسال رسید ›</Button>}
+        </div>
+      </div>
+    )
+  }
+
   const roadmap = roadmapStages(c.status)
   const attempts: Array<{ idx: number; status: keyof typeof STATUS_META }> = []
   for (let i = 0; i < r.attempts; i++) {

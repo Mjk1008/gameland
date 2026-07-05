@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
   try {
     const r = createRegistration(uid, compId, attempts)
-    pushNotif(uid, 'registration', 'ثبت‌نام موفق', `${c.title} با ${attempts} شانس ثبت شد. منتظر قرعه‌کشی باش.`)
+    pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد', `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
     return NextResponse.json({ ok: true, registration: r })
   } catch (e: any) {
     const map: Record<string, string> = {
