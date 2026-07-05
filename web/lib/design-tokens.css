@@ -9,9 +9,9 @@
   --gl-line-2:     #40362A;
 
   /* ── accent (the one hero — electric amber) ── */
-  --gl-brand:        #FF6A1A;
-  --gl-brand-strong: #E85D0A;
-  --gl-brand-soft:   rgba(255, 106, 26, .14);
+  --gl-brand:        #A855F7;
+  --gl-brand-strong: #9333EA;
+  --gl-brand-soft:   rgba(168,85,247, .14);
 
   /* ── prestige (champions / prizes only) ── */
   --gl-gold:      #F5A623;
@@ -30,7 +30,7 @@
   /* ── discipline dots (chip stays neutral; dot carries the hue) ── */
   --gl-disc-fc26:      #4AA3FF;
   --gl-disc-pes21:     #3FBE86;
-  --gl-disc-efootball: #FF6A1A;
+  --gl-disc-efootball: #A855F7;
   --gl-disc-ufc6:      #FF5A4E;
   --gl-disc-nba2k26:   #F5A623;
 

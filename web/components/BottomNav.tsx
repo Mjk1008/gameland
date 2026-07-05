@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
-const ACCENT = '#FF6A1A', MUT = '#6E6252', INK = '#14110D', LINE = '#322A1F', GOLD = '#F5A623'
+const ACCENT = '#A855F7', MUT = '#6E6252', INK = '#14110D', LINE = '#322A1F', GOLD = '#F5A623'
 
 const icons = {
   home: <path d="M3 10.5 12 3l9 7.5M5 9.5V20h14V9.5" />,

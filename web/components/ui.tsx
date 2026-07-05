@@ -6,7 +6,7 @@ import Link from 'next/link'
 // ── tokens ──
 export const C = {
   ink: '#14110D', sf1: '#1E1A14', sf2: '#262019', line: '#322A1F', line2: '#40362A',
-  accent: '#FF6A1A', accentStrong: '#E85D0A', accentSoft: 'rgba(255,106,26,.14)',
+  accent: '#A855F7', accentStrong: '#9333EA', accentSoft: 'rgba(168,85,247,.14)',
   gold: '#F5A623', goldSoft: 'rgba(245,166,35,.12)',
   thi: '#F6EFE4', tbody: '#A89A88', tmut: '#6E6252',
   win: '#3FBE86', winSoft: 'rgba(63,190,134,.14)',
@@ -17,7 +17,7 @@ export const DISP = "'Saira Condensed','Rajdhani',sans-serif"
 export const LATIN = "'Inter',-apple-system,sans-serif"
 
 export const DISC_DOT: Record<string, string> = {
-  fc26: '#4AA3FF', pes21: '#3FBE86', efootball: '#FF6A1A', ufc6: '#FF5A4E', nba2k26: '#F5A623',
+  fc26: '#4AA3FF', pes21: '#3FBE86', efootball: '#A855F7', ufc6: '#FF5A4E', nba2k26: '#F5A623',
 }
 
 // status → {color, soft, label}
