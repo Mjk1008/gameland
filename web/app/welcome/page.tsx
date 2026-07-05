@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { DISC } from '@/lib/mock-data'
 import { IRAN_GEO, citiesOf } from '@/lib/iran-geo'
+import { C, DISP, Wordmark, Button, DISC_DOT } from '@/components/ui'
 
 type Messenger = 'whatsapp' | 'telegram' | 'both'
 
@@ -20,10 +21,7 @@ export default function WelcomePage() {
   const [err,  setErr]  = useState<string | null>(null)
 
   const cities = province ? citiesOf(province) : []
-
-  function toggleDisc(k: keyof typeof DISC) {
-    setDiscs(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k])
-  }
+  const toggleDisc = (k: keyof typeof DISC) => setDiscs(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null)
@@ -34,31 +32,28 @@ export default function WelcomePage() {
     try {
       const res = await fetch('/api/profile/complete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName, lastName, province, city, phone, messenger,
-          tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined,
-        }),
+        body: JSON.stringify({ firstName, lastName, province, city, phone, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'خطا')
-      window.location.href = '/me'   // full reload → session JWT refreshes needsProfile
-    } catch (e: any) { setErr(e.message) }
-    finally { setBusy(false) }
+      window.location.href = '/me'
+    } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '36px 18px 40px' }}>
-      <div style={{ marginBottom: 22, textAlign: 'center' }}>
-        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 28, letterSpacing: '.05em', color: '#22d3ee' }} dir="ltr">GAMELAND</span>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginTop: 8 }}>تکمیل پروفایل گیمر</div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>برای ثبت‌نام در مسابقات لازمه — روی Gamer Bank و صفحهٔ افتخارات دیده می‌شود</div>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '34px 18px 40px' }}>
+      <div style={{ marginBottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <Wordmark size={24} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>تکمیل پروفایل گیمر</div>
+          <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 5 }}>برای ثبت‌نام لازمه — روی رنکینگ و صفحهٔ افتخارات دیده می‌شود</div>
+        </div>
       </div>
 
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 13 }}>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Field label="نام"><input value={firstName} onChange={e => setFirstName(e.target.value)} required style={inp} placeholder="آرش"/></Field>
-          <Field label="نام خانوادگی"><input value={lastName} onChange={e => setLastName(e.target.value)} required style={inp} placeholder="رستمی"/></Field>
+          <Field label="نام"><input value={firstName} onChange={e => setFirstName(e.target.value)} required style={inp} placeholder="آرش" /></Field>
+          <Field label="نام خانوادگی"><input value={lastName} onChange={e => setLastName(e.target.value)} required style={inp} placeholder="رستمی" /></Field>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -69,61 +64,61 @@ export default function WelcomePage() {
             </select>
           </Field>
           <Field label="شهر">
-            <select value={city} onChange={e => setCity(e.target.value)} required disabled={!province} style={{ ...inp, opacity: province ? 1 : 0.5 } as any}>
+            <select value={city} onChange={e => setCity(e.target.value)} required disabled={!province} style={{ ...inp, opacity: province ? 1 : 0.45 } as any}>
               <option value="">{province ? 'انتخاب…' : 'اول استان'}</option>
-              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+              {cities.map(cc => <option key={cc} value={cc}>{cc}</option>)}
             </select>
           </Field>
         </div>
 
         <Field label="اسم مستعار (تگ) — انگلیسی، یونیک">
-          <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required
-            style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }} placeholder="ZEUS"/>
+          <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="Arsh_FC" />
         </Field>
 
         <Field label="شماره تماس">
-          <input dir="ltr" inputMode="numeric" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} required
-            style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }} placeholder="09120000000"/>
+          <input dir="ltr" inputMode="numeric" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="09120000000" />
         </Field>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>این شماره روی کدام پیام‌رسان فعال است؟</span>
+          <span style={{ fontSize: 12, color: C.tmut }}>این شماره روی کدام پیام‌رسان فعال است؟</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {([['whatsapp','واتساپ'],['telegram','تلگرام'],['both','هردو']] as const).map(([k, label]) => {
-              const on = messenger === k
-              return <button key={k} type="button" onClick={() => setMessenger(k)} style={chip(on, '#34d399')}>{label}</button>
-            })}
+            {([['whatsapp', 'واتساپ'], ['telegram', 'تلگرام'], ['both', 'هردو']] as const).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setMessenger(k)} style={chip(messenger === k)}>{label}</button>
+            ))}
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>رشته‌هایی که بازی می‌کنی <span style={{ color: '#64748b' }}>(چندتایی)</span></span>
+          <span style={{ fontSize: 12, color: C.tmut }}>رشته‌هایی که بازی می‌کنی <span style={{ color: C.tmut }}>(چندتایی)</span></span>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => {
-              const d = DISC[k], on = discs.includes(k)
-              return <button key={k} type="button" onClick={() => toggleDisc(k)} style={{ ...chip(on, d.color), textAlign: 'center' }}>{d.name}</button>
+              const on = discs.includes(k)
+              return (
+                <button key={k} type="button" onClick={() => toggleDisc(k)} style={{ ...chip(on), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[k] }} />{DISC[k].name}
+                </button>
+              )
             })}
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Field label="سابقهٔ بازی (سال)"><input inputMode="numeric" value={exp} onChange={e => setExp(e.target.value.replace(/\D/g, '').slice(0, 2))} style={inp} placeholder="۳"/></Field>
-          <Field label="نام تیم (اختیاری)"><input value={team} onChange={e => setTeam(e.target.value)} style={inp} placeholder="—"/></Field>
+          <Field label="سابقهٔ بازی (سال)"><input inputMode="numeric" value={exp} onChange={e => setExp(e.target.value.replace(/\D/g, '').slice(0, 2))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="3" /></Field>
+          <Field label="نام تیم (اختیاری)"><input value={team} onChange={e => setTeam(e.target.value)} style={inp} placeholder="—" /></Field>
         </div>
 
-        {err && <div style={{ fontSize: 12, color: '#fb7185', background: '#fb71851a', border: '1px solid #fb718533', padding: 10, borderRadius: 10 }}>{err}</div>}
+        {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 800, fontSize: 15, padding: '13px 0', borderRadius: 12, opacity: busy ? 0.6 : 1, marginTop: 4 }}>
-          {busy ? '...' : 'ورود به گیم‌لند'}
-        </button>
+        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? '...' : 'ورود به گیم‌لند'}</Button>
       </form>
     </div>
   )
 }
 
-const inp: React.CSSProperties = { background: '#121821', border: '1px solid #1e293b', borderRadius: 11, padding: '11px 13px', color: '#e2e8f0', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }
-function chip(on: boolean, color: string): React.CSSProperties {
-  return { all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? color : '#1e293b'}`, borderRadius: 10, background: on ? color + '22' : '#121821', color: on ? color : '#94a3b8', fontWeight: 700, fontSize: 12 }
+const inp: React.CSSProperties = { background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }
+function chip(on: boolean): React.CSSProperties {
+  return { all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12 }
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>{children}</label>
+  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12, color: C.tmut }}>{label}</span>{children}</label>
 }
