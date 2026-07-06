@@ -178,10 +178,27 @@ export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coin
     for (const u of users.values()) if (u.nationalId === input.nationalId) throw new Error('NATIONAL_ID_TAKEN')
   }
   const id = 'u_' + Math.random().toString(36).slice(2, 10)
-  const u: User = { ...input, id, role: input.role ?? 'gamer', coinBalance: input.coinBalance ?? 100, createdAt: Date.now() }
+  const role: Role = (input.phone && isAdminPhone(input.phone)) ? 'admin' : (input.role ?? 'gamer')
+  const u: User = { ...input, id, role, coinBalance: input.coinBalance ?? 0, createdAt: Date.now() }
   users.set(id, u)
   indexUser(u)
   persist.user.insert(u)
+  return u
+}
+
+// Admin phone allow-list (env ADMIN_PHONES, comma-separated). These numbers get
+// role=admin on signup, and are promoted on login if they registered earlier.
+export function isAdminPhone(phone?: string): boolean {
+  if (!phone) return false
+  const list = (process.env.ADMIN_PHONES || '').split(',').map(s => s.trim()).filter(Boolean)
+  return list.includes(phone)
+}
+
+export function setUserRole(id: string, role: Role): User | undefined {
+  const u = users.get(id)
+  if (!u) return undefined
+  u.role = role
+  persist.user.setRole(id, role)
   return u
 }
 

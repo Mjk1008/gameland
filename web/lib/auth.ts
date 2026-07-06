@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById } from './store'
+import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole } from './store'
 import { verifyPassword } from './password'
 
 // Admin allow-list: Google accounts whose email is here get role=admin on login.
@@ -94,7 +94,12 @@ export const authOptions: NextAuthOptions = {
       // Always refresh role/tag/needsProfile from the store (kept current after
       // profile completion, role changes, etc.). Only overwrite when found.
       if (token.uid) {
-        const u = getUserById(token.uid as string)
+        let u = getUserById(token.uid as string)
+        // Promote allow-listed admin phones that registered as regular users.
+        if (u && u.phone && u.role !== 'admin' && isAdminPhone(u.phone)) {
+          setUserRole(u.id, 'admin')
+          u = getUserById(token.uid as string)
+        }
         if (u) {
           token.role         = u.role
           token.tag          = u.tag

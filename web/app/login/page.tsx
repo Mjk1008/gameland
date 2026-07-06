@@ -72,8 +72,9 @@ function LoginInner() {
 
         <Button type="submit" disabled={busy}>{busy ? '...' : 'ورود'}</Button>
 
-        <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut }}>
-          حساب نداری؟ <Link href="/signup" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ثبت‌نام</Link>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: C.tmut }}>
+          <Link href="/forgot" style={{ color: C.tmut, textDecoration: 'none' }}>فراموشی رمز؟</Link>
+          <span>حساب نداری؟ <Link href="/signup" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ثبت‌نام</Link></span>
         </div>
       </form>
     </div>
