@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole } from './store'
 import { verifyPassword } from './password'
 
@@ -21,6 +22,17 @@ function adminEmails(): string[] {
 // default → button hidden, no broken flow.
 const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   && process.env.GOOGLE_OAUTH_ENABLED === 'true'
+
+// When Gameland runs on Iran-hosted infra, route Google's server→server OAuth
+// calls (token exchange + JWKS) through an outbound proxy OUTSIDE Iran so they
+// aren't 403'd/timed out. Set OAUTH_PROXY_URL="http://user:pass@host:port".
+// next-auth forwards `httpOptions` into openid-client's request defaults, so
+// this covers discovery, token, userinfo and JWKS. Timeout bumped from the
+// tight 3500ms default to tolerate the extra proxy hop.
+const oauthProxy = process.env.OAUTH_PROXY_URL
+const googleHttpOptions = oauthProxy
+  ? { timeout: 10000, agent: new HttpsProxyAgent(oauthProxy) }
+  : undefined
 
 // Basic in-memory brute-force guard for password login (single-instance Liara).
 // Max 8 failed attempts per phone per 15 min window.
@@ -45,6 +57,7 @@ export const authOptions: NextAuthOptions = {
     ...(googleEnabled ? [GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      ...(googleHttpOptions ? { httpOptions: googleHttpOptions } : {}),
     })] : []),
 
     // Phone + OTP — kept for the seeded admin/test accounts (OTP 123456 in dev).
