@@ -3,12 +3,14 @@
 
 export type Disc = 'fc26' | 'pes21' | 'efootball' | 'ufc6' | 'nba2k26'
 
-export const DISC: Record<Disc, { name: string; short: string; color: string }> = {
-  fc26:      { name: 'فیفا ۲۶',     short: 'FC26', color: '#38bdf8' },
-  pes21:     { name: 'پ‌اس ۲۱',      short: 'PES',  color: '#34d399' },
-  efootball: { name: 'ای‌فوتبال ۲۶', short: 'EF',   color: '#22d3ee' },
-  ufc6:      { name: 'یو‌اف‌سی ۶',   short: 'UFC',  color: '#fb7185' },
-  nba2k26:   { name: 'NBA 2K26',    short: '2K',   color: '#f5c84b' },
+// Games are shown by their real (Latin) titles + a monogram "logo" tile.
+// `mark` is the short badge glyph; `color` is the game's brand accent.
+export const DISC: Record<Disc, { name: string; short: string; mark: string; color: string }> = {
+  fc26:      { name: 'EA FC 26',  short: 'FC26', mark: 'FC',  color: '#22C55E' },
+  pes21:     { name: 'PES 2021',  short: 'PES',  mark: 'PES', color: '#3B82F6' },
+  efootball: { name: 'eFootball', short: 'EF',   mark: 'eF',  color: '#06B6D4' },
+  ufc6:      { name: 'UFC 6',     short: 'UFC',  mark: 'UFC', color: '#EF4444' },
+  nba2k26:   { name: 'NBA 2K26',  short: '2K',   mark: '2K',  color: '#F97316' },
 }
 
 export interface Player {

@@ -5,7 +5,7 @@ import { allUsers, allEvents, allPlacements } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, GameBadge, DISC_DOT } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +104,7 @@ export default async function HomePage() {
               return (
                 <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'block', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut }} />
+                    <GameBadge disc={c.disc} size={28} />
                     <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: C.thi }}>{c.title}</span>
                     <StatusChip status={c.status} />
                   </div>

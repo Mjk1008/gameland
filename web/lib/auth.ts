@@ -13,7 +13,14 @@ function adminEmails(): string[] {
     .filter(Boolean)
 }
 
+// Google is only usable when the server can reach Google's OAuth endpoints.
+// From Iran-hosted infra (Liara) those server-to-server calls are blocked
+// (403 / timeout), so the callback fails and the user bounces back to /login.
+// Keep the creds but only register the provider when explicitly switched on
+// (GOOGLE_OAUTH_ENABLED=true), e.g. once an outbound proxy exists. Off by
+// default → button hidden, no broken flow.
 const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  && process.env.GOOGLE_OAUTH_ENABLED === 'true'
 
 // Basic in-memory brute-force guard for password login (single-instance Liara).
 // Max 8 failed attempts per phone per 15 min window.

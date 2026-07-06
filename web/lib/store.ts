@@ -171,6 +171,50 @@ export function userNeedsProfile(u: User): boolean {
   return !u.city || !u.primaryDisc
 }
 
+// Profile completeness — the fields a gamer must fill before joining a
+// competition. Signup now collects the bare minimum (phone/email/password);
+// everything here is completed later on the profile page. `percent` powers the
+// completion meter; `complete` gates competition registration.
+export function profileCompletion(u: User): { percent: number; missing: string[]; complete: boolean } {
+  const checks: [boolean, string][] = [
+    [!!u.firstName?.trim(), 'نام'],
+    [!!u.lastName?.trim(), 'نام خانوادگی'],
+    [!!u.province?.trim(), 'استان'],
+    [!!u.city?.trim(), 'شهر'],
+    [!!u.messenger, 'راه ارتباطی'],
+    [!!u.primaryDisc, 'رشتهٔ بازی'],
+  ]
+  const done = checks.filter(c => c[0]).length
+  return {
+    percent: Math.round((done / checks.length) * 100),
+    missing: checks.filter(c => !c[0]).map(c => c[1]),
+    complete: done === checks.length,
+  }
+}
+
+// Minimal signup: phone + email + password only. Auto-generates a provisional
+// tag from the email local-part (same scheme as Google users); the player sets
+// their real handle + the rest of their profile later. Admin phones become
+// admin immediately.
+export function createPhoneUser(input: { phone: string; email: string; passwordHash: string }): User {
+  if (usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
+  if (usersByEmail.has(input.email.toLowerCase())) throw new Error('EMAIL_TAKEN')
+  const base = (input.email.split('@')[0] || 'gamer').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'gamer'
+  let tag = base
+  let n = 1
+  while (usersByTag.has(tag.toLowerCase())) tag = `${base}${n++}`
+  const id = 'u_' + Math.random().toString(36).slice(2, 10)
+  const role: Role = isAdminPhone(input.phone) ? 'admin' : 'gamer'
+  const u: User = {
+    id, phone: input.phone, email: input.email, passwordHash: input.passwordHash,
+    name: tag, tag, city: '', primaryDisc: null, role, coinBalance: 0, createdAt: Date.now(),
+  }
+  users.set(id, u)
+  indexUser(u)
+  persist.user.insert(u)
+  return u
+}
+
 export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'> & { role?: Role; coinBalance?: number }): User {
   if (input.phone && usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
   if (input.email && usersByEmail.has(input.email.toLowerCase())) throw new Error('EMAIL_TAKEN')

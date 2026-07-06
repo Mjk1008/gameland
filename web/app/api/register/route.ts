@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, pushNotif, getUserById, getEvent } from '@/lib/store'
+import { createRegistration, pushNotif, getUserById, getEvent, profileCompletion } from '@/lib/store'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid
   const u = uid ? getUserById(uid) : null
   if (!uid || !u) return NextResponse.json({ error: 'لاگین کنید' }, { status: 401 })
+
+  // Complete profile required before joining a competition.
+  if (u.role === 'gamer' && !profileCompletion(u).complete) {
+    return NextResponse.json({ error: 'PROFILE_INCOMPLETE', message: 'اول پروفایلت رو کامل کن' }, { status: 400 })
+  }
 
   const body = await req.json().catch(() => ({}))
   const compId = (body.compId ?? '').toString()

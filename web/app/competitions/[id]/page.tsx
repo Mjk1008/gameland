@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
 import { getRegistration, getEvent, placementsForComp, getUserById } from '@/lib/store'
-import { C, DISP, Num, StatusChip, BackHeader, Button, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +33,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
         {/* Hero */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut, flexShrink: 0 }} />
+            <GameBadge disc={c.disc} size={38} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>{c.title}</div>
               <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 3 }}>{disc.name}{c.season ? ` · ${c.season}` : ''}</div>

@@ -17,7 +17,27 @@ export const DISP = "'Saira Condensed','Rajdhani',sans-serif"
 export const LATIN = "'Inter',-apple-system,sans-serif"
 
 export const DISC_DOT: Record<string, string> = {
-  fc26: '#4AA3FF', pes21: '#3FBE86', efootball: '#A855F7', ufc6: '#FF5A4E', nba2k26: '#F5A623',
+  fc26: '#22C55E', pes21: '#3B82F6', efootball: '#06B6D4', ufc6: '#EF4444', nba2k26: '#F97316',
+}
+const GAME_MARK: Record<string, string> = {
+  fc26: 'FC', pes21: 'PES', efootball: 'eF', ufc6: 'UFC', nba2k26: '2K',
+}
+
+// Game "logo" tile — a rounded badge with the game's monogram on its brand
+// color. Reads like a real game mark; replaces the old colored dots/boxes.
+export function GameBadge({ disc, size = 30 }: { disc: string; size?: number }) {
+  const color = DISC_DOT[disc] ?? '#6E6252'
+  const mark = GAME_MARK[disc] ?? '?'
+  const fs = mark.length >= 3 ? size * 0.32 : size * 0.42
+  return (
+    <span aria-hidden style={{
+      width: size, height: size, borderRadius: Math.round(size * 0.28), flexShrink: 0,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      background: `linear-gradient(150deg, ${color}, ${color}bb)`, boxShadow: `0 2px 9px ${color}44`,
+    }}>
+      <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: fs, lineHeight: 1, color: '#0B0A08', letterSpacing: '-.02em' }}>{mark}</span>
+    </span>
+  )
 }
 
 // status → {color, soft, label}
@@ -108,8 +128,8 @@ export function StatusChip({ status }: { status: string }) {
 // ── discipline chip + dot ──
 export function DiscChip({ disc, name }: { disc: string; name: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 8, padding: '6px 11px' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[disc] ?? C.tmut }} />{name}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 600, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: '5px 10px 5px 6px' }}>
+      <GameBadge disc={disc} size={22} />{name}
     </span>
   )
 }

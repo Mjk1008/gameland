@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents } from '@/lib/store'
-import { C, DISP, Num, DISC_DOT } from '@/components/ui'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion } from '@/lib/store'
+import { C, DISP, Num, GameBadge } from '@/components/ui'
 
 export default async function MePage() {
   const session = await getServerSession(authOptions)
@@ -16,6 +16,7 @@ export default async function MePage() {
   const notifs = notifsForUser(uid).slice(0, 3)
   const unread = unreadCount(uid)
   const openEvents = allEvents().filter(c => c.status === 'open' || c.status === 'live' || c.status === 'soon').slice(0, 3)
+  const pc = profileCompletion(u)
 
   return (
     <div style={{ padding: '16px 16px 28px' }} className="animate-fade-up">
@@ -29,8 +30,25 @@ export default async function MePage() {
           <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{u.name}</div>
           <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{u.tag} · {u.city || '—'}</div>
         </div>
-        <Link href="/me/edit" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tbody, padding: '7px 11px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
+        <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tbody, padding: '7px 11px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
       </div>
+
+      {/* Profile completion meter — only for gamers who aren't 100% yet */}
+      {u.role === 'gamer' && !pc.complete && (
+        <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', display: 'block', background: C.sf1, border: `1px solid ${C.gold}55`, borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 9 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: C.thi }}>پروفایلت رو کامل کن</span>
+            <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 14, color: C.gold }}>{pc.percent}٪</span>
+          </div>
+          <div style={{ height: 7, borderRadius: 4, background: C.line, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pc.percent}%`, background: C.gold, borderRadius: 4 }} />
+          </div>
+          <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 9, lineHeight: 1.8 }}>
+            برای ثبت‌نام تو مسابقه‌ها باید پروفایلت ۱۰۰٪ باشه. مونده: <span style={{ color: C.thi, fontWeight: 700 }}>{pc.missing.join('، ')}</span>
+          </div>
+          <div style={{ fontSize: 11.5, color: C.gold, fontWeight: 700, marginTop: 8 }}>تکمیل پروفایل ›</div>
+        </Link>
+      )}
 
       {/* Tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 16 }}>
@@ -62,7 +80,7 @@ export default async function MePage() {
               const reg = regs.find(r => r.compId === c.id)
               return (
                 <Link key={c.id} href={reg ? `/competitions/${c.id}/me` : `/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut }} />
+                  <GameBadge disc={c.disc} size={26} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{c.title}</div>
                     <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 2 }}>{reg ? `${reg.attempts} بلیط · ${reg.seedsEarned} seed` : c.statusLabel}</div>
