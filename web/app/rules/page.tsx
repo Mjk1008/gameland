@@ -6,10 +6,10 @@ export default function RulesPage() {
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <Link href="/" style={{ all: 'unset', cursor: 'pointer', width: 34, height: 34, borderRadius: 10, background: '#121821', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+        <Link href="/" style={{ all: 'unset', cursor: 'pointer', width: 34, height: 34, borderRadius: 10, background: '#1E1A14', border: '1px solid #262019', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A89A88' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </Link>
-        <span style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9' }}>قوانین مسابقات</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: '#F6EFE4' }}>قوانین مسابقات</span>
       </div>
 
       <Section title="ساختار مسابقه">
@@ -57,7 +57,7 @@ export default function RulesPage() {
       </Section>
 
       <Section title="چارچوب مالی">
-        <p style={p}>جایزه‌ها صرفاً از طرف <Link href="/sponsors" style={{ color: '#f5c84b' }}>حامیان مالی</Link> تأمین می‌شه. هیچ بخشی از ورودی بازیکنان به جایزه نمی‌ره. ورودی = هزینهٔ سرویس مهارتی (organizing fee). این چارچوب با ماده ۷۰۵ قانون مجازات اسلامی منافات نداره، چون عناصر تعریف قمار (شرط‌بندی مالی + شانس) برقرار نیستن.</p>
+        <p style={p}>جایزه‌ها صرفاً از طرف <Link href="/sponsors" style={{ color: '#F5A623' }}>حامیان مالی</Link> تأمین می‌شه. هیچ بخشی از ورودی بازیکنان به جایزه نمی‌ره. ورودی = هزینهٔ سرویس مهارتی (organizing fee). این چارچوب با ماده ۷۰۵ قانون مجازات اسلامی منافات نداره، چون عناصر تعریف قمار (شرط‌بندی مالی + شانس) برقرار نیستن.</p>
       </Section>
 
       <Section title="رفتار حرفه‌ای">
@@ -79,13 +79,13 @@ export default function RulesPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ background: '#121821', border: '1px solid #1e293b', borderRadius: 14, padding: 14, marginBottom: 12 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', margin: 0, marginBottom: 8 }}>{title}</h2>
+    <section style={{ background: '#1E1A14', border: '1px solid #262019', borderRadius: 14, padding: 14, marginBottom: 12 }}>
+      <h2 style={{ fontSize: 14, fontWeight: 700, color: '#F6EFE4', margin: 0, marginBottom: 8 }}>{title}</h2>
       {children}
     </section>
   )
 }
 
-const ul: React.CSSProperties = { fontSize: 12, color: '#94a3b8', lineHeight: 2, margin: 0, paddingRight: 18 }
+const ul: React.CSSProperties = { fontSize: 12, color: '#A89A88', lineHeight: 2, margin: 0, paddingRight: 18 }
 const ol: React.CSSProperties = { ...ul }
-const p: React.CSSProperties = { fontSize: 12, color: '#94a3b8', lineHeight: 1.8, margin: 0 }
+const p: React.CSSProperties = { fontSize: 12, color: '#A89A88', lineHeight: 1.8, margin: 0 }

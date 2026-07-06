@@ -8,14 +8,10 @@ type DiscFilter = 'all' | Disc
 
 const DISCS: { id: DiscFilter; name: string }[] = [
   { id: 'all', name: 'همه' },
-  { id: 'fc26', name: 'فیفا ۲۶' },
-  { id: 'pes21', name: 'پ‌اس ۲۱' },
-  { id: 'efootball', name: 'ای‌فوتبال' },
-  { id: 'ufc6', name: 'یو‌اف‌سی ۶' },
-  { id: 'nba2k26', name: 'NBA 2K26' },
+  ...(Object.keys(DISC) as Disc[]).map(id => ({ id, name: DISC[id].name })),
 ]
 
-export default function LeaderboardClient({ initial }: { initial: Player[] }) {
+export default function LeaderboardClient({ initial, meTag }: { initial: Player[]; meTag?: string }) {
   const [q, setQ] = useState('')
   const [disc, setDisc] = useState<DiscFilter>('all')
 
@@ -62,14 +58,16 @@ export default function LeaderboardClient({ initial }: { initial: Player[] }) {
           <div style={{ textAlign: 'center', padding: '40px 16px', color: C.tmut, fontSize: 13 }}>گیمری با این مشخصات پیدا نشد — فیلتر یا جستجو رو عوض کن.</div>
         ) : filtered.map(p => {
           const d = DISC[p.disc]
+          const isMe = meTag && p.tag.toLowerCase() === meTag.toLowerCase()
           return (
-            <Link key={p.rank} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 13, boxSizing: 'border-box', padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+            <Link key={p.rank} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 13, boxSizing: 'border-box', padding: '11px 13px', background: isMe ? C.accentSoft : C.sf1, border: `1px solid ${isMe ? C.accent : C.line}`, borderRadius: 12 }}>
+              {isMe && <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 3, background: C.accent }} />}
               <span className="gl-num" style={{ width: 34, textAlign: 'center', fontWeight: 800, fontSize: 30, color: p.rank === 1 ? C.accent : p.rank <= 3 ? C.gold : C.tbody }}>{p.rank}</span>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 700, fontSize: 18, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}</span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}{isMe ? ' · تو' : ''}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                   <GameBadge disc={p.disc} size={16} />
                   <span style={{ fontSize: 11, color: C.tmut }}>{d?.name} · {p.city}</span>

@@ -1,4 +1,6 @@
-import { allUsers, allEvents, allPlacements } from '@/lib/store'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { allUsers, allEvents, allPlacements, getUserById } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import type { Disc } from '@/lib/mock-data'
@@ -10,7 +12,10 @@ const DISC_COLOR: Record<string, string> = {
   fc26: '#38bdf8', pes21: '#34d399', efootball: '#22d3ee', ufc6: '#fb7185', nba2k26: '#f5c84b',
 }
 
-export default function LeaderboardPage() {
+export default async function LeaderboardPage() {
+  const session = await getServerSession(authOptions)
+  const meUid = (session as any)?.uid as string | undefined
+  const meTag = meUid ? getUserById(meUid)?.tag : undefined
   const users = allUsers().filter(u => u.role === 'gamer')
   const events = allEvents()
   const placements = allPlacements()
@@ -48,5 +53,5 @@ export default function LeaderboardPage() {
       city: u.city,
     }))
 
-  return <LeaderboardClient initial={ranked} />
+  return <LeaderboardClient initial={ranked} meTag={meTag} />
 }

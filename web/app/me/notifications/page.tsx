@@ -6,9 +6,13 @@ import { C, BackHeader, EmptyState } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
-const TYPE_COLOR: Record<string, string> = {
-  registration: C.win, draw: C.accent, match_ready: C.gold,
-  result: C.info, advance: C.win, announcement: C.tbody,
+const TYPE_META: Record<string, { color: string; label: string }> = {
+  registration: { color: C.win,  label: 'ثبت‌نام' },
+  draw:         { color: C.accent, label: 'قرعه‌کشی' },
+  match_ready:  { color: C.gold,  label: 'بازی' },
+  result:       { color: C.info,  label: 'نتیجه' },
+  advance:      { color: C.win,   label: 'صعود' },
+  announcement: { color: C.tbody, label: 'اطلاعیه' },
 }
 
 export default async function NotificationsPage() {
@@ -30,14 +34,18 @@ export default async function NotificationsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {list.map(n => {
-              const color = TYPE_COLOR[n.type] ?? C.tbody
+              const meta = TYPE_META[n.type] ?? { color: C.tbody, label: 'اعلان' }
               return (
-                <div key={n.id} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: n.read ? C.sf1 : C.sf2, border: `1px solid ${n.read ? C.line : C.line2}`, borderRadius: 12 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: n.read ? C.line2 : color, flexShrink: 0, marginTop: 6 }} />
+                <div key={n.id} style={{ position: 'relative', display: 'flex', gap: 11, padding: '12px 14px', background: n.read ? C.sf1 : C.sf2, border: `1px solid ${n.read ? C.line : meta.color + '55'}`, borderRadius: 12, overflow: 'hidden' }}>
+                  {!n.read && <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 3, background: meta.color }} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{n.title}</div>
-                    <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 3, lineHeight: 1.7 }}>{n.body}</div>
-                    <div style={{ fontSize: 10, color: C.tmut, marginTop: 5 }}>{relativeTime(n.createdAt)}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, background: meta.color + '1f', padding: '2px 8px', borderRadius: 6 }}>{meta.label}</span>
+                      {!n.read && <span style={{ fontSize: 10, color: meta.color }}>جدید</span>}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, color: C.thi }}>{n.title}</div>
+                    <div style={{ fontSize: 12.5, color: C.tbody, marginTop: 3, lineHeight: 1.8 }}>{n.body}</div>
+                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 6 }}>{relativeTime(n.createdAt)}</div>
                   </div>
                 </div>
               )
