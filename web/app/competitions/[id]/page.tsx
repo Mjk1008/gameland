@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
-import { getRegistration, getEvent, placementsForComp, getUserById } from '@/lib/store'
+import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp } from '@/lib/store'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +16,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const uid = (session as any)?.uid as string | undefined
   const reg = uid ? getRegistration(uid, params.id) : undefined
 
+  const drawn = matchesForComp(params.id).length > 0
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }
   const breakdown = prizeBreakdown(c.prize)
   const roadmap = roadmapStages(c.status)
@@ -51,6 +52,12 @@ export default async function CompetitionPage({ params }: { params: { id: string
               ? <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
               : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>{uid ? 'ثبت‌نام در این مسابقه' : 'برای ثبت‌نام وارد شو'}</Button>
           )}
+
+          {/* Bracket — always discoverable; the page itself explains the pre-draw state */}
+          <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 48, background: C.sf1, border: `1px solid ${drawn ? C.accent : C.line}`, borderRadius: 12, color: drawn ? C.accent : C.tbody, fontWeight: 700, fontSize: 13.5 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6M6 21v-6"/><circle cx="6" cy="3" r="1"/><circle cx="6" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg>
+            {drawn ? 'جدول و براکت مسابقه ›' : 'جدول مسابقه (بعد از قرعه‌کشی)'}
+          </Link>
         </div>
 
         {/* Prize pool */}
