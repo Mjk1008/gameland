@@ -26,7 +26,7 @@ export default function NewEventForm() {
     try {
       const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, date, status, statusLabel: statusLabels[status] }) })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ساخته نشد، دوباره امتحان کن')
       router.push('/admin/events'); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -37,7 +37,7 @@ export default function NewEventForm() {
         <Link href="/admin/events" style={{ all: 'unset', cursor: 'pointer', width: 34, height: 34, borderRadius: 10, background: C.sf1, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.tbody }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
         </Link>
-        <span style={{ fontSize: 18, fontWeight: 800, color: C.thi }}>ایونت جدید</span>
+        <span style={{ fontSize: 18, fontWeight: 800, color: C.thi }}>مسابقهٔ جدید</span>
       </div>
 
       <Field label="عنوان"><input value={title} onChange={e => setTitle(e.target.value)} required style={inp} /></Field>
@@ -84,7 +84,7 @@ export default function NewEventForm() {
 
       {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-      <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? '...' : 'ایجاد ایونت'}</Button>
+      <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'در حال ساخت…' : 'ساخت مسابقه'}</Button>
     </form>
   )
 }

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const compId = (body.compId ?? '').toString()
   const attempts = Number(body.attempts)
-  if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد شانس باید ۱ تا ۶ باشد' }, { status: 400 })
+  if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد بلیط باید ۱ تا ۶ باشد' }, { status: 400 })
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
   // V1: registration is free (sponsor-funded prizes). Only open events accept it.
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     const map: Record<string, string> = {
       ALREADY_REGISTERED: 'قبلاً در این مسابقه ثبت‌نام کرده‌ای',
-      ATTEMPTS_OUT_OF_RANGE: 'تعداد شانس باید ۱ تا ۶ باشد',
+      ATTEMPTS_OUT_OF_RANGE: 'تعداد بلیط باید ۱ تا ۶ باشد',
       INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
     }
     return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })

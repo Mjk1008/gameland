@@ -10,11 +10,11 @@ export default function AdminEventsPage() {
     <div style={{ padding: '16px 16px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <span style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>مسابقات</span>
-        <Link href="/admin/events/new" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: C.ink, background: C.accent, padding: '8px 13px', borderRadius: 10 }}>+ ایونت جدید</Link>
+        <Link href="/admin/events/new" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: C.ink, background: C.accent, padding: '8px 13px', borderRadius: 10 }}>+ مسابقهٔ جدید</Link>
       </div>
 
       {all.length === 0 ? (
-        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز ایونتی نساختی." /></div>
+        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای نساختی." /></div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {all.map(c => (

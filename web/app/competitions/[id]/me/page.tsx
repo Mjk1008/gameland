@@ -67,7 +67,7 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="روندنمای من" href={`/competitions/${c.id}`} />
+      <BackHeader title="مسیر من" href={`/competitions/${c.id}`} />
 
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

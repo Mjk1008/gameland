@@ -19,7 +19,7 @@ export default function StatusControl({ compId, status }: { compId: string; stat
     setBusy(next)
     try {
       const res = await fetch('/api/admin/event-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, status: next }) })
-      if (!res.ok) { const j = await res.json(); alert(j.error || 'خطا') }
+      if (!res.ok) { const j = await res.json(); alert(j.error || 'تغییر وضعیت انجام نشد، دوباره امتحان کن') }
       router.refresh()
     } finally { setBusy(null) }
   }
@@ -33,12 +33,12 @@ export default function StatusControl({ compId, status }: { compId: string; stat
           return (
             <button key={s.key} type="button" disabled={busy !== null} onClick={() => setStatus(s.key)}
               style={{ all: 'unset', cursor: on ? 'default' : 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? s.color : C.line}`, borderRadius: 10, background: on ? s.color + '22' : C.sf2, color: on ? s.color : C.tbody, fontWeight: 700, fontSize: 12, opacity: busy === s.key ? 0.5 : 1 }}>
-              {busy === s.key ? '...' : s.label}
+              {busy === s.key ? '…' : s.label}
             </button>
           )
         })}
       </div>
-      <div style={{ fontSize: 10, color: C.tmut, marginTop: 6 }}>ثبت‌نام فقط در حالت «ثبت‌نام باز» ممکن است. تغییر وضعیت به بازیکنان اعلان می‌فرستد.</div>
+      <div style={{ fontSize: 10, color: C.tmut, marginTop: 6 }}>ثبت‌نام فقط توی حالت «ثبت‌نام باز» ممکنه. با تغییر وضعیت، به بازیکن‌ها اعلان می‌ره.</div>
     </div>
   )
 }

@@ -17,19 +17,19 @@ export default function AdminHome() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <Stat label="گیمرها" value={userCount} color={C.accent} />
         <Stat label="فعال" value={liveComps} color={C.win} />
-        <Stat label="کل ایونت" value={events.length} color={C.gold} />
+        <Stat label="کل مسابقه" value={events.length} color={C.gold} />
       </div>
 
       {pending > 0 && (
         <Link href="/admin/requests" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent }} />
-          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.accent }}>درخواست ثبت‌نام در انتظار تایید</span>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.accent }}>درخواست ثبت‌نام منتظر تایید</span>
           <Num size={18} color={C.accent}>{pending}</Num>
         </Link>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <CTA href="/admin/events/new" label="+ ساخت ایونت جدید" primary />
+        <CTA href="/admin/events/new" label="+ ساخت مسابقهٔ جدید" primary />
         <CTA href="/admin/notify" label="ارسال اعلان به همه" />
         <CTA href="/admin/gamers" label="مدیریت گیمرها" />
       </div>
@@ -37,7 +37,7 @@ export default function AdminHome() {
       <div>
         <div style={{ fontSize: 15, fontWeight: 700, color: C.thi, marginBottom: 10 }}>مسابقات</div>
         {events.length === 0 ? (
-          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز ایونتی نساختی." /></div>
+          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای نساختی." /></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {events.map(c => (

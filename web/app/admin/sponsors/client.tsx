@@ -20,7 +20,7 @@ export default function SponsorsClient({ initial }: { initial: Row[] }) {
         body: JSON.stringify(form),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setList(l => [...l, j.sponsor])
       setOpen(false)
       setForm({ id: '', name: '', website: '' })
@@ -42,7 +42,7 @@ export default function SponsorsClient({ initial }: { initial: Row[] }) {
           <input value={form.name}    onChange={e => setForm({ ...form, name: e.target.value })} required style={inp} placeholder="نام برند"/>
           <input value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} style={inp} placeholder="وب‌سایت (اختیاری)" dir="ltr"/>
           {err && <div style={{ fontSize: 12, color: '#fb7185' }}>{err}</div>}
-          <button disabled={busy} type="submit" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#f5c84b', color: '#0b0f14', fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 10, opacity: busy ? 0.6 : 1 }}>{busy ? '...' : 'ذخیره'}</button>
+          <button disabled={busy} type="submit" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#f5c84b', color: '#0b0f14', fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 10, opacity: busy ? 0.6 : 1 }}>{busy ? 'در حال ذخیره…' : 'ذخیره'}</button>
         </form>
       )}
 

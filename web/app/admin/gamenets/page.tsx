@@ -11,7 +11,7 @@ export default function GamenetsAdmin() {
       <div style={{ fontSize: 17, fontWeight: 800, color: '#f1f5f9', marginBottom: 12 }}>گیم‌نت‌ها</div>
 
       {list.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 16px', color: '#64748b', fontSize: 13 }}>هیچ گیم‌نتی ثبت نشده</div>
+        <div style={{ textAlign: 'center', padding: '32px 16px', color: '#64748b', fontSize: 13 }}>هنوز گیم‌نتی ثبت نشده</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {list.map(g => {
@@ -23,8 +23,8 @@ export default function GamenetsAdmin() {
                   <VerifyBtn id={g.id} verified={g.verified}/>
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8' }}>{g.city} · {g.stations} ایستگاه</div>
-                <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>توسط: {owner?.name ?? 'ناشناس'} ({owner?.tag ?? '?'})</div>
-                <Link href={`/gamenets/${g.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'block', marginTop: 6, fontSize: 11, color: '#22d3ee' }}>مشاهدهٔ صفحهٔ عمومی ›</Link>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>ثبت‌کننده: {owner?.name ?? 'ناشناس'} ({owner?.tag ?? '?'})</div>
+                <Link href={`/gamenets/${g.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'block', marginTop: 6, fontSize: 11, color: '#22d3ee' }}>دیدن صفحهٔ عمومی ›</Link>
               </div>
             )
           })}

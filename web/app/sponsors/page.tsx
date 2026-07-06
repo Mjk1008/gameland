@@ -15,9 +15,9 @@ export default function SponsorsPage() {
       </div>
 
       <div style={{ background: 'linear-gradient(135deg, rgba(245,200,75,.08), #121821)', border: '1px solid rgba(245,200,75,.22)', borderRadius: 14, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#f5c84b', marginBottom: 6 }}>تأمین جایزه</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#f5c84b', marginBottom: 6 }}>جایزه‌ها از کجا می‌آد؟</div>
         <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7, margin: 0 }}>
-          تمام جوایز مسابقات گیم‌لند از طرف برندهای زیر تأمین می‌شه. هیچ بخشی از ورودی شرکت‌کننده‌ها وارد استخر جایزه نمی‌شه.
+          همهٔ جایزه‌های مسابقات گیم‌لند رو برندهای زیر تأمین می‌کنن. هیچ بخشی از ورودی شرکت‌کننده‌ها به جایزه‌ها اضافه نمی‌شه.
         </p>
       </div>
 

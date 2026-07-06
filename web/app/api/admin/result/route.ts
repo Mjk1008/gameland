@@ -21,14 +21,14 @@ export async function POST(req: Request) {
     const c = getEvent(compId)
     const title = outcome === 'advance' ? 'به فاینال راه یافتی! 🎉' : 'حذف از مقدماتی'
     const body  = c
-      ? `${c.title} — شانس ${r.prelimsCompleted}/${r.attempts} ${outcome === 'advance' ? 'صعود کرد' : 'حذف شد'}`
-      : `نتیجهٔ شانس ${r.prelimsCompleted}/${r.attempts} ثبت شد`
+      ? `${c.title} — بلیط ${r.prelimsCompleted}/${r.attempts} ${outcome === 'advance' ? 'صعود کرد' : 'حذف شد'}`
+      : `نتیجهٔ بلیط ${r.prelimsCompleted}/${r.attempts} ثبت شد`
     pushNotif(r.userId, outcome === 'advance' ? 'advance' : 'result', title, body)
     return NextResponse.json({ ok: true, registration: r })
   } catch (e: any) {
     const map: Record<string, string> = {
       REG_NOT_FOUND: 'ثبت‌نام پیدا نشد',
-      NO_ATTEMPTS_LEFT: 'شانسی باقی نمونده',
+      NO_ATTEMPTS_LEFT: 'بلیطی باقی نمونده',
       MAX_SEEDS_REACHED: 'حداکثر ۳ seed مجاز',
     }
     return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })

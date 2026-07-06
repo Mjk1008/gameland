@@ -16,21 +16,21 @@ export default function FinalizeControls({ compId, participants, done }: { compI
   async function submit() {
     setErr(null)
     const placements = Object.entries(ranks).filter(([, v]) => v !== '').map(([userId, v]) => ({ userId, rank: Number(v) }))
-    if (placements.length === 0) { setErr('حداقل یک مقام وارد کن'); return }
+    if (placements.length === 0) { setErr('حداقل مقام یک نفر رو وارد کن'); return }
     const seen = new Set<number>()
-    for (const p of placements) { if (seen.has(p.rank)) { setErr(`مقام ${p.rank} تکراری است`); return } seen.add(p.rank) }
-    if (!confirm(`ثبت ${placements.length} مقام و پایان‌دادن مسابقه؟ این عمل رنکینگ را به‌روز می‌کند.`)) return
+    for (const p of placements) { if (seen.has(p.rank)) { setErr(`مقام ${p.rank} تکراریه، هر مقام باید یکتا باشه`); return } seen.add(p.rank) }
+    if (!confirm(`${placements.length} مقام ثبت بشه و مسابقه تموم بشه؟ این کار رنکینگ رو به‌روز می‌کنه.`)) return
     setBusy(true)
     try {
       const res = await fetch('/api/admin/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, placements }) })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ثبت نشد، دوباره امتحان کن')
       router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   if (participants.length === 0) {
-    return <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '4px 0' }}>برای ثبت نتایج نهایی، اول باید ثبت‌نام داشته باشیم.</div>
+    return <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '4px 0' }}>برای ثبت نتایج نهایی، اول باید بازیکن ثبت‌نام‌شده داشته باشیم.</div>
   }
 
   return (
@@ -39,7 +39,7 @@ export default function FinalizeControls({ compId, participants, done }: { compI
         <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>نتایج نهایی (رده‌بندی)</span>
         {done && <span style={{ fontSize: 10, fontWeight: 700, color: C.info }}>ثبت‌شده · قابل ویرایش</span>}
       </div>
-      <div style={{ fontSize: 10, color: C.tmut, marginBottom: 10 }}>مقام هر بازیکن را وارد کن (۱ = قهرمان). خالی = بدون رتبه. امتیاز رنکینگ خودکار محاسبه می‌شود.</div>
+      <div style={{ fontSize: 10, color: C.tmut, marginBottom: 10 }}>مقام هر بازیکن رو وارد کن (۱ = قهرمان). خالی بذاری یعنی بدون رتبه. امتیاز رنکینگ خودکار حساب می‌شه.</div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {participants.map(p => (
@@ -58,7 +58,7 @@ export default function FinalizeControls({ compId, participants, done }: { compI
 
       <button type="button" disabled={busy} onClick={submit}
         style={{ all: 'unset', cursor: 'pointer', display: 'block', boxSizing: 'border-box', width: '100%', textAlign: 'center', background: C.gold, color: C.ink, fontWeight: 800, fontSize: 14, padding: '12px 0', borderRadius: 11, marginTop: 12, opacity: busy ? 0.6 : 1 }}>
-        {busy ? '...' : done ? 'به‌روزرسانی نتایج' : 'قطعی‌سازی و اعلام نتایج'}
+        {busy ? 'در حال ثبت…' : done ? 'به‌روزرسانی نتایج' : 'ثبت و اعلام نتایج'}
       </button>
     </div>
   )

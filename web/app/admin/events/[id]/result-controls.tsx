@@ -13,13 +13,13 @@ export default function ResultControls({ compId, regs }: { compId: string; regs:
     setBusyId(regId)
     try {
       const res = await fetch('/api/admin/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, regId, outcome }) })
-      if (!res.ok) { const j = await res.json(); alert(j.error || 'خطا') }
+      if (!res.ok) { const j = await res.json(); alert(j.error || 'ثبت نشد، دوباره امتحان کن') }
       router.refresh()
     } finally { setBusyId(null) }
   }
 
   if (regs.length === 0) {
-    return <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '4px 0' }}>هنوز کسی ثبت‌نام نکرده.</div>
+    return <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '4px 0' }}>هنوز کسی ثبت‌نام نکرده — نتیجه‌ای برای ثبت نیست.</div>
   }
 
   return (

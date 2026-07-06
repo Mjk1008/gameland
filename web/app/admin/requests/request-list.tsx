@@ -10,11 +10,11 @@ export default function RequestList({ rows }: { rows: Row[] }) {
   const [busy, setBusy] = useState<string | null>(null)
 
   async function act(regId: string, action: 'approve' | 'reject') {
-    if (action === 'reject' && !confirm('رد این ثبت‌نام؟')) return
+    if (action === 'reject' && !confirm('این ثبت‌نام رد بشه؟')) return
     setBusy(regId)
     try {
       const res = await fetch('/api/admin/reg-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ regId, action }) })
-      if (!res.ok) { const j = await res.json(); alert(j.error || 'خطا') }
+      if (!res.ok) { const j = await res.json(); alert(j.error || 'انجام نشد، دوباره امتحان کن') }
       router.refresh()
     } finally { setBusy(null) }
   }
@@ -27,7 +27,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
       </div>
 
       {rows.length === 0 ? (
-        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="درخواست در انتظاری نیست." /></div>
+        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="درخواست منتظری نداری — همه رسیدگی شدن." /></div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {rows.map(r => (

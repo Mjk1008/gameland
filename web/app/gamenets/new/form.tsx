@@ -27,7 +27,7 @@ export default function NewGamenetForm() {
         body: JSON.stringify({ name, city, address: addr, phone, stations, disciplines: discs }),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ثبت نشد، دوباره امتحان کن')
       router.push(`/gamenets/${j.gamenet.id}`)
     } catch (e: any) { setErr(e.message) }
     finally { setBusy(false) }
@@ -60,13 +60,13 @@ export default function NewGamenetForm() {
       </Field>
 
       <div style={{ padding: '10px 12px', background: '#0b0f14', border: '1px solid #1e293b', borderRadius: 11, fontSize: 11, color: '#475569', lineHeight: 1.7 }}>
-        بعد از ثبت، گیم‌نت شما در دایرکتوری نمایش داده می‌شه. تأییدیه توسط تیم گیم‌لند ظرف ۲۴ ساعت انجام می‌شه.
+        بعد از ثبت، گیم‌نتت توی فهرست نمایش داده می‌شه. تیم گیم‌لند ظرف ۲۴ ساعت تأییدش می‌کنه.
       </div>
 
       {err && <div style={{ fontSize: 12, color: '#fb7185', background: '#fb71851a', border: '1px solid #fb718533', padding: 10, borderRadius: 10 }}>{err}</div>}
 
       <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 800, fontSize: 15, padding: '13px 0', borderRadius: 12, opacity: busy ? 0.6 : 1 }}>
-        {busy ? '...' : 'ثبت گیم‌نت'}
+        {busy ? 'در حال ثبت…' : 'ثبت گیم‌نت'}
       </button>
     </form>
   )

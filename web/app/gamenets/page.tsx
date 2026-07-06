@@ -12,13 +12,13 @@ export default function GamenetsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <span style={{ fontSize: 19, fontWeight: 800, color: '#f1f5f9' }}>گیم‌نت‌ها</span>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>دایرکتوری ملی گیم‌نت‌ها</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>فهرست گیم‌نت‌های سراسر کشور</div>
         </div>
         <Link href="/gamenets/new" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#0b0f14', background: '#22d3ee', padding: '7px 12px', borderRadius: 9 }}>+ ثبت گیم‌نت</Link>
       </div>
 
       {list.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b', fontSize: 13 }}>هنوز گیم‌نتی ثبت نشده</div>
+        <div style={{ textAlign: 'center', padding: '40px 16px', color: '#64748b', fontSize: 13 }}>هنوز گیم‌نتی ثبت نشده — گیم‌نتت رو تو اضافه کن.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {list.map(g => (
@@ -31,7 +31,7 @@ export default function GamenetsPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{g.name}</span>
-                  {g.verified && <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', background: '#34d39922', padding: '2px 6px', borderRadius: 5 }}>✓ تأیید‌شده</span>}
+                  {g.verified && <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399', background: '#34d39922', padding: '2px 6px', borderRadius: 5 }}>✓ تأییدشده</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4, fontSize: 11, color: '#64748b' }}>
                   <span>{g.city}</span>

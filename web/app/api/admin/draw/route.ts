@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   const result = generateBracketDraw({ compId, registrations: regs })
   // notify all participants
-  for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی انجام شد', `براکت‌ها چیده شد. مسابقهٔ خودت رو در صفحهٔ روندنما ببین.`)
+  for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی انجام شد', `براکت‌ها چیده شد. مسابقهٔ خودت رو در صفحهٔ مسیر ببین.`)
 
   return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })
 }

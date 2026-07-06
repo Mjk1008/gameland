@@ -45,7 +45,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       {pendingCount > 0 && (
         <Link href="/admin/requests" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent }} />
-          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: C.accent }}>{pendingCount} درخواست در انتظار تایید</span>
+          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: C.accent }}>{pendingCount} درخواست منتظر تایید</span>
           <span style={{ color: C.accent }}>›</span>
         </Link>
       )}

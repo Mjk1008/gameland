@@ -20,7 +20,7 @@ export default function DiscClient({ initial }: { initial: Row[] }) {
         body: JSON.stringify(form),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setList(l => [...l, j.discipline])
       setOpen(false)
       setForm({ id: '', name: '', short: '', color: '#22d3ee', active: true })
@@ -45,7 +45,7 @@ export default function DiscClient({ initial }: { initial: Row[] }) {
           <Field><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required style={inp} placeholder="نام فارسی"/></Field>
           <Field><input value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} required style={{...inp, fontFamily: 'Rajdhani, sans-serif'}} placeholder="#22d3ee" dir="ltr"/></Field>
           {err && <div style={{ fontSize: 12, color: '#fb7185' }}>{err}</div>}
-          <button disabled={busy} type="submit" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 10, opacity: busy ? 0.6 : 1 }}>{busy ? '...' : 'ذخیره'}</button>
+          <button disabled={busy} type="submit" style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 13, padding: '10px 0', borderRadius: 10, opacity: busy ? 0.6 : 1 }}>{busy ? 'در حال ذخیره…' : 'ذخیره'}</button>
         </form>
       )}
 
