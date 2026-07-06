@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { allUsers } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, EmptyState, DISC_DOT } from '@/components/ui'
+import { C, DISP, EmptyState, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,8 +35,8 @@ export default function PlayersPage() {
                   <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2 }}>@{p.tag}</div>
                 </div>
                 {d && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, padding: '4px 10px', borderRadius: 999 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: DISC_DOT[p.disc!] ?? C.tmut }} />{d.name}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 600, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, padding: '4px 10px 4px 5px', borderRadius: 999 }}>
+                    <GameBadge disc={p.disc!} size={18} />{d.name}
                   </span>
                 )}
                 <div style={{ fontSize: 11, color: C.tmut }}>{p.city}</div>

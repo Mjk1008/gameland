@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { DISC, Player, Disc } from '@/lib/mock-data'
-import { C, DISP, Num, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, GameBadge } from '@/components/ui'
 
 type DiscFilter = 'all' | Disc
 
@@ -71,7 +71,7 @@ export default function LeaderboardClient({ initial }: { initial: Player[] }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: DISC_DOT[p.disc] ?? C.tmut }} />
+                  <GameBadge disc={p.disc} size={16} />
                   <span style={{ fontSize: 11, color: C.tmut }}>{d?.name} · {p.city}</span>
                 </div>
               </div>

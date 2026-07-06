@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { allEvents } from '@/lib/store'
-import { C, Num, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
+import { C, Num, StatusChip, EmptyState, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +19,7 @@ export default function AdminEventsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {all.map(c => (
             <Link key={c.id} href={`/admin/events/${c.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 13 }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut, flexShrink: 0 }} />
+              <GameBadge disc={c.disc} size={28} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{c.title}</div>
                 <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 3 }}>{c.prize}M · {c.maxPlayers ?? c.teams} نفر</div>

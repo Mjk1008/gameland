@@ -183,6 +183,16 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.update(schema.events).set({ config: configJson }).where(eq(schema.events.id, id)))
     },
+    update(id: string, e: Event) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.events).set({
+        title: e.title, season: e.season, disc: e.disc, tier: e.tier,
+        prize: e.prize, teams: e.teams, maxPlayers: e.maxPlayers,
+        status: e.status, statusLabel: e.statusLabel, format: e.format, date: e.date,
+        startsAt: e.startsAt ? new Date(e.startsAt) : undefined,
+        regDeadline: e.regDeadline ? new Date(e.regDeadline) : undefined,
+      }).where(eq(schema.events.id, id)))
+    },
   },
   reg: {
     insert(r: Registration) {
