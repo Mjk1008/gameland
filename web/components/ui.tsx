@@ -38,21 +38,23 @@ export function Label({ children, color = C.tmut, size = 11 }: { children: React
   return <span className="gl-label" style={{ fontSize: size, color }}>{children}</span>
 }
 
-// ── wordmark + ascending-bars monogram ──
+// ── wordmark = real logo mark + GAMELAND ──
 export function Wordmark({ size = 22, tagline = false }: { size?: number; tagline?: boolean }) {
+  const mark = Math.round(size * 2)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-      <div style={{ width: size * 1.7, height: size * 1.7, borderRadius: 11, background: C.sf1, border: `1px solid ${C.line2}`, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 3, padding: `${size * 0.42}px ${size * 0.38}px` }}>
-        <span style={{ width: 4, height: size * 0.32, background: C.tmut, borderRadius: 1 }} />
-        <span style={{ width: 4, height: size * 0.56, background: C.tbody, borderRadius: 1 }} />
-        <span style={{ width: 4, height: size * 0.88, background: C.accent, borderRadius: 1 }} />
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+      <img src="/logo.png" alt="گیم‌لند" width={mark} height={mark} style={{ display: 'block', objectFit: 'contain', flexShrink: 0 }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: size, letterSpacing: '.14em', color: C.thi, lineHeight: 1 }}>GAMELAND</span>
         {tagline && <span style={{ fontSize: 11.5, color: C.tmut }}>خانهٔ گیمرهای ایران</span>}
       </div>
     </div>
   )
+}
+
+// ── logo mark only (square) ──
+export function LogoMark({ size = 40 }: { size?: number }) {
+  return <img src="/logo.png" alt="گیم‌لند" width={size} height={size} style={{ display: 'block', objectFit: 'contain' }} />
 }
 
 // ── card ──
