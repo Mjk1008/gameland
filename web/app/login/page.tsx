@@ -23,12 +23,15 @@ function LoginInner() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [phoneErr, setPhoneErr] = useState<string | null>(null)
   const [hasGoogle, setHasGoogle] = useState(false)
 
   useEffect(() => { getProviders().then(p => setHasGoogle(!!p?.google)).catch(() => {}) }, [])
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setErr(null); setBusy(true)
+    e.preventDefault(); setErr(null); setPhoneErr(null)
+    if (!/^09\d{9}$/.test(phone)) { setPhoneErr('شماره با ۰۹ شروع می‌شه و ۱۱ رقمه'); return }
+    setBusy(true)
     try {
       const r = await signIn('credentials', { phone, password, redirect: false, callbackUrl })
       if (r?.error) throw new Error('شماره موبایل یا گذرواژه درست نیست، دوباره چک کن')
@@ -60,7 +63,8 @@ function LoginInner() {
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, color: C.tmut }}>شمارهٔ موبایل</span>
           <input dir="ltr" inputMode="numeric" placeholder="09120000000" value={phone} autoComplete="tel"
-            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} style={{ ...inp, fontFamily: DISP, textAlign: 'left', letterSpacing: '.04em' }} required />
+            onChange={e => { setPhoneErr(null); setPhone(e.target.value.replace(/\D/g, '').slice(0, 11)) }} style={{ ...inp, fontFamily: DISP, textAlign: 'left', letterSpacing: '.04em' }} required />
+          {phoneErr && <span style={{ fontSize: 11.5, color: C.live }}>{phoneErr}</span>}
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, color: C.tmut }}>گذرواژه</span>

@@ -173,6 +173,7 @@ export function userNeedsProfile(u: User): boolean {
 
 export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'> & { role?: Role; coinBalance?: number }): User {
   if (input.phone && usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
+  if (input.email && usersByEmail.has(input.email.toLowerCase())) throw new Error('EMAIL_TAKEN')
   if (usersByTag.has(input.tag.toLowerCase())) throw new Error('TAG_TAKEN')
   if (input.nationalId) {
     for (const u of users.values()) if (u.nationalId === input.nationalId) throw new Error('NATIONAL_ID_TAKEN')
@@ -199,6 +200,14 @@ export function setUserRole(id: string, role: Role): User | undefined {
   if (!u) return undefined
   u.role = role
   persist.user.setRole(id, role)
+  return u
+}
+
+export function setUserPassword(id: string, passwordHash: string): User | undefined {
+  const u = users.get(id)
+  if (!u) return undefined
+  u.passwordHash = passwordHash
+  persist.user.setPassword(id, passwordHash)
   return u
 }
 

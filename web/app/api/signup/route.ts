@@ -9,6 +9,7 @@ const VALID_MSG = new Set(['whatsapp', 'telegram', 'both'])
 export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}))
   const phone     = (b.phone ?? '').toString().trim()
+  const email     = (b.email ?? '').toString().trim().toLowerCase()
   const password  = (b.password ?? '').toString()
   const firstName = (b.firstName ?? '').toString().trim()
   const lastName  = (b.lastName ?? '').toString().trim()
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
   const teamName  = (b.teamName ?? '').toString().trim() || undefined
 
   if (!/^09\d{9}$/.test(phone)) return NextResponse.json({ error: 'شمارهٔ موبایل نامعتبر' }, { status: 400 })
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'ایمیل معتبر وارد کن' }, { status: 400 })
   if (password.length < MIN_PASSWORD) return NextResponse.json({ error: `گذرواژه حداقل ${MIN_PASSWORD} کاراکتر` }, { status: 400 })
   if (!firstName || !lastName) return NextResponse.json({ error: 'نام و نام خانوادگی الزامی' }, { status: 400 })
   if (!/^[a-zA-Z0-9_-]{3,16}$/.test(tag)) return NextResponse.json({ error: 'تگ: ۳ تا ۱۶ کاراکتر انگلیسی' }, { status: 400 })
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
 
   try {
     const u = createUser({
-      phone, passwordHash: hashPassword(password),
+      phone, email, passwordHash: hashPassword(password),
       name: `${firstName} ${lastName}`.trim(), firstName, lastName,
       tag, province, city, messenger,
       primaryDisc: discs[0], discs, experienceYears, teamName,
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     const map: Record<string, string> = {
       PHONE_TAKEN: 'این شماره قبلاً ثبت‌نام کرده',
+      EMAIL_TAKEN: 'این ایمیل قبلاً ثبت‌نام کرده',
       TAG_TAKEN: 'این تگ قبلاً انتخاب شده',
       NATIONAL_ID_TAKEN: 'این کد ملی قبلاً ثبت شده',
     }
