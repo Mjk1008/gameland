@@ -306,7 +306,9 @@ const regs = new Map<string, Registration>()
 export function createRegistration(userId: string, compId: string, attempts: number): Registration {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   const key = userId + '|' + compId
-  if (regs.has(key)) throw new Error('ALREADY_REGISTERED')
+  const existing = regs.get(key)
+  // A rejected registration may be re-submitted; pending/approved may not.
+  if (existing && existing.status !== 'rejected') throw new Error('ALREADY_REGISTERED')
   const r: Registration = {
     id: 'r_' + Math.random().toString(36).slice(2, 10),
     userId, compId, attempts,

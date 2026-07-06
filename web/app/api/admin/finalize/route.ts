@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, getEvent, updateEventStatus, storePlacement, registrationsForComp, pushNotif } from '@/lib/store'
+import { getUserById, getEvent, updateEventStatus, storePlacement, approvedRegistrationsForComp, pushNotif } from '@/lib/store'
 
 // Finalize an event: record final placements → feeds the ranking/leaderboard,
 // mark the event done, and notify each ranked player.
@@ -21,14 +21,14 @@ export async function POST(req: Request) {
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
 
   // Validate: ranks are positive ints, users are real & registered, no dup ranks.
-  const regIds = new Set(registrationsForComp(compId).map(r => r.userId))
+  const regIds = new Set(approvedRegistrationsForComp(compId).map(r => r.userId))
   const seenRank = new Set<number>()
   const clean: { userId: string; rank: number }[] = []
   for (const row of rows) {
     const rank = Number(row.rank)
     if (!row.userId || !Number.isInteger(rank) || rank < 1) continue
     if (!getUserById(row.userId)) continue
-    if (!regIds.has(row.userId)) return NextResponse.json({ error: 'بازیکن ثبت‌نام‌نشده در نتایج' }, { status: 400 })
+    if (!regIds.has(row.userId)) return NextResponse.json({ error: 'بازیکن تاییدنشده در نتایج' }, { status: 400 })
     if (seenRank.has(rank)) return NextResponse.json({ error: `مقام ${rank} تکراری است` }, { status: 400 })
     seenRank.add(rank)
     clean.push({ userId: row.userId, rank })
