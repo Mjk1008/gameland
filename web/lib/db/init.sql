@@ -133,7 +133,11 @@ CREATE TABLE IF NOT EXISTS app_matches (
   CHECK (p1_user_id IS NULL OR p2_user_id IS NULL OR p1_user_id <> p2_user_id),
   CHECK (winner_user_id IS NULL OR winner_user_id = p1_user_id OR winner_user_id = p2_user_id)
 );
-CREATE INDEX IF NOT EXISTS match_comp_idx ON app_matches (comp_id, bracket, round, slot);
+-- Multi-stage brackets (per-city/province prelims → final 128). Idempotent.
+ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS stage     TEXT NOT NULL DEFAULT 'prelim';
+ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS group_key TEXT NOT NULL DEFAULT '';
+ALTER TABLE app_events  ADD COLUMN IF NOT EXISTS config    TEXT;   -- JSON EventConfig
+CREATE INDEX IF NOT EXISTS match_comp_idx ON app_matches (comp_id, stage, group_key, bracket, round, slot);
 
 -- ─── Placements (final results → feeds ranking) ──────────────
 CREATE TABLE IF NOT EXISTS app_placements (

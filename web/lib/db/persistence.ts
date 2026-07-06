@@ -24,6 +24,7 @@ export function startHydration(loaders: {
   loadNotif:     (n: any) => void
   loadPlacement: (pl: any) => void
   loadMatch:     (m: any) => void
+  loadEventConfig?: (compId: string, json: string) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -62,6 +63,7 @@ export function startHydration(loaders: {
         regDeadline: e.regDeadline ? ms(e.regDeadline) : undefined,
         organizerId: e.organizerId, createdAt: ms(e.createdAt),
       })
+      for (const e of ev) if ((e as any).config) loaders.loadEventConfig?.(e.id, (e as any).config)
 
       const rg = await d.select().from(schema.registrations)
       for (const r of rg) loaders.loadReg({
@@ -85,7 +87,9 @@ export function startHydration(loaders: {
 
       const mt = await d.select().from(schema.matches)
       for (const m of mt) loaders.loadMatch({
-        id: m.id, compId: m.compId, bracket: m.bracket, round: m.round, slot: m.slot,
+        id: m.id, compId: m.compId,
+        stage: ((m as any).stage as any) ?? 'prelim', groupKey: (m as any).groupKey ?? '',
+        bracket: m.bracket, round: m.round, slot: m.slot,
         p1UserId: m.p1UserId ?? undefined, p2UserId: m.p2UserId ?? undefined,
         winnerUserId: m.winnerUserId ?? undefined, score: m.score ?? undefined,
         status: m.status as any, createdAt: ms(m.createdAt),
@@ -175,6 +179,10 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.update(schema.events).set({ status, statusLabel }).where(eq(schema.events.id, id)))
     },
+    setConfig(id: string, configJson: string) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.events).set({ config: configJson }).where(eq(schema.events.id, id)))
+    },
   },
   reg: {
     insert(r: Registration) {
@@ -195,10 +203,11 @@ export const persist = {
     },
   },
   match: {
-    insert(m: { id: string; compId: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; score?: string; status: string }) {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; score?: string; status: string }) {
       const d = db(); if (!d) return
       fire(d.insert(schema.matches).values({
-        id: m.id, compId: m.compId, bracket: m.bracket, round: m.round, slot: m.slot,
+        id: m.id, compId: m.compId, stage: m.stage ?? 'prelim', groupKey: m.groupKey ?? '',
+        bracket: m.bracket, round: m.round, slot: m.slot,
         p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId,
         score: m.score, status: m.status as any,
       }).onConflictDoUpdate({

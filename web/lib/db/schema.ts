@@ -70,6 +70,7 @@ export const events = pgTable('app_events', {
   status:       eventStatusEnum('status').notNull().default('soon'),
   statusLabel:  text('status_label').notNull().default(''),
   format:       text('format').notNull().default(''),
+  config:       text('config'),   // JSON: EventConfig (groupMode, qualify counts, final seeding)
   date:         text('date'),
   startsAt:     timestamp('starts_at', { withTimezone: true }),
   regDeadline:  timestamp('reg_deadline', { withTimezone: true }),
@@ -100,6 +101,8 @@ export const registrations = pgTable('app_registrations', {
 export const matches = pgTable('app_matches', {
   id:          text('id').primaryKey(),
   compId:      text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  stage:       text('stage').notNull().default('prelim'),  // prelim | final
+  groupKey:    text('group_key').notNull().default(''),    // city:… | province:… ; '' for final
   bracket:     integer('bracket').notNull(),
   round:       integer('round').notNull(),
   slot:        integer('slot').notNull(),

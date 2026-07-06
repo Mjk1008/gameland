@@ -62,6 +62,7 @@ function ensureHydrated() {
     loadNotif:     (n: Notification) => { notifs.push(n) },
     loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
     loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
+    loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
   })
 }
 
@@ -711,7 +712,9 @@ export function updateSponsor(id: string, patch: Partial<SponsorRow>): SponsorRo
 export interface Match {
   id: string
   compId: string
-  bracket: number       // 0 = final, 1-6 = prelim
+  stage: 'prelim' | 'final'   // preliminary (per city/province) or the final 128 bracket
+  groupKey: string            // 'city:تهران' | 'province:اصفهان' for prelim; '' for final
+  bracket: number             // prelim: 1..6 within the group; final: 0
   round: number
   slot: number
   p1UserId?: string
@@ -722,6 +725,31 @@ export interface Match {
   createdAt: number
 }
 
+// Per-event tournament config: grouping mode, per-bracket qualify counts, and
+// an optional manual final-seeding override. Kept in memory + persisted as JSON
+// on the event row (config column).
+export type GroupMode = 'city' | 'province'
+export interface EventConfig {
+  groupMode: GroupMode
+  // qualifyCount keyed by `${groupKey}#${bracketIndex}` → how many advance to final
+  qualify: Record<string, number>
+  // manual final seeding override: ordered userIds (optional)
+  finalSeeding?: string[]
+}
+const eventConfigs = new Map<string, EventConfig>()
+
+export function getEventConfig(compId: string): EventConfig {
+  return eventConfigs.get(compId) ?? { groupMode: 'city', qualify: {} }
+}
+export function setEventConfig(compId: string, patch: Partial<EventConfig>) {
+  const cur = getEventConfig(compId)
+  const next = { ...cur, ...patch }
+  eventConfigs.set(compId, next)
+  persist.event.setConfig?.(compId, JSON.stringify(next))
+  return next
+}
+export function qualifyKey(groupKey: string, bracket: number) { return `${groupKey}#${bracket}` }
+
 const matches: Match[] = []
 
 export function matchesForComp(compId: string): Match[] {
@@ -731,6 +759,15 @@ export function matchesForComp(compId: string): Match[] {
 export function clearMatchesForComp(compId: string) {
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId) matches.splice(i, 1)
   persist.match.clearForComp(compId)
+}
+
+// Clear only one stage's matches (e.g. re-assemble the final without touching
+// completed prelims). Falls back to full clear + re-persist for the DB.
+export function clearMatchesByStage(compId: string, stage: 'prelim' | 'final') {
+  for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId && matches[i].stage === stage) matches.splice(i, 1)
+  // DB: wipe all comp matches then re-persist survivors (simple + consistent)
+  persist.match.clearForComp(compId)
+  for (const m of matches) if (m.compId === compId) persist.match.insert(m)
 }
 
 export function pushMatch(m: Match) {
@@ -746,9 +783,16 @@ export function getMatch(id: string): Match | undefined {
   return matches.find(m => m.id === id)
 }
 
-export function findNextMatch(compId: string, bracket: number, round: number, slot: number): Match | undefined {
-  // Winner of round R slot S feeds round R+1 slot floor(S/2)
-  return matches.find(m => m.compId === compId && m.bracket === bracket && m.round === round + 1 && m.slot === Math.floor(slot / 2))
+export function findNextMatch(m: Match): Match | undefined {
+  // Winner of round R slot S feeds round R+1 slot floor(S/2), within the same
+  // stage + group + bracket.
+  return matches.find(x => x.compId === m.compId && x.stage === m.stage && x.groupKey === m.groupKey
+    && x.bracket === m.bracket && x.round === m.round + 1 && x.slot === Math.floor(m.slot / 2))
+}
+
+// All prelim group keys that have matches in this comp.
+export function prelimGroupKeys(compId: string): string[] {
+  return Array.from(new Set(matches.filter(m => m.compId === compId && m.stage === 'prelim').map(m => m.groupKey)))
 }
 
 // usingDb is exported for callers that want to know the persistence mode
