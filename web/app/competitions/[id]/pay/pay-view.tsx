@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, DISP, Num, BackHeader, Button } from '@/components/ui'
-import { PAYMENT, paymentLinks } from '@/lib/payment'
+import { PAYMENT, paymentLinks, TICKET, toman } from '@/lib/payment'
 
 export default function PayView({ compId, title, attempts, status }: { compId: string; title: string; attempts: number; status: string }) {
   const [copied, setCopied] = useState(false)
@@ -26,7 +26,19 @@ export default function PayView({ compId, title, attempts, status }: { compId: s
 
         <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
           <b style={{ color: C.thi }}>{title}</b> — <span className="gl-num">{attempts}</span> بلیط.
-          مبلغ را کارت‌به‌کارت کن، بعد رسید را از یکی از راه‌های زیر بفرست. ثبت‌نامت پس از تایید ادمین فعال می‌شود.
+          مبلغ زیر را کارت‌به‌کارت کن، بعد رسید را از یکی از راه‌های زیر بفرست. ثبت‌نامت پس از تایید ادمین فعال می‌شود.
+        </div>
+
+        {/* Amount to pay */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 14, padding: '14px 16px' }}>
+          <div>
+            <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت</div>
+            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{attempts} × {toman(TICKET.price)}</div>
+          </div>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <Num size={28} color={C.accent}>{toman(attempts * TICKET.price)}</Num>
+            <span style={{ fontSize: 12, color: C.tbody }}>تومان</span>
+          </span>
         </div>
 
         {/* Card */}

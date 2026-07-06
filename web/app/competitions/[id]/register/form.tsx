@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
+import { TICKET, ticketOffPercent, toman } from '@/lib/payment'
 
 interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number } }
 
@@ -51,6 +52,21 @@ export default function RegisterForm({ comp }: Props) {
           <div>• ثبت‌نام <b style={{ color: C.win }}>رایگان</b> است</div>
         </div>
 
+        {/* Price + FOMO */}
+        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: C.tmut }}>قیمت هر بلیط</span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: C.accent, background: C.accentSoft, borderRadius: 6, padding: '2px 7px' }}>٪{ticketOffPercent} تخفیف</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}><span className="gl-num" style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{toman(TICKET.price)}</span><span style={{ fontSize: 11, color: C.tbody }}>تومان</span></span>
+              <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(TICKET.original)}</span>
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, textAlign: 'center', lineHeight: 1.5 }}>پیشنهاد<br />محدود</div>
+        </div>
+
         {/* Ticket picker */}
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>تعداد بلیط</div>
@@ -67,10 +83,19 @@ export default function RegisterForm({ comp }: Props) {
           </div>
         </div>
 
+        {/* Total */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: '13px 15px' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>مبلغ قابل پرداخت</span>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+            <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(attempts * TICKET.price)}</span>
+            <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
+          </span>
+        </div>
+
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
         <Button onClick={submit} disabled={busy} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
-          {busy ? '...' : `ثبت‌نام با ${attempts} بلیط`}
+          {busy ? '...' : `ثبت‌نام و پرداخت (${attempts} بلیط)`}
         </Button>
       </div>
     </div>

@@ -1,3 +1,11 @@
+// Ticket pricing (Tomans). Launch discount → strike-through original for FOMO.
+export const TICKET = {
+  price: 500_000,     // فعلی (با تخفیف)
+  original: 798_000,  // قیمت اصلی
+}
+export const ticketOffPercent = Math.round((1 - TICKET.price / TICKET.original) * 100)
+export const toman = (n: number) => n.toLocaleString('en-US')
+
 // Manual card-to-card payment + receipt channels (MVP — no coins/gateway).
 // User pays to this card, sends the receipt to one of the channels, admin approves.
 export const PAYMENT = {
