@@ -68,7 +68,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           {[
             { val: points.toLocaleString('en-US'), label: 'امتیاز', color: C.accent },
-            { val: myPlacements.length.toString(), label: 'ایونت', color: C.thi },
+            { val: myPlacements.length.toString(), label: 'مسابقه', color: C.thi },
             { val: myPlacements.filter(p => p.rank === 1).length.toString(), label: 'قهرمانی', color: C.gold },
           ].map((s, i) => (
             <div key={i} style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
@@ -83,7 +83,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
           <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>صفحهٔ افتخارات</span>
           {myPlacements.length === 0 ? (
             <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-              <EmptyState text="هنوز در مسابقه‌ای شرکت نکرده." />
+              <EmptyState text="هنوز توی مسابقه‌ای شرکت نکرده." />
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>

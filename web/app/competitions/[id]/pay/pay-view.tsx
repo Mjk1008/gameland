@@ -20,13 +20,13 @@ export default function PayView({ compId, title, attempts, status }: { compId: s
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: status === 'approved' ? C.winSoft : C.accentSoft, border: `1px solid ${status === 'approved' ? C.win : C.accent}55`, borderRadius: 12, padding: '12px 14px' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: status === 'approved' ? C.win : C.accent }} />
           <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>
-            {status === 'approved' ? 'ثبت‌نامت تایید شده ✓' : status === 'rejected' ? 'ثبت‌نامت رد شد' : 'در انتظار تایید پرداخت'}
+            {status === 'approved' ? 'ثبت‌نامت تایید شد ✓' : status === 'rejected' ? 'ثبت‌نامت رد شد' : 'منتظر تایید پرداخت'}
           </span>
         </div>
 
         <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
           <b style={{ color: C.thi }}>{title}</b> — <span className="gl-num">{attempts}</span> بلیط.
-          مبلغ زیر را کارت‌به‌کارت کن، بعد رسید را از یکی از راه‌های زیر بفرست. ثبت‌نامت پس از تایید ادمین فعال می‌شود.
+          مبلغ زیر رو کارت‌به‌کارت کن، بعد رسیدش رو از یکی از راه‌های زیر بفرست. ثبت‌نامت بعد از تایید ادمین فعال می‌شه.
         </div>
 
         {/* Amount to pay */}
@@ -65,7 +65,7 @@ export default function PayView({ compId, title, attempts, status }: { compId: s
           </div>
         </div>
 
-        <Button href={`/competitions/${compId}/me`} kind="secondary">وضعیت ثبت‌نام من ›</Button>
+        <Button href={`/competitions/${compId}/me`} kind="secondary">وضعیت ثبت‌نامم ›</Button>
       </div>
     </div>
   )

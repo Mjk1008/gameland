@@ -23,7 +23,7 @@ export default function EditForm({ user }: { user: { name: string; tag: string; 
         body: JSON.stringify({ name, tag, city, primaryDisc: disc || null, nationalId: nid }),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setOk(true)
       router.refresh()
     } catch (e: any) { setErr(e.message) }
@@ -36,12 +36,12 @@ export default function EditForm({ user }: { user: { name: string; tag: string; 
         <Link href="/me" style={{ all: 'unset', cursor: 'pointer', width: 36, height: 36, borderRadius: 11, background: '#121821', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </Link>
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>ویرایش Gamer Bank</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>ویرایش پروفایل</span>
       </div>
 
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="نام و نام خانوادگی"><input value={name} onChange={e => setName(e.target.value)} required style={inp}/></Field>
-        <Field label="تگ بازی (انگلیسی، یونیک)"><input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }}/></Field>
+        <Field label="تگ بازی (انگلیسی و یکتا)"><input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }}/></Field>
         <Field label="شهر"><input value={city} onChange={e => setCity(e.target.value)} required style={inp}/></Field>
         <Field label="رشتهٔ اصلی">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -55,15 +55,15 @@ export default function EditForm({ user }: { user: { name: string; tag: string; 
             })}
           </div>
         </Field>
-        <Field label="کد ملی (اختیاری، برای تأیید هویت در مسابقات بزرگ)">
+        <Field label="کد ملی (اختیاری — برای احراز هویت در مسابقه‌های بزرگ)">
           <input dir="ltr" value={nid} onChange={e => setNid(e.target.value.replace(/\D/g, '').slice(0, 10))} style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }} placeholder="0010000000"/>
         </Field>
 
         {err && <Alert color="#fb7185">{err}</Alert>}
-        {ok && <Alert color="#34d399">پروفایل به‌روزرسانی شد ✓</Alert>}
+        {ok && <Alert color="#34d399">پروفایلت ذخیره شد ✓</Alert>}
 
         <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 12, opacity: busy ? 0.6 : 1, marginTop: 4 }}>
-          {busy ? '...' : 'ذخیره'}
+          {busy ? 'در حال ذخیره…' : 'ذخیره'}
         </button>
       </form>
     </div>

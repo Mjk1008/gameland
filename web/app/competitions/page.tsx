@@ -12,12 +12,12 @@ export default function CompetitionsPage() {
     <div className="animate-fade-up" style={{ padding: '16px 16px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontSize: 24, fontWeight: 800, color: C.thi }}>مسابقات</span>
-        <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{events.length}</span> ایونت</span>
+        <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{events.length}</span> مسابقه</span>
       </div>
 
       {events.length === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-          <EmptyState text="هنوز مسابقه‌ای ثبت نشده." />
+          <EmptyState text="هنوز مسابقه‌ای اعلام نشده — به‌زودی سر می‌رسه." />
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>

@@ -31,7 +31,7 @@ function LoginInner() {
     e.preventDefault(); setErr(null); setBusy(true)
     try {
       const r = await signIn('credentials', { phone, password, redirect: false, callbackUrl })
-      if (r?.error) throw new Error('شماره یا گذرواژه اشتباه است')
+      if (r?.error) throw new Error('شماره موبایل یا گذرواژه درست نیست، دوباره چک کن')
       router.push(callbackUrl); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -51,7 +51,7 @@ function LoginInner() {
             ورود با گوگل
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.tmut, fontSize: 11 }}>
-            <span style={{ flex: 1, height: 1, background: C.line }} />یا با موبایل<span style={{ flex: 1, height: 1, background: C.line }} />
+            <span style={{ flex: 1, height: 1, background: C.line }} />یا با شماره موبایل<span style={{ flex: 1, height: 1, background: C.line }} />
           </div>
         </div>
       )}
@@ -70,11 +70,11 @@ function LoginInner() {
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button type="submit" disabled={busy}>{busy ? '...' : 'ورود'}</Button>
+        <Button type="submit" disabled={busy}>{busy ? 'در حال ورود…' : 'ورود'}</Button>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: C.tmut }}>
-          <Link href="/forgot" style={{ color: C.tmut, textDecoration: 'none' }}>فراموشی رمز؟</Link>
-          <span>حساب نداری؟ <Link href="/signup" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ثبت‌نام</Link></span>
+          <Link href="/forgot" style={{ color: C.tmut, textDecoration: 'none' }}>گذرواژه‌ت رو یادت رفته؟</Link>
+          <span>حساب نداری؟ <Link href="/signup" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ثبت‌نام کن</Link></span>
         </div>
       </form>
     </div>

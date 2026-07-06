@@ -65,7 +65,7 @@ export default async function MePage() {
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{c.title}</div>
-                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 2 }}>{reg ? `${reg.attempts} شانس · ${reg.seedsEarned} seed` : c.statusLabel}</div>
+                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 2 }}>{reg ? `${reg.attempts} بلیط · ${reg.seedsEarned} seed` : c.statusLabel}</div>
                   </div>
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: reg ? C.gold : C.accent }}>{reg ? 'مشاهده' : 'ثبت‌نام ›'}</span>
                 </Link>

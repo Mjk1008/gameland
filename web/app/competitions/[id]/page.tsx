@@ -48,8 +48,8 @@ export default async function CompetitionPage({ params }: { params: { id: string
           )}
           {c.status !== 'done' && (
             reg
-              ? <Button href={`/competitions/${c.id}/me`} kind="prestige">روندنمای من ({reg.attempts} شانس) ›</Button>
-              : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>{uid ? 'ثبت‌نام در این مسابقه' : 'ورود برای ثبت‌نام'}</Button>
+              ? <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
+              : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>{uid ? 'ثبت‌نام در این مسابقه' : 'برای ثبت‌نام وارد شو'}</Button>
           )}
         </div>
 
@@ -89,7 +89,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
 
         {/* Roadmap */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>روندنمای بازیکن</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>مسیر بازیکن</span>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {roadmap.map((r, i) => (
               <div key={i} style={{ display: 'flex', gap: 13, minHeight: 50 }}>

@@ -20,9 +20,9 @@ export default async function MyCompetitionsPage() {
       <div style={{ padding: '16px 16px 28px' }}>
         {regs.length === 0 ? (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-            <EmptyState text="هنوز در هیچ مسابقه‌ای ثبت‌نام نکردی." />
+            <EmptyState text="هنوز توی هیچ مسابقه‌ای ثبت‌نام نکردی." />
             <div style={{ textAlign: 'center', paddingBottom: 18 }}>
-              <Link href="/competitions" style={{ color: C.accent, fontSize: 13, textDecoration: 'none' }}>دیدن مسابقات ›</Link>
+              <Link href="/competitions" style={{ color: C.accent, fontSize: 13, textDecoration: 'none' }}>دیدن مسابقه‌ها ›</Link>
             </div>
           </div>
         ) : (

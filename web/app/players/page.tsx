@@ -19,7 +19,7 @@ export default function PlayersPage() {
 
       {players.length === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-          <EmptyState text="هنوز گیمری ثبت‌نام نکرده." />
+          <EmptyState text="هنوز گیمری ثبت‌نام نکرده — اولین نفر باش." />
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>

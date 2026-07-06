@@ -36,9 +36,9 @@ export default async function HomePage() {
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 6 }}>
-        <Wordmark size={20} tagline />
+      {/* Header — stacked brand lockup (big logo above the name) */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 10 }}>
+        <Wordmark size={22} tagline stacked />
         <span className="gl-label" style={{ fontSize: 10, color: C.tmut, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '5px 10px' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
         </span>
@@ -49,11 +49,11 @@ export default async function HomePage() {
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>خانهٔ گیمرهای ایران</div>
-            <div style={{ fontSize: 13, color: C.tbody, marginTop: 6, lineHeight: 1.8 }}>هر برد، یک پله بالاتر. رتبهٔ واقعی‌ات ثبت می‌شود و می‌ماند.</div>
+            <div style={{ fontSize: 13, color: C.tbody, marginTop: 6, lineHeight: 1.8 }}>هر برد، یه پله بالاتر. رتبهٔ واقعی‌ت ثبت می‌شه و می‌مونه.</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Button href="/login">ورود</Button>
-            <Button href="/login" kind="secondary">ثبت‌نام رایگان</Button>
+            <Button href="/signup" kind="secondary">ثبت‌نام رایگان</Button>
           </div>
         </div>
       )}
@@ -82,7 +82,7 @@ export default async function HomePage() {
           </div>
         ) : (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-            <EmptyState text="رنکینگ ملی پس از اولین مسابقه فعال می‌شود" />
+            <EmptyState text="رنکینگ ملی بعد از اولین مسابقه فعال می‌شه" />
           </div>
         )}
       </div>
@@ -94,7 +94,7 @@ export default async function HomePage() {
           <Link href="/competitions" style={{ fontSize: 12.5, color: C.accent, textDecoration: 'none' }}>همه ›</Link>
         </div>
         {activeComps.length === 0 ? (
-          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای نیست." /></div>
+          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای برگزار نمی‌شه — به‌زودی اولین‌ها می‌رسن." /></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {activeComps.slice(0, 4).map(c => {
@@ -131,7 +131,7 @@ export default async function HomePage() {
           <Link href="/leaderboard" style={{ fontSize: 12.5, color: C.accent, textDecoration: 'none' }}>رنکینگ کامل ›</Link>
         </div>
         {top.length === 0 ? (
-          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز گیمری ثبت نشده." /></div>
+          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز گیمری ثبت‌نام نکرده — اولین نفر باش." /></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {top.map(p => (

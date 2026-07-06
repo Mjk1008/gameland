@@ -28,9 +28,9 @@ export default function SignupPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null)
-    if (!/^09\d{9}$/.test(phone)) { setErr('شمارهٔ موبایل نامعتبر'); return }
-    if (password.length < 8) { setErr('گذرواژه حداقل ۸ کاراکتر'); return }
-    if (!firstName || !lastName || !province || !city || !tag || discs.length === 0) { setErr('همهٔ فیلدها به‌جز نام تیم الزامی است'); return }
+    if (!/^09\d{9}$/.test(phone)) { setErr('شمارهٔ موبایل درست نیست — با ۰۹ شروع می‌شه و ۱۱ رقمه'); return }
+    if (password.length < 8) { setErr('گذرواژه باید حداقل ۸ کاراکتر باشه'); return }
+    if (!firstName || !lastName || !province || !city || !tag || discs.length === 0) { setErr('همهٔ فیلدها جز نام تیم رو باید پر کنی'); return }
     setBusy(true)
     try {
       const res = await fetch('/api/signup', {
@@ -38,7 +38,7 @@ export default function SignupPage() {
         body: JSON.stringify({ phone, password, firstName, lastName, province, city, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined }),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'یه مشکلی پیش اومد، دوباره امتحان کن')
       await signIn('credentials', { phone, password, redirect: false })
       window.location.href = '/me'
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
@@ -48,7 +48,7 @@ export default function SignupPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '34px 18px 40px' }}>
       <div style={{ marginBottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <Wordmark size={24} />
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>ساخت حساب گیمر</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>ساخت حساب گیمری</div>
       </div>
 
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 13 }}>
@@ -79,12 +79,12 @@ export default function SignupPage() {
           </Field>
         </div>
 
-        <Field label="اسم مستعار (تگ) — انگلیسی، یونیک">
+        <Field label="اسم مستعار (تگ) — انگلیسی و یکتا">
           <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="Arsh_FC" />
         </Field>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: C.tmut }}>پیام‌رسانِ فعال روی این شماره</span>
+          <span style={{ fontSize: 12, color: C.tmut }}>روی این شماره کدوم پیام‌رسان فعاله؟</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {([['whatsapp', 'واتساپ'], ['telegram', 'تلگرام'], ['both', 'هردو']] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setMessenger(k)} style={chip(messenger === k)}>{label}</button>
@@ -110,10 +110,10 @@ export default function SignupPage() {
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? '...' : 'ساخت حساب و ورود'}</Button>
+        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'در حال ساخت حساب…' : 'ساخت حساب و ورود'}</Button>
 
         <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut }}>
-          حساب داری؟ <Link href="/login" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ورود</Link>
+          حساب داری؟ <Link href="/login" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>وارد شو</Link>
         </div>
       </form>
     </div>

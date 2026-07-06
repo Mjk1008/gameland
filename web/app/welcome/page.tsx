@@ -26,7 +26,7 @@ export default function WelcomePage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null)
     if (!firstName || !lastName || !province || !city || !phone || !tag || discs.length === 0) {
-      setErr('همهٔ فیلدها به‌جز نام تیم الزامی است'); return
+      setErr('همهٔ فیلدها جز نام تیم رو باید پر کنی'); return
     }
     setBusy(true)
     try {
@@ -35,7 +35,7 @@ export default function WelcomePage() {
         body: JSON.stringify({ firstName, lastName, province, city, phone, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined }),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'یه مشکلی پیش اومد، دوباره امتحان کن')
       window.location.href = '/me'
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -45,8 +45,8 @@ export default function WelcomePage() {
       <div style={{ marginBottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <Wordmark size={24} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>تکمیل پروفایل گیمر</div>
-          <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 5 }}>برای ثبت‌نام لازمه — روی رنکینگ و صفحهٔ افتخارات دیده می‌شود</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>پروفایلت رو کامل کن</div>
+          <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 5 }}>برای شرکت در مسابقه‌ها لازمه — روی رنکینگ و صفحهٔ افتخارات دیده می‌شه</div>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export default function WelcomePage() {
           </Field>
         </div>
 
-        <Field label="اسم مستعار (تگ) — انگلیسی، یونیک">
+        <Field label="اسم مستعار (تگ) — انگلیسی و یکتا">
           <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="Arsh_FC" />
         </Field>
 
@@ -80,7 +80,7 @@ export default function WelcomePage() {
         </Field>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: C.tmut }}>این شماره روی کدام پیام‌رسان فعال است؟</span>
+          <span style={{ fontSize: 12, color: C.tmut }}>روی این شماره کدوم پیام‌رسان فعاله؟</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {([['whatsapp', 'واتساپ'], ['telegram', 'تلگرام'], ['both', 'هردو']] as const).map(([k, label]) => (
               <button key={k} type="button" onClick={() => setMessenger(k)} style={chip(messenger === k)}>{label}</button>
@@ -109,7 +109,7 @@ export default function WelcomePage() {
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? '...' : 'ورود به گیم‌لند'}</Button>
+        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'در حال ذخیره…' : 'ورود به گیم‌لند'}</Button>
       </form>
     </div>
   )

@@ -21,7 +21,7 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   if (c.status === 'done') {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: 14, color: '#94a3b8' }}>این مسابقه پایان یافته</div>
+        <div style={{ fontSize: 14, color: '#94a3b8' }}>این مسابقه تموم شده — دیگه نمی‌شه ثبت‌نام کرد</div>
       </div>
     )
   }

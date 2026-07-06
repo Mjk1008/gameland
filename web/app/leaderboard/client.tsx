@@ -38,7 +38,7 @@ export default function LeaderboardClient({ initial }: { initial: Player[] }) {
         </div>
 
         <div style={{ position: 'relative', marginBottom: 10 }}>
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="جستجو در نام، تگ، یا شهر"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="جستجوی نام، تگ یا شهر"
             style={{ width: '100%', boxSizing: 'border-box', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 38px 11px 13px', color: C.thi, fontSize: 13, outline: 'none' }} />
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.tmut} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)' }}>
             <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" />
@@ -59,7 +59,7 @@ export default function LeaderboardClient({ initial }: { initial: Player[] }) {
 
       <div style={{ padding: '12px 16px 28px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 16px', color: C.tmut, fontSize: 13 }}>گیمری با این مشخصات پیدا نشد.</div>
+          <div style={{ textAlign: 'center', padding: '40px 16px', color: C.tmut, fontSize: 13 }}>گیمری با این مشخصات پیدا نشد — فیلتر یا جستجو رو عوض کن.</div>
         ) : filtered.map(p => {
           const d = DISC[p.disc]
           return (
@@ -82,7 +82,7 @@ export default function LeaderboardClient({ initial }: { initial: Player[] }) {
       </div>
 
       <p style={{ fontSize: 11, color: C.tmut, padding: '0 16px 12px', textAlign: 'center' }}>
-        تساوی‌شکن‌ها: مسابقات بیشتر ← بهترین مقام ← آخرین رویداد
+        در تساوی امتیاز: مسابقهٔ بیشتر ← بهترین مقام ← تازه‌ترین مسابقه
       </p>
     </div>
   )

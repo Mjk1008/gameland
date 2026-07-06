@@ -23,7 +23,7 @@ export default function RegisterForm({ comp }: Props) {
         body: JSON.stringify({ compId: comp.id, attempts }),
       })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
+      if (!res.ok) throw new Error(j.error || 'ثبت‌نام انجام نشد، دوباره امتحان کن')
       router.push(`/competitions/${comp.id}/pay`); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -45,11 +45,11 @@ export default function RegisterForm({ comp }: Props) {
 
         {/* Explainer */}
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, fontSize: 12.5, color: C.tbody, lineHeight: 1.9 }}>
-          <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطور کار می‌کند؟</div>
-          <div>• می‌تونی <b style={{ color: C.thi }}>۱ تا ۶ بلیط</b> بگیری — هر بلیط یک شانس مستقل</div>
-          <div>• در مقدماتی، بلیط‌هات در براکت‌های متفاوت پخش می‌شن</div>
-          <div>• حداکثر <b style={{ color: C.thi }}>۳ seed</b> به فینال ۱۲۸ نفره</div>
-          <div>• ثبت‌نام <b style={{ color: C.win }}>رایگان</b> است</div>
+          <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطوری کار می‌کنه؟</div>
+          <div>• می‌تونی <b style={{ color: C.thi }}>۱ تا ۶ بلیط</b> بگیری — هر بلیط یه شانس جداست</div>
+          <div>• توی مقدماتی، بلیط‌هات توی براکت‌های جدا پخش می‌شن</div>
+          <div>• حداکثر <b style={{ color: C.thi }}>۳ seed</b> به فینال ۱۲۸ نفره می‌رسه</div>
+          <div>• خود ثبت‌نام <b style={{ color: C.win }}>رایگانه</b></div>
         </div>
 
         {/* Price + FOMO */}
@@ -95,7 +95,7 @@ export default function RegisterForm({ comp }: Props) {
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
         <Button onClick={submit} disabled={busy} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
-          {busy ? '...' : `ثبت‌نام و پرداخت (${attempts} بلیط)`}
+          {busy ? 'یه لحظه…' : `ثبت‌نام و پرداخت (${attempts} بلیط)`}
         </Button>
       </div>
     </div>

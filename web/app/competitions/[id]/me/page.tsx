@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic'
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   pending:     { label: 'منتظر قرعه', color: C.tmut },
-  in_progress: { label: 'در جریان',   color: C.accent },
-  eliminated:  { label: 'حذف',        color: C.live },
-  seed:        { label: 'به فینال',   color: C.win },
+  in_progress: { label: 'در حال بازی', color: C.accent },
+  eliminated:  { label: 'حذف شد',      color: C.live },
+  seed:        { label: 'به فینال',    color: C.win },
 }
 
 export default async function MyRoadmapPage({ params }: { params: { id: string } }) {
@@ -30,7 +30,7 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
     const rejected = r.status === 'rejected'
     return (
       <div className="animate-fade-up">
-        <BackHeader title="روندنمای من" href={`/competitions/${c.id}`} />
+        <BackHeader title="مسیر من" href={`/competitions/${c.id}`} />
         <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[c.disc] ?? C.tmut, flexShrink: 0 }} />
@@ -41,12 +41,12 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
           </div>
           <div style={{ background: C.sf1, border: `1px solid ${rejected ? C.live : C.accent}55`, borderRadius: 14, padding: 18, textAlign: 'center' }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: rejected ? C.live : C.accent, marginBottom: 8 }}>
-              {rejected ? 'ثبت‌نامت رد شد' : 'در انتظار تایید پرداخت'}
+              {rejected ? 'ثبت‌نامت رد شد' : 'منتظر تایید پرداخت'}
             </div>
             <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
               {rejected
-                ? 'اگر فکر می‌کنی اشتباهی رخ داده، با پشتیبانی در تماس باش.'
-                : 'مبلغ را کارت‌به‌کارت کن و رسید را بفرست. پس از تایید ادمین، براکت و روندنمای مسابقه‌ات همین‌جا فعال می‌شود.'}
+                ? 'فکر می‌کنی اشتباه شده؟ با پشتیبانی حرف بزن تا بررسی کنیم.'
+                : 'مبلغ رو کارت‌به‌کارت کن و رسیدش رو بفرست. بعد از تایید ادمین، براکت و مسیر مسابقه‌ت همین‌جا فعال می‌شه.'}
             </div>
           </div>
           {!rejected && <Button href={`/competitions/${c.id}/pay`}>پرداخت و ارسال رسید ›</Button>}
@@ -80,9 +80,9 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
-          <Tile label="بلیط‌های من" value={r.attempts} color={C.accent} />
+          <Tile label="بلیط‌هام" value={r.attempts} color={C.accent} />
           <Tile label="seed به فینال" value={r.seedsEarned} color={C.gold} />
-          <Tile label="انجام‌شده" value={r.prelimsCompleted} color={C.tbody} />
+          <Tile label="بازی‌شده" value={r.prelimsCompleted} color={C.tbody} />
         </div>
 
         <div>

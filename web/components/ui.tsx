@@ -39,7 +39,18 @@ export function Label({ children, color = C.tmut, size = 11 }: { children: React
 }
 
 // ── wordmark = real logo mark + GAMELAND ──
-export function Wordmark({ size = 22, tagline = false }: { size?: number; tagline?: boolean }) {
+// stacked=true → big logo centered above the name (brand lockup, e.g. home hero).
+export function Wordmark({ size = 22, tagline = false, stacked = false }: { size?: number; tagline?: boolean; stacked?: boolean }) {
+  if (stacked) {
+    const mark = Math.round(size * 4)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <img src="/logo.png" alt="گیم‌لند" width={mark} height={mark} style={{ display: 'block', objectFit: 'contain' }} />
+        <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: size, letterSpacing: '.16em', color: C.thi, lineHeight: 1 }}>GAMELAND</span>
+        {tagline && <span style={{ fontSize: 11.5, color: C.tmut }}>خانهٔ گیمرهای ایران</span>}
+      </div>
+    )
+  }
   const mark = Math.round(size * 2)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>

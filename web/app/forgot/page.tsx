@@ -13,7 +13,7 @@ export default function ForgotPage() {
 
       <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
-          گذرواژه‌ت رو فراموش کردی؟ از یکی از راه‌های زیر با شماره‌ات به پشتیبانی پیام بده تا برات ریست کنیم.
+          گذرواژه‌ت رو یادت رفته؟ از یکی از راه‌های زیر با شماره‌ت به پشتیبانی پیام بده تا برات از نو تنظیمش کنیم.
         </div>
 
         <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" style={chan}>

@@ -22,7 +22,7 @@ export default function BracketPage({ params }: { params: { id: string } }) {
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
-          <Info text="قرعه‌کشی انجام شده. مسابقات زیر آماده‌اند." />
+          <Info text="قرعه‌کشی انجام شده — بازی‌های زیر آماده‌ان." />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {Object.entries(byBracket).sort((a, b) => Number(a[0]) - Number(b[0])).map(([bIdx, rounds]) => (
               <div key={bIdx}>
@@ -53,7 +53,7 @@ export default function BracketPage({ params }: { params: { id: string } }) {
     <div className="animate-fade-up">
       <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
       <div style={{ padding: '14px 16px 28px' }}>
-        <Info text="هنوز قرعه‌کشی انجام نشده. پس از ثبت‌نام‌ها، ادمین قرعه‌کشی را انجام می‌دهد." />
+        <Info text="هنوز قرعه‌کشی نشده. بعد از بسته‌شدن ثبت‌نام‌ها، ادمین قرعه‌کشی رو انجام می‌ده." />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 14 }}>
           {Array.from({ length: BRACKET_COUNT }, (_, bi) => (
             <div key={bi}>
