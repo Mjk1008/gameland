@@ -47,6 +47,7 @@ export const users = pgTable('app_users', {
   experienceYears: integer('experience_years'),
   teamName:    text('team_name'),
   nationalId:  text('national_id').unique(),
+  passwordHash:text('password_hash'),
   role:        userRoleEnum('role').notNull().default('gamer'),
   coinBalance: integer('coin_balance').notNull().default(0),
   playerId:    text('player_id'),

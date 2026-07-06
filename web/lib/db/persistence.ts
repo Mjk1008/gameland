@@ -45,6 +45,7 @@ export function startHydration(loaders: {
         experienceYears: u.experienceYears ?? undefined,
         teamName: u.teamName ?? undefined,
         nationalId: u.nationalId ?? undefined,
+        passwordHash: (u as any).passwordHash ?? undefined,
         role: u.role as any, coinBalance: u.coinBalance,
         createdAt: ms(u.createdAt), deletedAt: u.deletedAt ? ms(u.deletedAt) : undefined,
         playerId: u.playerId ?? undefined,
@@ -118,7 +119,7 @@ export const persist = {
         tag: u.tag, province: u.province, city: u.city, messenger: u.messenger,
         primaryDisc: u.primaryDisc, discs: (u.discs ?? []).join(','),
         experienceYears: u.experienceYears, teamName: u.teamName,
-        nationalId: u.nationalId,
+        nationalId: u.nationalId, passwordHash: u.passwordHash,
         role: u.role, coinBalance: u.coinBalance ?? 0,
         playerId: u.playerId,
       }).onConflictDoNothing())

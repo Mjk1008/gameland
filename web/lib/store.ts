@@ -34,6 +34,7 @@ export interface User {
   experienceYears?: number
   teamName?: string
   nationalId?: string
+  passwordHash?: string    // phone+password auth (scrypt); undefined for Google-only accounts
   role: Role
   coinBalance: number
   createdAt: number

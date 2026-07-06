@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   experience_years INTEGER,
   team_name     TEXT,
   national_id   TEXT UNIQUE,
+  password_hash TEXT,
   role          user_role NOT NULL DEFAULT 'gamer',
   coin_balance  INTEGER NOT NULL DEFAULT 0,
   player_id     TEXT,
@@ -66,6 +67,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   deleted_at    TIMESTAMPTZ                            -- soft delete only
 );
 CREATE INDEX IF NOT EXISTS users_active_city_idx ON app_users (city) WHERE deleted_at IS NULL;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
 -- Profile v2 columns (idempotent for already-created DBs)
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS first_name       TEXT;

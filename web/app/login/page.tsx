@@ -2,6 +2,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { signIn, getProviders } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { C, DISP, Wordmark, Button } from '@/components/ui'
 
 export default function LoginPage() {
@@ -10,7 +11,7 @@ export default function LoginPage() {
 
 const inp: React.CSSProperties = {
   background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '13px 14px',
-  color: C.thi, fontFamily: DISP, fontSize: 17, textAlign: 'left', letterSpacing: '.04em', outline: 'none', width: '100%', boxSizing: 'border-box',
+  color: C.thi, fontSize: 15, outline: 'none', width: '100%', boxSizing: 'border-box',
 }
 
 function LoginInner() {
@@ -18,40 +19,26 @@ function LoginInner() {
   const search = useSearchParams()
   const callbackUrl = search.get('callbackUrl') || '/me'
 
-  const [step, setStep] = useState<'phone' | 'code'>('phone')
   const [phone, setPhone] = useState('')
-  const [code,  setCode]  = useState('')
-  const [busy,  setBusy]  = useState(false)
-  const [err,   setErr]   = useState<string | null>(null)
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [hasGoogle, setHasGoogle] = useState(false)
 
   useEffect(() => { getProviders().then(p => setHasGoogle(!!p?.google)).catch(() => {}) }, [])
 
-  async function sendCode(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true)
     try {
-      const res = await fetch('/api/otp', { method: 'POST', body: JSON.stringify({ phone }), headers: { 'Content-Type': 'application/json' } })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error || 'خطا')
-      setStep('code')
-    } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
-  }
-
-  async function submitCode(e: React.FormEvent) {
-    e.preventDefault(); setErr(null); setBusy(true)
-    try {
-      const r = await signIn('credentials', { phone, code, redirect: false, callbackUrl })
-      if (r?.error) throw new Error('کد اشتباه یا منقضی شده')
-      const session = await (await fetch('/api/auth/session')).json()
-      if (session?.uid === '__new__' || (!session?.uid && r?.ok)) {
-        router.push(`/signup?phone=${encodeURIComponent(phone)}&code=${encodeURIComponent(code)}`)
-      } else { router.push(callbackUrl); router.refresh() }
+      const r = await signIn('credentials', { phone, password, redirect: false, callbackUrl })
+      if (r?.error) throw new Error('شماره یا گذرواژه اشتباه است')
+      router.push(callbackUrl); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 18px' }}>
-      <div style={{ marginBottom: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <div style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <Wordmark size={26} />
         <span style={{ fontSize: 14, fontWeight: 700, color: C.thi }}>ورود به حساب</span>
       </div>
@@ -69,33 +56,24 @@ function LoginInner() {
         </div>
       )}
 
-      <form onSubmit={step === 'phone' ? sendCode : submitCode} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={submit} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, color: C.tmut }}>شمارهٔ موبایل</span>
-          <input dir="ltr" inputMode="numeric" pattern="09\d{9}" placeholder="09120000000" value={phone} disabled={step === 'code'}
-            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} style={inp} required />
+          <input dir="ltr" inputMode="numeric" placeholder="09120000000" value={phone} autoComplete="tel"
+            onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} style={{ ...inp, fontFamily: DISP, textAlign: 'left', letterSpacing: '.04em' }} required />
         </label>
-
-        {step === 'code' && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, color: C.tmut }}>کد ارسال‌شده</span>
-            <input dir="ltr" inputMode="numeric" pattern="\d{6}" placeholder="123456" value={code} autoFocus required
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} style={{ ...inp, fontSize: 22, textAlign: 'center', letterSpacing: '.3em' }} />
-            <span style={{ fontSize: 11, color: C.tmut, textAlign: 'center' }}>برای تست: کد <b dir="ltr">123456</b> همیشه کار می‌کنه</span>
-          </label>
-        )}
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: C.tmut }}>گذرواژه</span>
+          <input type="password" placeholder="••••••••" value={password} autoComplete="current-password"
+            onChange={e => setPassword(e.target.value)} style={inp} required />
+        </label>
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button type="submit" disabled={busy}>{busy ? '...' : step === 'phone' ? 'ارسال کد' : 'تأیید و ورود'}</Button>
+        <Button type="submit" disabled={busy}>{busy ? '...' : 'ورود'}</Button>
 
-        {step === 'code' && (
-          <button type="button" onClick={() => { setStep('phone'); setCode(''); setErr(null) }} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', fontSize: 12, color: C.tmut }}>تغییر شماره</button>
-        )}
-
-        <div style={{ marginTop: 14, padding: 12, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, fontSize: 11, color: C.tmut, lineHeight: 1.9 }}>
-          <div>حساب تست:</div>
-          <div>• ادمین → <span dir="ltr">09120000000</span> / کد <span dir="ltr">123456</span></div>
+        <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut }}>
+          حساب نداری؟ <Link href="/signup" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ثبت‌نام</Link>
         </div>
       </form>
     </div>

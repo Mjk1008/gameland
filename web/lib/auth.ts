@@ -1,7 +1,8 @@
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { getUserByPhone, verifyOtp, upsertGoogleUser, userNeedsProfile, getUserById } from './store'
+import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById } from './store'
+import { verifyPassword } from './password'
 
 // Admin allow-list: Google accounts whose email is here get role=admin on login.
 // Set ADMIN_EMAILS="you@gmail.com,other@gmail.com" in env.
@@ -13,6 +14,21 @@ function adminEmails(): string[] {
 }
 
 const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+
+// Basic in-memory brute-force guard for password login (single-instance Liara).
+// Max 8 failed attempts per phone per 15 min window.
+const loginAttempts = new Map<string, { n: number; ts: number }>()
+const WINDOW = 15 * 60 * 1000
+function loginBlocked(phone: string): boolean {
+  const rec = loginAttempts.get(phone)
+  if (!rec || Date.now() - rec.ts > WINDOW) return false
+  return rec.n >= 8
+}
+function noteFail(phone: string) {
+  const rec = loginAttempts.get(phone)
+  if (!rec || Date.now() - rec.ts > WINDOW) loginAttempts.set(phone, { n: 1, ts: Date.now() })
+  else rec.n++
+}
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
@@ -26,22 +42,20 @@ export const authOptions: NextAuthOptions = {
 
     // Phone + OTP — kept for the seeded admin/test accounts (OTP 123456 in dev).
     CredentialsProvider({
-      name: 'phone-otp',
+      name: 'phone-password',
       credentials: {
-        phone: { label: 'موبایل', type: 'tel' },
-        code:  { label: 'کد یک‌بار مصرف', type: 'text' },
+        phone:    { label: 'موبایل', type: 'tel' },
+        password: { label: 'گذرواژه', type: 'password' },
       },
       async authorize(credentials) {
         const phone = credentials?.phone?.trim() ?? ''
-        const code  = credentials?.code?.trim()  ?? ''
-        if (!phone || !code) return null
-        if (!verifyOtp(phone, code)) return null
-
+        const password = credentials?.password ?? ''
+        if (!phone || !password) return null
+        if (loginBlocked(phone)) return null
         const u = getUserByPhone(phone)
-        if (!u) {
-          return { id: '__new__', name: phone, email: phone, phone, role: 'gamer', tag: '' } as any
-        }
-        return { id: u.id, name: u.name, email: u.phone, phone: u.phone, role: u.role, tag: u.tag } as any
+        if (!u || !u.passwordHash || !verifyPassword(password, u.passwordHash)) { noteFail(phone); return null }
+        loginAttempts.delete(phone)
+        return { id: u.id, name: u.name, phone: u.phone, role: u.role, tag: u.tag } as any
       },
     }),
   ],

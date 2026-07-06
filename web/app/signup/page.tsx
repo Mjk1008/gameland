@@ -1,111 +1,129 @@
 'use client'
-import { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { useState } from 'react'
 import Link from 'next/link'
+import { signIn } from 'next-auth/react'
 import { DISC } from '@/lib/mock-data'
+import { IRAN_GEO, citiesOf } from '@/lib/iran-geo'
+import { C, DISP, Wordmark, Button, DISC_DOT } from '@/components/ui'
+
+type Messenger = 'whatsapp' | 'telegram' | 'both'
 
 export default function SignupPage() {
-  return <Suspense fallback={null}><SignupInner /></Suspense>
-}
-
-function SignupInner() {
-  const router = useRouter()
-  const search = useSearchParams()
-  const phone = search.get('phone') || ''
-  const code  = search.get('code')  || ''
-
-  const [name, setName] = useState('')
-  const [tag,  setTag]  = useState('')
+  const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [province, setProvince] = useState('')
   const [city, setCity] = useState('')
-  const [disc, setDisc] = useState<keyof typeof DISC | ''>('')
+  const [messenger, setMessenger] = useState<Messenger>('whatsapp')
+  const [tag, setTag] = useState('')
+  const [discs, setDiscs] = useState<(keyof typeof DISC)[]>([])
+  const [exp, setExp] = useState('')
+  const [team, setTeam] = useState('')
   const [busy, setBusy] = useState(false)
-  const [err,  setErr]  = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const cities = province ? citiesOf(province) : []
+  const toggleDisc = (k: keyof typeof DISC) => setDiscs(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k])
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setErr(null); setBusy(true)
+    e.preventDefault(); setErr(null)
+    if (!/^09\d{9}$/.test(phone)) { setErr('شمارهٔ موبایل نامعتبر'); return }
+    if (password.length < 8) { setErr('گذرواژه حداقل ۸ کاراکتر'); return }
+    if (!firstName || !lastName || !province || !city || !tag || discs.length === 0) { setErr('همهٔ فیلدها به‌جز نام تیم الزامی است'); return }
+    setBusy(true)
     try {
       const res = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code, name, tag, city, disc: disc || null }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password, firstName, lastName, province, city, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'خطا')
-      // signup consumed the code. Issue a fresh one and auto-login.
-      await fetch('/api/otp', { method: 'POST', body: JSON.stringify({ phone }), headers: { 'Content-Type': 'application/json' } })
-      await signIn('credentials', { phone, code: '123456', redirect: false })
-      router.push('/me')
-      router.refresh()
-    } catch (e: any) { setErr(e.message) }
-    finally { setBusy(false) }
-  }
-
-  if (!phone || !code) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 14 }}>برای ثبت‌نام ابتدا موبایل خود را تأیید کنید</div>
-          <Link href="/login" style={{ color: '#22d3ee', textDecoration: 'underline' }}>برو به صفحهٔ ورود</Link>
-        </div>
-      </div>
-    )
+      await signIn('credentials', { phone, password, redirect: false })
+      window.location.href = '/me'
+    } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 18px 32px' }}>
-      <div style={{ marginBottom: 24, textAlign: 'center' }}>
-        <Link href="/" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: 28, letterSpacing: '.05em', color: '#22d3ee', textDecoration: 'none' }} dir="ltr">GAMELAND</Link>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginTop: 8 }}>ساخت پروفایل گیمر</div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>این اطلاعات روی Gamer Bank و صفحهٔ افتخارات نمایش داده می‌شود</div>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '34px 18px 40px' }}>
+      <div style={{ marginBottom: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <Wordmark size={24} />
+        <div style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>ساخت حساب گیمر</div>
       </div>
 
-      <form onSubmit={submit} style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={submit} style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <Field label="نام"><input value={firstName} onChange={e => setFirstName(e.target.value)} required style={inp} placeholder="آرش" /></Field>
+          <Field label="نام خانوادگی"><input value={lastName} onChange={e => setLastName(e.target.value)} required style={inp} placeholder="رستمی" /></Field>
+        </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>نام و نام خانوادگی</span>
-          <input value={name} onChange={e => setName(e.target.value)} required
-            style={inputStyle} placeholder="مثلاً آرش رستمی" />
-        </label>
+        <Field label="شمارهٔ موبایل">
+          <input dir="ltr" inputMode="numeric" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="09120000000" />
+        </Field>
+        <Field label="گذرواژه (حداقل ۸ کاراکتر)">
+          <input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required style={inp} placeholder="••••••••" />
+        </Field>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>تگ بازی <span style={{ color: '#64748b' }}>(انگلیسی، یونیک)</span></span>
-          <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required
-            style={{ ...inputStyle, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }} placeholder="ZEUS" />
-        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <Field label="استان">
+            <select value={province} onChange={e => { setProvince(e.target.value); setCity('') }} required style={inp as any}>
+              <option value="">انتخاب…</option>
+              {IRAN_GEO.map(p => <option key={p.province} value={p.province}>{p.province}</option>)}
+            </select>
+          </Field>
+          <Field label="شهر">
+            <select value={city} onChange={e => setCity(e.target.value)} required disabled={!province} style={{ ...inp, opacity: province ? 1 : 0.45 } as any}>
+              <option value="">{province ? 'انتخاب…' : 'اول استان'}</option>
+              {cities.map(cc => <option key={cc} value={cc}>{cc}</option>)}
+            </select>
+          </Field>
+        </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>شهر</span>
-          <input value={city} onChange={e => setCity(e.target.value)} required
-            style={inputStyle} placeholder="تهران" />
-        </label>
+        <Field label="اسم مستعار (تگ) — انگلیسی، یونیک">
+          <input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="Arsh_FC" />
+        </Field>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>رشتهٔ اصلی</span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => {
-              const d = DISC[k], on = disc === k
-              return (
-                <button key={k} type="button" onClick={() => setDisc(k)}
-                  style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? d.color : '#1e293b'}`, borderRadius: 11, background: on ? d.color + '22' : '#121821', color: on ? d.color : '#94a3b8', fontWeight: 700, fontSize: 13 }}>
-                  {d.name}
-                </button>
-              )
-            })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: C.tmut }}>پیام‌رسانِ فعال روی این شماره</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {([['whatsapp', 'واتساپ'], ['telegram', 'تلگرام'], ['both', 'هردو']] as const).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setMessenger(k)} style={chip(messenger === k)}>{label}</button>
+            ))}
           </div>
-        </label>
+        </div>
 
-        {err && <div style={{ fontSize: 12, color: '#fb7185', background: '#fb71851a', border: '1px solid #fb718533', padding: 10, borderRadius: 10 }}>{err}</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: C.tmut }}>رشته‌هایی که بازی می‌کنی <span style={{ color: C.tmut }}>(چندتایی)</span></span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => (
+              <button key={k} type="button" onClick={() => toggleDisc(k)} style={{ ...chip(discs.includes(k)), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[k] }} />{DISC[k].name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 12, marginTop: 6, opacity: busy ? 0.6 : 1 }}>
-          {busy ? '...' : 'ساخت حساب'}
-        </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <Field label="سابقهٔ بازی (سال)"><input inputMode="numeric" value={exp} onChange={e => setExp(e.target.value.replace(/\D/g, '').slice(0, 2))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="3" /></Field>
+          <Field label="نام تیم (اختیاری)"><input value={team} onChange={e => setTeam(e.target.value)} style={inp} placeholder="—" /></Field>
+        </div>
+
+        {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
+
+        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? '...' : 'ساخت حساب و ورود'}</Button>
+
+        <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut }}>
+          حساب داری؟ <Link href="/login" style={{ color: C.accent, textDecoration: 'none', fontWeight: 700 }}>ورود</Link>
+        </div>
       </form>
     </div>
   )
 }
 
-const inputStyle: React.CSSProperties = {
-  background: '#121821', border: '1px solid #1e293b', borderRadius: 12,
-  padding: '12px 14px', color: '#e2e8f0', fontSize: 14, outline: 'none',
+const inp: React.CSSProperties = { background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }
+function chip(on: boolean): React.CSSProperties {
+  return { all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12 }
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12, color: C.tmut }}>{label}</span>{children}</label>
 }
