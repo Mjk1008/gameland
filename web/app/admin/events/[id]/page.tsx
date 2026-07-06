@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey } from '@/lib/store'
+import { computeQualifiers } from '@/lib/bracket'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
-import ResultControls from './result-controls'
-import DrawButton from './draw-button'
 import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
+import TournamentPanel, { type BracketInfo } from './tournament-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,12 +16,30 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending').length
-  // Only APPROVED players are "in" the event — used for draw / results / finalize.
   const regs = approvedRegistrationsForComp(c.id)
   const totalAttempts = regs.reduce((s, r) => s + r.attempts, 0)
-  const totalSeeds = regs.reduce((s, r) => s + r.seedsEarned, 0)
   const participants = regs.map(r => { const u = getUserById(r.userId); return { userId: r.userId, name: u?.name || '?', tag: u?.tag || '?' } })
   const alreadyFinalized = placementsForComp(c.id).length > 0
+
+  // ── tournament state for the panel ──
+  const all = matchesForComp(c.id)
+  const drawn = all.length > 0
+  const cfg = getEventConfig(c.id)
+  const brackets: BracketInfo[] = []
+  for (const gk of prelimGroupKeys(c.id)) {
+    const label = gk.split(':')[1] || gk
+    const bIdxs = Array.from(new Set(all.filter(m => m.stage === 'prelim' && m.groupKey === gk).map(m => m.bracket))).sort((a, b) => a - b)
+    for (const b of bIdxs) {
+      const ms = all.filter(m => m.stage === 'prelim' && m.groupKey === gk && m.bracket === b)
+      const r1 = ms.filter(m => m.round === Math.min(...ms.map(x => x.round)))
+      const players = r1.reduce((s, m) => s + (m.p1UserId ? 1 : 0) + (m.p2UserId ? 1 : 0), 0)
+      const done = ms.filter(m => m.status === 'done').length
+      brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: cfg.qualify[qualifyKey(gk, b)] ?? 2, complete: ms.every(m => m.status === 'done') })
+    }
+  }
+  const qualifierCount = computeQualifiers(c.id).length
+  const finalExists = all.some(m => m.stage === 'final')
+  const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [m.p1UserId, m.p2UserId].filter(Boolean))).size
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -44,7 +62,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
         <Stat label="تاییدشده" value={regs.length} color={C.accent} />
         <Stat label="بلیط کل" value={totalAttempts} color={C.tbody} />
-        <Stat label="seed" value={totalSeeds} color={C.gold} />
+        <Stat label="کوالیفای" value={qualifierCount} color={C.gold} />
       </div>
 
       {pendingCount > 0 && (
@@ -56,13 +74,14 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       )}
 
       <Card><StatusControl compId={c.id} status={c.status} /></Card>
-      <Card><DrawButton compId={c.id} drawn={matchesForComp(c.id).length > 0} regCount={regs.length} /></Card>
-      <Card><ResultControls compId={c.id} regs={regs.map(r => ({ id: r.id, userId: r.userId, attempts: r.attempts, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, userName: getUserById(r.userId)?.name || '?', userTag: getUserById(r.userId)?.tag || '?' }))} /></Card>
-      <Card><FinalizeControls compId={c.id} participants={participants} done={alreadyFinalized} /></Card>
 
-      <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: 'transparent', border: `1px solid ${C.line2}`, borderRadius: 11, padding: '12px 0', color: C.thi, fontWeight: 700, fontSize: 13 }}>
-        مشاهدهٔ براکت کامل ›
-      </Link>
+      <TournamentPanel
+        compId={c.id} drawn={drawn} regCount={regs.length}
+        groupMode={cfg.groupMode} brackets={brackets}
+        qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
+      />
+
+      <Card><FinalizeControls compId={c.id} participants={participants} done={alreadyFinalized} /></Card>
     </div>
   )
 }

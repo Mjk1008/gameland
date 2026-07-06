@@ -13,6 +13,8 @@ export default async function BracketPage({ params }: { params: { id: string } }
 
   const session = await getServerSession(authOptions)
   const meUid = (session as any)?.uid as string | undefined
+  const role = (session as any)?.role
+  const isAdmin = role === 'admin' || role === 'organizer'
 
   const real = matchesForComp(c.id)
   const drawn = real.length > 0
@@ -25,7 +27,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
 
   if (drawn) {
     const dto: MatchDTO[] = real.map(m => ({
-      id: m.id, bracket: m.bracket, round: m.round, slot: m.slot,
+      id: m.id, stage: m.stage, groupKey: m.groupKey, bracket: m.bracket, round: m.round, slot: m.slot,
       p1: player(m.p1UserId), p2: player(m.p2UserId),
       winnerUid: m.winnerUserId, score: m.score, status: m.status,
     }))
@@ -33,7 +35,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
-          <BracketView matches={dto} meUid={meUid} />
+          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} />
         </div>
       </div>
     )

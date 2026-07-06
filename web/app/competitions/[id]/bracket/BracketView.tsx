@@ -5,11 +5,12 @@ import { C, DISP } from '@/components/ui'
 // ── types coming from the server ──
 export type Player = { uid: string; tag: string; name: string } | null
 export type MatchDTO = {
-  id: string; bracket: number; round: number; slot: number
+  id: string; stage: 'prelim' | 'final'; groupKey: string; bracket: number; round: number; slot: number
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
 }
-type Props = { matches: MatchDTO[]; meUid?: string }
+type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string }
+type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
 const CARD_W = 156, CARD_H = 52, COL_GAP = 52, ROW_H = 70
@@ -28,21 +29,43 @@ function roundName(playersInRound: number): string {
   }
 }
 
-export default function BracketView({ matches, meUid }: Props) {
-  // group by bracket index
-  const bracketIds = useMemo(() => Array.from(new Set(matches.map(m => m.bracket))).sort((a, b) => a - b), [matches])
-  // default to the bracket the viewer is in, else the first
+export default function BracketView({ matches, meUid, isAdmin, compId }: Props) {
+  // Build navigable scopes: one per prelim group (city/province) + the final.
+  const scopes = useMemo<Scope[]>(() => {
+    const out: Scope[] = []
+    const prelimKeys = Array.from(new Set(matches.filter(m => m.stage === 'prelim').map(m => m.groupKey)))
+    for (const gk of prelimKeys) out.push({ key: 'prelim:' + gk, label: gk.split(':')[1] || gk, stage: 'prelim', groupKey: gk })
+    if (matches.some(m => m.stage === 'final')) out.push({ key: 'final', label: 'فینال', stage: 'final', groupKey: '' })
+    return out
+  }, [matches])
+
+  // default to the scope the viewer is in, else final, else first
+  const myScopeKey = useMemo(() => {
+    if (meUid) {
+      const mine = matches.find(m => m.p1?.uid === meUid || m.p2?.uid === meUid)
+      if (mine) return mine.stage === 'final' ? 'final' : 'prelim:' + mine.groupKey
+    }
+    return scopes.find(s => s.stage === 'final')?.key ?? scopes[0]?.key ?? ''
+  }, [matches, meUid, scopes])
+
+  const [scopeKey, setScopeKey] = useState<string>(myScopeKey)
+  const scope = scopes.find(s => s.key === scopeKey) ?? scopes[0]
+  const scopeMatches = useMemo(() => scope ? matches.filter(m => m.stage === scope.stage && m.groupKey === scope.groupKey) : [], [matches, scope])
+
+  const bracketIds = useMemo(() => Array.from(new Set(scopeMatches.map(m => m.bracket))).sort((a, b) => a - b), [scopeMatches])
   const myBracket = useMemo(() => {
     if (!meUid) return null
-    const mine = matches.find(m => m.p1?.uid === meUid || m.p2?.uid === meUid)
+    const mine = scopeMatches.find(m => m.p1?.uid === meUid || m.p2?.uid === meUid)
     return mine ? mine.bracket : null
-  }, [matches, meUid])
+  }, [scopeMatches, meUid])
 
-  const [bracket, setBracket] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
+  const [bracket, setBracketState] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
+  const bracket_ = bracketIds.includes(bracket) ? bracket : (myBracket ?? bracketIds[0] ?? 0)
+  const setBracket = setBracketState
   const [mode, setMode] = useState<'rounds' | 'tree'>('rounds')
   const [myPathOnly, setMyPathOnly] = useState(false)
 
-  const bMatches = useMemo(() => matches.filter(m => m.bracket === bracket), [matches, bracket])
+  const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
   const rounds = useMemo(() => Array.from(new Set(bMatches.map(m => m.round))).sort((a, b) => a - b), [bMatches])
   const maxRound = rounds[rounds.length - 1] ?? 1
   const r1count = bMatches.filter(m => m.round === (rounds[0] ?? 1)).length
@@ -67,36 +90,46 @@ export default function BracketView({ matches, meUid }: Props) {
             </button>
           ))}
         </div>
+        {/* scope: which city's prelim, or the final */}
+        {scopes.length > 1 && (
+          <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
+            {scopes.map(s => (
+              <button key={s.key} onClick={() => setScopeKey(s.key)} style={{ ...chip(s.key === scopeKey), whiteSpace: 'nowrap' }}>
+                {s.stage === 'final' ? '🏆 فینال' : s.label}{s.key === (meUid ? myScopeKey : '') ? ' ★' : ''}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {bracketIds.length > 1 && (
             <div style={{ display: 'flex', gap: 5, overflowX: 'auto', flex: 1 }}>
               {bracketIds.map(b => (
-                <button key={b} onClick={() => setBracket(b)} style={chip(b === bracket)}>
-                  {b === 0 ? 'فاینال' : `براکت ${b}`}{b === myBracket ? ' ★' : ''}
+                <button key={b} onClick={() => setBracket(b)} style={chip(b === bracket_)}>
+                  براکت {b}{b === myBracket ? ' ★' : ''}
                 </button>
               ))}
             </div>
           )}
-          {meUid && myBracket === bracket && (
+          {meUid && myBracket === bracket_ && (
             <button onClick={() => setMyPathOnly(p => !p)} style={chip(myPathOnly)}>مسیر من</button>
           )}
         </div>
         <div style={{ fontSize: 11, color: C.tmut }}>
-          {totalPlayers} نفر · {rounds.length} مرحله · <span style={{ color: C.accent }}>■</span> بازی‌های تو با رنگ بنفش مشخصه
+          {scope?.stage === 'final' ? 'فینال' : scope?.label} · {totalPlayers} نفر · {rounds.length} مرحله{meUid ? ' · ' : ''}{meUid && <span style={{ color: C.accent }}>بازی‌های تو بنفشه</span>}
         </div>
       </div>
 
       {mode === 'rounds'
-        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} />
+        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} isAdmin={isAdmin} compId={compId} />
         : <TreeView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} />}
     </div>
   )
 }
 
 // ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ──────────
-function RoundsView({ bMatches, rounds, totalPlayers, maxRound, meUid, myPathOnly, myPath }: {
+function RoundsView({ bMatches, rounds, totalPlayers, maxRound, meUid, myPathOnly, myPath, isAdmin, compId }: {
   bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number; maxRound: number
-  meUid?: string; myPathOnly: boolean; myPath: Set<string>
+  meUid?: string; myPathOnly: boolean; myPath: Set<string>; isAdmin?: boolean; compId: string
 }) {
   const [sel, setSel] = useState<number>(rounds[0] ?? 1)
   useEffect(() => { if (!rounds.includes(sel)) setSel(rounds[0] ?? 1) }, [rounds, sel])
@@ -121,15 +154,28 @@ function RoundsView({ bMatches, rounds, totalPlayers, maxRound, meUid, myPathOnl
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} />)}
+          {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} isAdmin={isAdmin} compId={compId} />)}
         </div>
       )}
     </div>
   )
 }
 
-function MatchCardRow({ m, meUid }: { m: MatchDTO; meUid?: string }) {
+function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: string; isAdmin?: boolean; compId: string }) {
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
+  const [busy, setBusy] = useState(false)
+  const canPick = isAdmin && m.status === 'ready' && m.p1 && m.p2
+
+  async function pick(winnerUid: string) {
+    if (busy) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/admin/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: m.id, winnerUserId: winnerUid, score: '' }) })
+      if (res.ok) location.reload()
+      else { const j = await res.json(); alert(j.error || 'ثبت نشد'); setBusy(false) }
+    } catch { setBusy(false) }
+  }
+
   return (
     <div style={{
       background: C.sf1, border: `1px solid ${mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden',
@@ -140,11 +186,19 @@ function MatchCardRow({ m, meUid }: { m: MatchDTO; meUid?: string }) {
       <PlayerLine p={m.p2} win={m.winnerUid === m.p2?.uid && m.status === 'done'} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
         <StatusPill status={m.status} />
-        <span style={{ fontSize: 10, color: C.tmut }}>{m.status === 'done' ? 'انجام شد' : m.status === 'ready' ? 'آماده — زمان‌بندی به‌زودی' : 'در انتظار حریف'}</span>
+        <span style={{ fontSize: 10, color: C.tmut }}>{m.status === 'done' ? 'انجام شد' : m.status === 'ready' ? 'آماده' : 'در انتظار حریف'}</span>
       </div>
+      {canPick && (
+        <div style={{ display: 'flex', gap: 6, padding: '8px 9px', background: C.ink, borderTop: `1px solid ${C.line}` }}>
+          <span style={{ fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>برنده:</span>
+          <button disabled={busy} onClick={() => pick(m.p1!.uid)} style={winBtn}>{m.p1!.tag}</button>
+          <button disabled={busy} onClick={() => pick(m.p2!.uid)} style={winBtn}>{m.p2!.tag}</button>
+        </div>
+      )}
     </div>
   )
 }
+const winBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 38, lineHeight: '38px', fontFamily: DISP, fontWeight: 700, fontSize: 13, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
 function PlayerLine({ p, win, me, score }: { p: Player; win?: boolean; me?: boolean; score?: string }) {
   return (
