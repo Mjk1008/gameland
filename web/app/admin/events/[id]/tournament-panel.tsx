@@ -40,11 +40,6 @@ export default function TournamentPanel(p: Props) {
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
     if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ' (به ۱۲۸ محدود شد)' : ''}` })
   }
-  async function seed() {
-    if (!confirm('چند ده شرکت‌کنندهٔ آزمایشی (از چند شهر) به این مسابقه اضافه می‌شه — فقط برای تست. ادامه بدم؟')) return
-    const j = await post('/api/admin/seed-test', { compId: p.compId }, 'seed')
-    if (j) setMsg({ ok: true, text: `${j.created} شرکت‌کنندهٔ آزمایشی اضافه شد. حالا براکت‌های مقدماتی رو بساز.` })
-  }
   async function setQualify(b: BracketInfo, count: number) {
     await post('/api/admin/qualify', { compId: p.compId, groupKey: b.groupKey, bracket: b.bracket, count }, `q${b.groupKey}${b.bracket}`)
   }
@@ -69,10 +64,7 @@ export default function TournamentPanel(p: Props) {
         <button onClick={draw} disabled={busy != null || p.regCount === 0} style={primaryBtn(p.drawn, busy === 'draw' || p.regCount === 0)}>
           {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? 'چیدن مجدد براکت‌های مقدماتی' : 'ساخت براکت‌های مقدماتی'}
         </button>
-        {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن — یا برای تست، شرکت‌کنندهٔ آزمایشی اضافه کن.</div>}
-        <button onClick={seed} disabled={busy != null} style={{ all: 'unset', cursor: busy ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 44, marginTop: 10, border: `1px dashed ${C.line2}`, borderRadius: 11, color: C.tbody, fontSize: 12.5, fontWeight: 700, opacity: busy === 'seed' ? 0.5 : 1 }}>
-          🧪 {busy === 'seed' ? 'در حال ساخت…' : 'افزودن شرکت‌کنندهٔ آزمایشی (فقط تست)'}
-        </button>
+        {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن، بعد براکت‌ها رو بساز.</div>}
       </Section>
 
       {/* 2) brackets + qualify */}

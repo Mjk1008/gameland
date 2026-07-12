@@ -360,6 +360,40 @@ export function updateEvent(id: string, patch: Partial<Event>): Event {
   return e
 }
 
+// Admin delete of a competition + everything under it (registrations, matches,
+// placements, config). DB delete of the event row cascades the child rows.
+export function deleteEvent(id: string) {
+  if (!events.has(id)) throw new Error('EVENT_NOT_FOUND')
+  events.delete(id)
+  eventConfigs.delete(id)
+  for (const [k, r] of regs) if (r.compId === id) regs.delete(k)
+  for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === id) matches.splice(i, 1)
+  for (let i = placements.length - 1; i >= 0; i--) if (placements[i].compId === id) placements.splice(i, 1)
+  persist.event.delete?.(id)
+}
+
+// One-time maintenance: wipe every fake test participant (email ends with
+// @gameland.test) plus all bracket matches (test draws). Real accounts stay.
+export function purgeTestData(): { users: number; matches: number } {
+  let removedUsers = 0
+  for (const u of Array.from(users.values())) {
+    if (u.email && u.email.toLowerCase().endsWith('@gameland.test')) {
+      users.delete(u.id)
+      if (u.phone) usersByPhone.delete(u.phone)
+      usersByTag.delete(u.tag.toLowerCase())
+      if (u.email) usersByEmail.delete(u.email.toLowerCase())
+      if (u.googleSub) usersByGoogleSub.delete(u.googleSub)
+      for (const [k, r] of regs) if (r.userId === u.id) regs.delete(k)
+      removedUsers++
+    }
+  }
+  const removedMatches = matches.length
+  matches.length = 0
+  for (let i = placements.length - 1; i >= 0; i--) placements.splice(i, 1)
+  persist.maintenance?.purgeTests()
+  return { users: removedUsers, matches: removedMatches }
+}
+
 export function allEvents(): Event[] {
   return Array.from(events.values()).sort((a, b) => b.createdAt - a.createdAt)
 }

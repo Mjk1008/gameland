@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { allUsers, allEvents, pendingRegistrations } from '@/lib/store'
 import { C, Num, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
+import PurgeTestsButton from './purge-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,11 @@ export default function AdminHome() {
             ))}
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 4, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
+        <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 8 }}>نگهداری — حذف حساب‌ها و براکت‌های تستی (یک‌بار)</div>
+        <PurgeTestsButton />
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
 import TournamentPanel, { type BracketInfo } from './tournament-panel'
+import DeleteEventButton from './delete-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +83,10 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       />
 
       <Card><FinalizeControls compId={c.id} participants={participants} done={alreadyFinalized} /></Card>
+
+      <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
+        <DeleteEventButton compId={c.id} title={c.title} />
+      </div>
     </div>
   )
 }

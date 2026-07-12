@@ -10,7 +10,7 @@
 // should swap store.ts for direct async Drizzle calls. For Liara single-
 // instance MVP this is sufficient.
 
-import { eq, and } from 'drizzle-orm'
+import { eq, and, like } from 'drizzle-orm'
 import { db, schema } from './client'
 import type { User, Event, Registration, Notification } from '../store'
 
@@ -183,6 +183,10 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.update(schema.events).set({ config: configJson }).where(eq(schema.events.id, id)))
     },
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.events).where(eq(schema.events.id, id)))
+    },
     update(id: string, e: Event) {
       const d = db(); if (!d) return
       fire(d.update(schema.events).set({
@@ -255,6 +259,15 @@ export const persist = {
       fire(d.insert(schema.placements).values({
         id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
       }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
+    },
+  },
+  maintenance: {
+    // wipe fake test participants (email @gameland.test) + all bracket matches
+    purgeTests() {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.matches))
+      fire(d.delete(schema.placements))
+      fire(d.delete(schema.users).where(like(schema.users.email, '%@gameland.test')))
     },
   },
 }
