@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
-  const signedIn = !!(session as any)?.uid
+  const uid = (session as any)?.uid as string | undefined
+  const signedIn = !!uid
 
   const gamers = allUsers().filter(u => u.role === 'gamer')
   const events = allEvents()
@@ -27,22 +28,52 @@ export default async function HomePage() {
 
   const ranked = [...gamers]
     .sort((a, b) => (pointsAcc.get(b.id) ?? 0) - (pointsAcc.get(a.id) ?? 0))
-    .map((u, i) => ({ rank: i + 1, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0 }))
+    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0 }))
 
   const champ = ranked[0]
-  const top = ranked.slice(0, 5)
+  const top = ranked.slice(0, 3)
   const activeComps = events.filter(c => c.status === 'live' || c.status === 'open' || c.status === 'soon')
+
+  // the signed-in gamer's own overview (rank, points, competitions entered)
+  const me = uid ? getUserById(uid) : null
+  const myEntry = me ? ranked.find(r => r.id === me.id) : null
+  const myRegs = uid ? registrationsForUser(uid).length : 0
+  const rankedCount = ranked.length
 
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-      {/* Header — stacked brand lockup (big logo above the name) */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 10 }}>
-        <Wordmark size={22} tagline stacked />
-        <span className="gl-label" style={{ fontSize: 10, color: C.tmut, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '5px 10px' }}>
+      {/* Header — compact brand lockup (small logo + name side by side) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
+        <Wordmark size={17} />
+        <span className="gl-label" style={{ fontSize: 9.5, color: C.tmut, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '5px 10px' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
         </span>
       </div>
+
+      {/* TODO(next batch): promo image slider (up to 6 admin-uploaded images) goes here */}
+
+      {/* Signed-in gamer's own overview card */}
+      {signedIn && me && me.role === 'gamer' && (
+        <Link href="/me" style={{ all: 'unset', cursor: 'pointer', display: 'block', position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: '16px 18px' }} className="animate-fade-up">
+          <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.accent }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 14 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 20, color: C.accent }}>{me.tag[0]?.toUpperCase()}</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: C.thi }}>{me.name}</div>
+              <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{me.tag}{me.city ? ` · ${me.city}` : ''}</div>
+            </div>
+            <span style={{ fontSize: 11.5, color: C.accent, fontWeight: 700 }}>پروفایل ›</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
+            <MiniStat label="رتبهٔ ملی" value={myEntry && myEntry.points > 0 ? `#${myEntry.rank}` : '—'} sub={myEntry && myEntry.points > 0 ? `از ${rankedCount}` : 'بدون امتیاز'} color={C.accent} />
+            <MiniStat label="امتیاز" value={(myEntry?.points ?? 0).toLocaleString('en-US')} color={C.gold} />
+            <MiniStat label="مسابقات من" value={String(myRegs)} color={C.thi} />
+          </div>
+        </Link>
+      )}
 
       {/* Guest banner */}
       {!signedIn && (
@@ -53,7 +84,7 @@ export default async function HomePage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Button href="/login">ورود</Button>
-            <Button href="/signup" kind="secondary">ثبت‌نام رایگان</Button>
+            <Button href="/signup" kind="secondary">ثبت‌نام</Button>
           </div>
         </div>
       )}
@@ -162,6 +193,16 @@ export default async function HomePage() {
         <span>·</span>
         <Link href="/sponsors" style={{ color: C.tmut, textDecoration: 'none' }}>حامیان</Link>
       </div>
+    </div>
+  )
+}
+
+function MiniStat({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
+  return (
+    <div style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 8px', textAlign: 'center' }}>
+      <div className="gl-num" style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 9.5, color: C.tmut, marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 9, color: C.tmut, marginTop: 1 }}>{sub}</div>}
     </div>
   )
 }

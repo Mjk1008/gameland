@@ -76,9 +76,6 @@ export default async function CompetitionPage({ params }: { params: { id: string
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 14, padding: '10px 12px', background: C.ink, borderRadius: 10, fontSize: 11, color: C.tmut }}>
-              تأمین جایزه توسط حامیان · ثبت‌نام رایگان است
-            </div>
           </div>
         )}
 

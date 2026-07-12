@@ -48,8 +48,7 @@ export default function RegisterForm({ comp }: Props) {
           <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطوری کار می‌کنه؟</div>
           <div>• می‌تونی <b style={{ color: C.thi }}>۱ تا ۶ بلیط</b> بگیری — هر بلیط یه شانس جداست</div>
           <div>• توی مقدماتی، بلیط‌هات توی براکت‌های جدا پخش می‌شن</div>
-          <div>• حداکثر <b style={{ color: C.thi }}>۳ seed</b> به فینال ۱۲۸ نفره می‌رسه</div>
-          <div>• خود ثبت‌نام <b style={{ color: C.win }}>رایگانه</b></div>
+          <div>• حداکثر <b style={{ color: C.thi }}>۳ seed</b> به فینال می‌رسه</div>
         </div>
 
         {/* Price + FOMO */}
