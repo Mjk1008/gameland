@@ -2,8 +2,9 @@ import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { HttpsProxyAgent } from 'https-proxy-agent'
-import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole } from './store'
+import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole, getOrCreateOtpUser } from './store'
 import { verifyPassword } from './password'
+import { verifyCode } from './otp'
 
 // Admin allow-list: Google accounts whose email is here get role=admin on login.
 // Set ADMIN_EMAILS="you@gmail.com,other@gmail.com" in env.
@@ -75,6 +76,25 @@ export const authOptions: NextAuthOptions = {
         const u = getUserByPhone(phone)
         if (!u || !u.passwordHash || !verifyPassword(password, u.passwordHash)) { noteFail(phone); return null }
         loginAttempts.delete(phone)
+        return { id: u.id, name: u.name, phone: u.phone, role: u.role, tag: u.tag } as any
+      },
+    }),
+
+    // Passwordless SMS login: phone + one-time code (Kavenegar). New phones get
+    // a phone-only account that completes its profile later.
+    CredentialsProvider({
+      id: 'phone-otp',
+      name: 'phone-otp',
+      credentials: {
+        phone: { label: 'موبایل', type: 'tel' },
+        code:  { label: 'کد', type: 'text' },
+      },
+      async authorize(credentials) {
+        const phone = credentials?.phone?.trim() ?? ''
+        const code = credentials?.code?.trim() ?? ''
+        if (!/^09\d{9}$/.test(phone) || !code) return null
+        if (!verifyCode(phone, code)) return null
+        const u = getOrCreateOtpUser(phone)
         return { id: u.id, name: u.name, phone: u.phone, role: u.role, tag: u.tag } as any
       },
     }),

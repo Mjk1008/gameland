@@ -216,6 +216,27 @@ export function createPhoneUser(input: { phone: string; email: string; passwordH
   return u
 }
 
+// Passwordless SMS login: return the phone's user, or create a phone-only
+// account (no email/password) that completes its profile later. Admin phones
+// become admin.
+export function getOrCreateOtpUser(phone: string): User {
+  const existing = getUserByPhone(phone)
+  if (existing) {
+    if (existing.role === 'gamer' && isAdminPhone(phone)) setUserRole(existing.id, 'admin')
+    return existing
+  }
+  let tag = 'gamer' + phone.slice(-4)
+  let n = 1
+  while (usersByTag.has(tag.toLowerCase())) tag = `gamer${phone.slice(-4)}_${n++}`
+  const id = 'u_' + Math.random().toString(36).slice(2, 10)
+  const role: Role = isAdminPhone(phone) ? 'admin' : 'gamer'
+  const u: User = { id, phone, name: tag, tag, city: '', primaryDisc: null, role, coinBalance: 0, createdAt: Date.now() }
+  users.set(id, u)
+  indexUser(u)
+  persist.user.insert(u)
+  return u
+}
+
 export function createUser(input: Omit<User, 'id' | 'createdAt' | 'role' | 'coinBalance'> & { role?: Role; coinBalance?: number }): User {
   if (input.phone && usersByPhone.has(input.phone)) throw new Error('PHONE_TAKEN')
   if (input.email && usersByEmail.has(input.email.toLowerCase())) throw new Error('EMAIL_TAKEN')
