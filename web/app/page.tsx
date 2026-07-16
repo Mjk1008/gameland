@@ -5,7 +5,8 @@ import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser }
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, GameBadge, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, GameBadge, GAME_POSTER, DISC_DOT } from '@/components/ui'
+import PromoSlider from './promo-slider'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +52,8 @@ export default async function HomePage() {
         </span>
       </div>
 
-      {/* TODO(next batch): promo image slider (up to 6 admin-uploaded images) goes here */}
+      {/* Promo slider — competition posters (admin-uploadable images: next batch) */}
+      <PromoSlider images={[GAME_POSTER.efootball, GAME_POSTER.fc26, GAME_POSTER.pes21, GAME_POSTER.ufc6, GAME_POSTER.nba2k26]} />
 
       {/* Signed-in gamer's own overview card */}
       {signedIn && me && me.role === 'gamer' && (

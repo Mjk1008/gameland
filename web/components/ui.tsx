@@ -22,20 +22,44 @@ export const DISC_DOT: Record<string, string> = {
 const GAME_MARK: Record<string, string> = {
   fc26: 'FC', pes21: 'PES', efootball: 'eF', ufc6: 'UFC', nba2k26: '2K',
 }
+// real game marks/covers bundled in /public/games
+export const GAME_LOGO: Record<string, string> = {
+  fc26: '/games/fc26-logo.png', pes21: '/games/pes21-logo.png', efootball: '/games/efootball-logo.png',
+  ufc6: '/games/ufc6-logo.png', nba2k26: '/games/nba2k26-logo.png',
+}
+export const GAME_COVER: Record<string, string> = {
+  fc26: '/games/fc26-cover.jpg', pes21: '/games/pes21-cover.jpg', efootball: '/games/efootball-cover.jpg',
+  ufc6: '/games/ufc6-cover.jpg', nba2k26: '/games/nba2k26-cover.jpg',
+}
+export const GAME_POSTER: Record<string, string> = {
+  fc26: '/games/fc26-poster.png', pes21: '/games/pes21-poster.png', efootball: '/games/efootball-poster.png',
+  ufc6: '/games/ufc6-poster.png', nba2k26: '/games/nba2k26-poster.png',
+}
 
-// Game "logo" tile — a rounded badge with the game's monogram on its brand
-// color. Reads like a real game mark; replaces the old colored dots/boxes.
+// Game logo tile — the real game logo on a clean light tile (so dark logos
+// stay visible on the dark app). Falls back to a colored monogram if unknown.
 export function GameBadge({ disc, size = 30 }: { disc: string; size?: number }) {
+  const logo = GAME_LOGO[disc]
+  const r = Math.round(size * 0.26)
+  if (logo) {
+    return (
+      <span aria-hidden style={{
+        width: size, height: size, borderRadius: r, flexShrink: 0, background: '#fff',
+        border: `1px solid ${C.line}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+      }}>
+        <img src={logo} alt="" style={{ width: '82%', height: '82%', objectFit: 'contain' }} />
+      </span>
+    )
+  }
   const color = DISC_DOT[disc] ?? '#6E6252'
   const mark = GAME_MARK[disc] ?? '?'
-  const fs = mark.length >= 3 ? size * 0.32 : size * 0.42
   return (
     <span aria-hidden style={{
-      width: size, height: size, borderRadius: Math.round(size * 0.28), flexShrink: 0,
+      width: size, height: size, borderRadius: r, flexShrink: 0,
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      background: `linear-gradient(150deg, ${color}, ${color}bb)`, boxShadow: `0 2px 9px ${color}44`,
+      background: `linear-gradient(150deg, ${color}, ${color}bb)`,
     }}>
-      <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: fs, lineHeight: 1, color: '#0B0A08', letterSpacing: '-.02em' }}>{mark}</span>
+      <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: mark.length >= 3 ? size * 0.32 : size * 0.42, lineHeight: 1, color: '#0B0A08' }}>{mark}</span>
     </span>
   )
 }
