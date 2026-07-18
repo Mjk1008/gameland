@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: 'Gameland — گیم‌لند',
   description: 'رنکینگ ملی ای‌اسپورت ایران · مسابقات حرفه‌ای · پروفایل گیمرها',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'گیم‌لند' },
+  other: { enamad: '37786331' },   // eNamad ownership verification
 }
 
 export const viewport: Viewport = {
