@@ -7,6 +7,7 @@ import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
 import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, GameBadge, GAME_POSTER, DISC_DOT } from '@/components/ui'
 import PromoSlider from './promo-slider'
+import { EnamadSeal } from '@/components/EnamadSeal'
 
 export const dynamic = 'force-dynamic'
 
@@ -188,12 +189,15 @@ export default async function HomePage() {
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: 4, paddingTop: 14, borderTop: `1px solid ${C.line}`, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 12, color: C.tmut }}>
-        <Link href="/about" style={{ color: C.tmut, textDecoration: 'none' }}>درباره</Link>
-        <span>·</span>
-        <Link href="/rules" style={{ color: C.tmut, textDecoration: 'none' }}>قوانین</Link>
-        <span>·</span>
-        <Link href="/sponsors" style={{ color: C.tmut, textDecoration: 'none' }}>حامیان</Link>
+      <div style={{ marginTop: 4, paddingTop: 14, borderTop: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontSize: 12, color: C.tmut }}>
+          <Link href="/about" style={{ color: C.tmut, textDecoration: 'none' }}>درباره</Link>
+          <span>·</span>
+          <Link href="/rules" style={{ color: C.tmut, textDecoration: 'none' }}>قوانین</Link>
+          <span>·</span>
+          <Link href="/sponsors" style={{ color: C.tmut, textDecoration: 'none' }}>حامیان</Link>
+        </div>
+        <EnamadSeal size={84} />
       </div>
     </div>
   )
