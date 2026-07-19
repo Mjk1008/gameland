@@ -21,10 +21,14 @@ export async function sendSms(msg: SmsMessage): Promise<{ ok: boolean; provider:
       const url = new URL(`https://api.kavenegar.com/v1/${apiKey}/verify/lookup.json`)
       url.searchParams.set('receptor', msg.to)
       url.searchParams.set('template', msg.template)
-      msg.tokens?.forEach((t, i) => url.searchParams.set(`token${i + 1}`, t))
+      // Kavenegar verify/lookup: first placeholder param is `token` (not token1),
+      // then token2, token3, … for %token, %token2, %token3.
+      msg.tokens?.forEach((t, i) => url.searchParams.set(i === 0 ? 'token' : `token${i + 1}`, t))
       const r = await fetch(url.toString())
       const j = await r.json()
-      return { ok: r.ok, provider: 'kavenegar', messageId: j?.entries?.[0]?.messageid?.toString() }
+      const ok = r.ok && j?.return?.status === 200
+      if (!ok) console.error('[SMS] kavenegar verify failed:', JSON.stringify(j?.return || j))
+      return { ok, provider: 'kavenegar', messageId: j?.entries?.[0]?.messageid?.toString() }
     } else {
       const sender = process.env.KAVENEGAR_SENDER || ''
       const url = new URL(`https://api.kavenegar.com/v1/${apiKey}/sms/send.json`)

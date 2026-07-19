@@ -10,7 +10,7 @@
 // should swap store.ts for direct async Drizzle calls. For Liara single-
 // instance MVP this is sufficient.
 
-import { eq, and, like } from 'drizzle-orm'
+import { eq, and, like, sql } from 'drizzle-orm'
 import { db, schema } from './client'
 import type { User, Event, Registration, Notification } from '../store'
 
@@ -25,6 +25,7 @@ export function startHydration(loaders: {
   loadPlacement: (pl: any) => void
   loadMatch:     (m: any) => void
   loadEventConfig?: (compId: string, json: string) => void
+  loadCompetition?: (c: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -32,6 +33,21 @@ export function startHydration(loaders: {
   hydrating = (async () => {
     try {
       const ms = (v: any) => (v instanceof Date ? v.getTime() : Date.now())
+
+      // Idempotent schema self-heal on boot — lets new tables/columns land via
+      // deploy without a manual migration (the app can reach the DB; the
+      // sandbox can't). All guarded with IF NOT EXISTS.
+      for (const stmt of [
+        `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
+        `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
+      ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
+
+      const cps = await d.select().from(schema.competitions)
+      for (const c of cps) loaders.loadCompetition?.({
+        id: c.id, title: c.title, location: c.location ?? '', date: c.date ?? '',
+        posterUrl: c.posterUrl ?? undefined, createdAt: ms(c.createdAt),
+      })
 
       const us = await d.select().from(schema.users)
       for (const u of us) loaders.loadUser({
@@ -62,6 +78,8 @@ export function startHydration(loaders: {
         startsAt: e.startsAt ? ms(e.startsAt) : undefined,
         regDeadline: e.regDeadline ? ms(e.regDeadline) : undefined,
         organizerId: e.organizerId, createdAt: ms(e.createdAt),
+        competitionId: (e as any).competitionId ?? undefined,
+        finalSize: (e as any).finalSize ?? undefined,
       })
       for (const e of ev) if ((e as any).config) loaders.loadEventConfig?.(e.id, (e as any).config)
 
@@ -173,6 +191,7 @@ export const persist = {
         startsAt: e.startsAt ? new Date(e.startsAt) : undefined,
         regDeadline: e.regDeadline ? new Date(e.regDeadline) : undefined,
         organizerId: e.organizerId,
+        competitionId: e.competitionId, finalSize: e.finalSize,
       }).onConflictDoNothing())
     },
     updateStatus(id: string, status: Event['status'], statusLabel: string) {
@@ -195,7 +214,24 @@ export const persist = {
         status: e.status, statusLabel: e.statusLabel, format: e.format, date: e.date,
         startsAt: e.startsAt ? new Date(e.startsAt) : undefined,
         regDeadline: e.regDeadline ? new Date(e.regDeadline) : undefined,
+        competitionId: e.competitionId, finalSize: e.finalSize,
       }).where(eq(schema.events.id, id)))
+    },
+  },
+  competition: {
+    insert(c: { id: string; title: string; location: string; date: string; posterUrl?: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.competitions).values({
+        id: c.id, title: c.title, location: c.location, date: c.date, posterUrl: c.posterUrl,
+      }).onConflictDoNothing())
+    },
+    update(id: string, c: { title: string; location: string; date: string; posterUrl?: string }) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.competitions).set({ title: c.title, location: c.location, date: c.date, posterUrl: c.posterUrl }).where(eq(schema.competitions.id, id)))
+    },
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.competitions).where(eq(schema.competitions.id, id)))
     },
   },
   reg: {

@@ -14,6 +14,8 @@ export async function POST(req: Request) {
   if (!b.title || !b.disc) return NextResponse.json({ error: 'عنوان و رشته الزامی' }, { status: 400 })
 
   const tier = ['S', 'A', 'B', 'C'].includes(b.tier) ? b.tier : 'A'
+  // Final bracket size per discipline: FIFA/EA FC = 128, everything else = 32.
+  const finalSize = b.finalSize != null && b.finalSize !== '' ? Number(b.finalSize) : (b.disc === 'fc26' ? 128 : 32)
   const e = createEvent({
     title: b.title, season: b.season || 'فصل ۱', disc: b.disc, tier,
     prize: Number(b.prize) || 0, teams: Number(b.teams) || 32,
@@ -21,6 +23,8 @@ export async function POST(req: Request) {
     status: b.status || 'open', statusLabel: b.statusLabel || 'ثبت‌نام باز',
     format: b.format || 'حذفی تک', date: b.date || '',
     organizerId: uid,
+    competitionId: b.competitionId ? String(b.competitionId) : undefined,
+    finalSize,
   })
   return NextResponse.json({ ok: true, event: e })
 }

@@ -63,6 +63,7 @@ function ensureHydrated() {
     loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
     loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
     loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
+    loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
   })
 }
 
@@ -351,6 +352,44 @@ export interface Event {
   regDeadline?: number
   organizerId: string
   createdAt: number
+  competitionId?: string   // parent competition (رویداد) this discipline belongs to
+  finalSize?: number       // final bracket size for this discipline (fc26=128, else 32)
+}
+
+// A Competition (رویداد/جام) groups several disciplines (child Events). Shared
+// meta lives here; registration + brackets stay per-discipline on the Events.
+export interface Competition {
+  id: string
+  title: string
+  location: string
+  date: string
+  posterUrl?: string
+  createdAt: number
+}
+const competitions = new Map<string, Competition>()
+
+export function createCompetition(input: { title: string; location?: string; date?: string; posterUrl?: string }): Competition {
+  const id = 'cup_' + Math.random().toString(36).slice(2, 10)
+  const c: Competition = { id, title: input.title, location: input.location ?? '', date: input.date ?? '', posterUrl: input.posterUrl, createdAt: Date.now() }
+  competitions.set(id, c)
+  persist.competition?.insert(c)
+  return c
+}
+export function getCompetition(id: string): Competition | undefined { return competitions.get(id) }
+export function allCompetitions(): Competition[] { return Array.from(competitions.values()).sort((a, b) => b.createdAt - a.createdAt) }
+export function updateCompetition(id: string, patch: Partial<Competition>): Competition {
+  const c = competitions.get(id); if (!c) throw new Error('COMPETITION_NOT_FOUND')
+  for (const k of ['title', 'location', 'date', 'posterUrl'] as const) if (k in patch && patch[k] !== undefined) (c as any)[k] = patch[k]
+  persist.competition?.update?.(id, c)
+  return c
+}
+export function deleteCompetition(id: string) {
+  competitions.delete(id)
+  for (const e of events.values()) if (e.competitionId === id) deleteEvent(e.id)
+  persist.competition?.delete?.(id)
+}
+export function eventsForCompetition(id: string): Event[] {
+  return Array.from(events.values()).filter(e => e.competitionId === id).sort((a, b) => a.createdAt - b.createdAt)
 }
 
 const events = new Map<string, Event>()

@@ -4,6 +4,16 @@
 
 import { pgTable, pgEnum, text, integer, boolean, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
 
+// ─── Competitions (رویداد — parent that groups discipline Events) ───
+export const competitions = pgTable('app_competitions', {
+  id:        text('id').primaryKey(),
+  title:     text('title').notNull(),
+  location:  text('location').notNull().default(''),
+  date:      text('date').notNull().default(''),
+  posterUrl: text('poster_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Enums (must match init.sql) ─────────────────────────────
 export const eventTierEnum   = pgEnum('event_tier',   ['S', 'A', 'B', 'C'])
 export const eventStatusEnum = pgEnum('event_status', ['soon', 'open', 'live', 'done'])
@@ -71,6 +81,8 @@ export const events = pgTable('app_events', {
   statusLabel:  text('status_label').notNull().default(''),
   format:       text('format').notNull().default(''),
   config:       text('config'),   // JSON: EventConfig (groupMode, qualify counts, final seeding)
+  competitionId: text('competition_id'),   // parent competition (رویداد)
+  finalSize:     integer('final_size'),    // final bracket size for this discipline
   date:         text('date'),
   startsAt:     timestamp('starts_at', { withTimezone: true }),
   regDeadline:  timestamp('reg_deadline', { withTimezone: true }),
