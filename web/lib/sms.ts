@@ -27,8 +27,14 @@ export async function sendSms(msg: SmsMessage): Promise<{ ok: boolean; provider:
       const r = await fetch(url.toString())
       const j = await r.json()
       const ok = r.ok && j?.return?.status === 200
-      if (!ok) console.error('[SMS] kavenegar verify failed:', JSON.stringify(j?.return || j))
-      return { ok, provider: 'kavenegar', messageId: j?.entries?.[0]?.messageid?.toString() }
+      const rc = j?.return?.status
+      const rmsg = j?.return?.message
+      const mid = j?.entries?.[0]?.messageid
+      const dstatus = j?.entries?.[0]?.statustext   // per-message delivery text
+      // Always log the Kavenegar outcome — silent success hides trial/credit issues.
+      console.log(`[SMS] kavenegar verify → ${msg.to} tpl=${msg.template} return=${rc}(${rmsg}) msgid=${mid ?? '-'} delivery=${dstatus ?? '-'}`)
+      if (!ok) console.error('[SMS] kavenegar verify FAILED:', JSON.stringify(j?.return || j))
+      return { ok, provider: 'kavenegar', messageId: mid?.toString() }
     } else {
       const sender = process.env.KAVENEGAR_SENDER || ''
       const url = new URL(`https://api.kavenegar.com/v1/${apiKey}/sms/send.json`)
