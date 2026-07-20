@@ -15,6 +15,13 @@ export function canSend(phone: string): boolean {
 }
 
 export function issueCode(phone: string): string {
+  // lazy prune so the maps don't grow unbounded over the instance's lifetime
+  // (10k+ phones during launch). Only sweeps once the map is sizeable.
+  if (lastSend.size > 500) {
+    const now = Date.now()
+    for (const [p, t] of lastSend) if (now - t > COOLDOWN) lastSend.delete(p)
+    for (const [p, r] of codes) if (now > r.exp) codes.delete(p)
+  }
   const code = String(crypto.randomInt(10000, 100000))  // 5 digits
   codes.set(phone, { code, exp: Date.now() + TTL, tries: 0 })
   lastSend.set(phone, Date.now())

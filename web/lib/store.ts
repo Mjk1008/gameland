@@ -53,9 +53,13 @@ seedAdmin()
 
 // Trigger DB hydration on module load. Loaders merge into the same maps so
 // in-memory queries see persisted rows after the async load completes.
+let _ready: Promise<void> | null = null
 ensureHydrated()
+// Await this before serving auth/signup/register so requests never race the
+// initial DB→memory load (which would create duplicate accounts / drop rows).
+export function whenReady(): Promise<void> { return _ready ?? Promise.resolve() }
 function ensureHydrated() {
-  startHydration({
+  _ready = startHydration({
     loadUser:      (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
     loadEvent:     (e: Event) => { events.set(e.id, e) },
     loadReg:       (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
@@ -65,8 +69,16 @@ function ensureHydrated() {
     loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
+    loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
   })
 }
+
+// Which users have a profile photo — ids only (the image bytes stay in Postgres
+// and are served on demand, so this stays tiny even with 10k users).
+const avatarIds = new Set<string>()
+export function hasAvatar(userId: string): boolean { return avatarIds.has(userId) }
+export function markAvatar(userId: string): void { avatarIds.add(userId) }
+export function unmarkAvatar(userId: string): void { avatarIds.delete(userId) }
 
 function indexUser(u: User) {
   if (u.phone) usersByPhone.set(u.phone, u.id)

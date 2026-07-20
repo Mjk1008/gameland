@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements } from '@/lib/store'
+import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
@@ -37,8 +37,10 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
       <div style={{ padding: '20px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Hero */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 84, height: 84, borderRadius: 22, background: C.line, border: `1px solid ${C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: 38, color: top3 ? C.gold : C.accent }}>{u.tag[0]?.toUpperCase()}</span>
+          <div style={{ width: 84, height: 84, borderRadius: 22, background: C.line, border: `1px solid ${top3 ? C.gold + '88' : C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {hasAvatar(u.id)
+              ? <img src={`/api/avatar/${u.id}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: 38, color: top3 ? C.gold : C.accent }}>{u.tag[0]?.toUpperCase()}</span>}
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{u.name}</div>

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, pushNotif, getUserById, getEvent, profileCompletion } from '@/lib/store'
+import { createRegistration, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
+import { persist } from '@/lib/db/persistence'
 
 export async function POST(req: Request) {
+  await whenReady()
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid
   const u = uid ? getUserById(uid) : null
@@ -30,6 +32,10 @@ export async function POST(req: Request) {
 
   try {
     const r = createRegistration(uid, compId, attempts)
+    // Durable + ordered: commit the user row first, then the registration, so a
+    // surge can't lose the reg or hit the users FK. Notif stays fire-and-forget.
+    await persist.user.insertAsync(u)
+    await persist.reg.insertAsync(r)
     pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد', `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
     return NextResponse.json({ ok: true, registration: r })
   } catch (e: any) {

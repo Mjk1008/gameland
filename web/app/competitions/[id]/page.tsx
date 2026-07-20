@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
 import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp } from '@/lib/store'
+import { rulesForDisc } from '@/lib/discipline-rules'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }
   const breakdown = prizeBreakdown(c.prize)
   const roadmap = roadmapStages(c.status)
+  const discRules = rulesForDisc(c.disc)
 
   const compPlacements = placementsForComp(params.id)
     .sort((a, b) => a.rank - b.rank).slice(0, 4)
@@ -90,6 +92,24 @@ export default async function CompetitionPage({ params }: { params: { id: string
             <div style={{ marginTop: 4 }}><Num size={16}>{c.maxPlayers ?? c.teams}</Num> <span style={{ fontSize: 12, color: C.tbody }}>نفر</span></div>
           </div>
         </div>
+
+        {/* Discipline rules (organizer-defined, per game) */}
+        {discRules && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <GameBadge disc={c.disc} size={24} />
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>قوانین رشته · {discRules.title}</span>
+            </div>
+            <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '6px 15px' }}>
+              {discRules.rules.map((r, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '9px 0', borderBottom: i < discRules.rules.length - 1 ? `1px solid ${C.line}` : 'none' }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.accent, marginTop: 8, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: C.tbody, lineHeight: 1.8 }}>{r}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Roadmap */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>

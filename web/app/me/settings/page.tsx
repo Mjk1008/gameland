@@ -24,6 +24,7 @@ export default async function SettingsPage() {
         </Section>
 
         <Section title="درباره">
+          <Row href="/support" label="پشتیبانی و راهنما" />
           <Row href="/about" label="دربارهٔ گیم‌لند" />
           <Row href="/rules" label="قوانین مسابقات" last />
         </Section>

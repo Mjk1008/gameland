@@ -2,7 +2,7 @@ import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { HttpsProxyAgent } from 'https-proxy-agent'
-import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole, getOrCreateOtpUser } from './store'
+import { getUserByPhone, upsertGoogleUser, userNeedsProfile, getUserById, isAdminPhone, setUserRole, getOrCreateOtpUser, whenReady } from './store'
 import { verifyPassword } from './password'
 import { verifyCode } from './otp'
 
@@ -69,6 +69,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'گذرواژه', type: 'password' },
       },
       async authorize(credentials) {
+        await whenReady()
         const phone = credentials?.phone?.trim() ?? ''
         const password = credentials?.password ?? ''
         if (!phone || !password) return null
@@ -90,6 +91,7 @@ export const authOptions: NextAuthOptions = {
         code:  { label: 'کد', type: 'text' },
       },
       async authorize(credentials) {
+        await whenReady()
         const phone = credentials?.phone?.trim() ?? ''
         const code = credentials?.code?.trim() ?? ''
         if (!/^09\d{9}$/.test(phone) || !code) return null

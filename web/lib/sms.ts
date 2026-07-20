@@ -24,7 +24,7 @@ export async function sendSms(msg: SmsMessage): Promise<{ ok: boolean; provider:
       // Kavenegar verify/lookup: first placeholder param is `token` (not token1),
       // then token2, token3, … for %token, %token2, %token3.
       msg.tokens?.forEach((t, i) => url.searchParams.set(i === 0 ? 'token' : `token${i + 1}`, t))
-      const r = await fetch(url.toString())
+      const r = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) })
       const j = await r.json()
       const ok = r.ok && j?.return?.status === 200
       const rc = j?.return?.status
@@ -41,7 +41,7 @@ export async function sendSms(msg: SmsMessage): Promise<{ ok: boolean; provider:
       url.searchParams.set('receptor', msg.to)
       url.searchParams.set('message', msg.text ?? '')
       if (sender) url.searchParams.set('sender', sender)
-      const r = await fetch(url.toString())
+      const r = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) })
       const j = await r.json()
       return { ok: r.ok, provider: 'kavenegar', messageId: j?.entries?.[0]?.messageid?.toString() }
     }

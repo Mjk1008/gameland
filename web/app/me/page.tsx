@@ -2,8 +2,9 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion, hasAvatar } from '@/lib/store'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
+import AvatarEditor from './avatar-editor'
 
 export default async function MePage() {
   const session = await getServerSession(authOptions)
@@ -23,9 +24,7 @@ export default async function MePage() {
       {/* Profile lower-third */}
       <div style={{ position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
         <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.accent }} />
-        <div style={{ width: 54, height: 54, borderRadius: 14, background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 24, color: C.accent }}>{u.tag[0]?.toUpperCase()}</span>
-        </div>
+        <AvatarEditor uid={uid} initial={u.tag[0]?.toUpperCase() ?? '؟'} hasPhoto={hasAvatar(uid)} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{u.name}</div>
           <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{u.tag} · {u.city || '—'}</div>
@@ -119,6 +118,7 @@ export default async function MePage() {
           <span style={{ color: C.tmut }}>›</span>
         </Link>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 6, fontSize: 11, color: C.tmut }}>
+          <Link href="/support" style={{ color: C.tmut }}>پشتیبانی</Link><span>·</span>
           <Link href="/about" style={{ color: C.tmut }}>درباره</Link><span>·</span>
           <Link href="/rules" style={{ color: C.tmut }}>قوانین</Link>
         </div>

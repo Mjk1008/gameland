@@ -27,6 +27,7 @@ export function startHydration(loaders: {
   loadEventConfig?: (compId: string, json: string) => void
   loadCompetition?: (c: any) => void
   loadPromo?:    (p: any) => void
+  loadAvatarId?: (userId: string) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -43,6 +44,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -124,6 +126,12 @@ export function startHydration(loaders: {
         })
       } catch (e) { console.error('[db] load promos:', e) }
 
+      try {
+        // Only the ids — never the base64 payloads — so RAM stays flat at scale.
+        const av = await d.execute(sql.raw('SELECT user_id FROM app_avatars'))
+        for (const row of (av as any as { user_id: string }[])) loaders.loadAvatarId?.(row.user_id)
+      } catch (e) { console.error('[db] load avatar ids:', e) }
+
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
       console.error('[db] hydration failed; continuing in-memory:', err)
@@ -142,20 +150,30 @@ function fire(promise: Promise<any> | undefined) {
   promise.catch(err => console.error('[db] write failed:', err))
 }
 
+function userValues(u: User) {
+  return {
+    id: u.id, email: u.email, googleSub: u.googleSub, avatarUrl: u.avatarUrl,
+    phone: u.phone, name: u.name, firstName: u.firstName, lastName: u.lastName,
+    tag: u.tag, province: u.province, city: u.city, messenger: u.messenger,
+    primaryDisc: u.primaryDisc, discs: (u.discs ?? []).join(','),
+    experienceYears: u.experienceYears, teamName: u.teamName,
+    nationalId: u.nationalId, passwordHash: u.passwordHash,
+    role: u.role, coinBalance: u.coinBalance ?? 0,
+    playerId: u.playerId,
+  }
+}
+
 export const persist = {
   user: {
     insert(u: User) {
       const d = db(); if (!d) return
-      fire(d.insert(schema.users).values({
-        id: u.id, email: u.email, googleSub: u.googleSub, avatarUrl: u.avatarUrl,
-        phone: u.phone, name: u.name, firstName: u.firstName, lastName: u.lastName,
-        tag: u.tag, province: u.province, city: u.city, messenger: u.messenger,
-        primaryDisc: u.primaryDisc, discs: (u.discs ?? []).join(','),
-        experienceYears: u.experienceYears, teamName: u.teamName,
-        nationalId: u.nationalId, passwordHash: u.passwordHash,
-        role: u.role, coinBalance: u.coinBalance ?? 0,
-        playerId: u.playerId,
-      }).onConflictDoNothing())
+      fire(d.insert(schema.users).values(userValues(u)).onConflictDoNothing())
+    },
+    // Awaitable + idempotent — used on the critical signup/register path so the
+    // HTTP 200 only returns once the user row is actually committed (durability).
+    async insertAsync(u: User) {
+      const d = db(); if (!d) return
+      await d.insert(schema.users).values(userValues(u)).onConflictDoNothing()
     },
     update(id: string, patch: Partial<User>) {
       const d = db(); if (!d) return
@@ -253,6 +271,15 @@ export const persist = {
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
       }).onConflictDoNothing())
     },
+    // Awaitable + idempotent — used on the register path so a registration is
+    // committed before the 200, and only after its user row (no FK race).
+    async insertAsync(r: Registration) {
+      const d = db(); if (!d) return
+      await d.insert(schema.registrations).values({
+        id: r.id, userId: r.userId, compId: r.compId,
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
+      }).onConflictDoNothing()
+    },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
       const set: any = {}
@@ -319,6 +346,24 @@ export const persist = {
     delete(id: string) {
       const d = db(); if (!d) return
       fire(d.delete(schema.promos).where(eq(schema.promos.id, id)))
+    },
+  },
+  avatar: {
+    // Awaitable upsert — the avatar bytes live only in Postgres, never in the
+    // in-memory store, so 10k photos don't touch RAM or hydration.
+    async upsertAsync(userId: string, dataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.avatars).values({ userId, dataUrl })
+        .onConflictDoUpdate({ target: schema.avatars.userId, set: { dataUrl, updatedAt: new Date() } })
+    },
+    async read(userId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.avatars.dataUrl }).from(schema.avatars).where(eq(schema.avatars.userId, userId)).limit(1)
+      return rows[0]?.dataUrl ?? null
+    },
+    delete(userId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.avatars).where(eq(schema.avatars.userId, userId)))
     },
   },
   maintenance: {

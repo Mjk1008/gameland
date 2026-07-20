@@ -183,6 +183,14 @@ export const gamenets = pgTable('app_gamenets', {
   byCity: index('gn_city_idx').on(t.city),
 }))
 
+// ─── Avatars (profile photos, base64) — stored OUT of the in-memory store and
+// served on demand, so 10k photos never bloat RAM or the hydration path ──────
+export const avatars = pgTable('app_avatars', {
+  userId:    text('user_id').primaryKey(),
+  dataUrl:   text('data_url').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Promo slides (home carousel, admin-managed) ─────────────
 export const promos = pgTable('app_promos', {
   id:        text('id').primaryKey(),

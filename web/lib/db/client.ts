@@ -15,7 +15,7 @@ export function db(): PostgresJsDatabase<typeof schema> | null {
   const url = process.env.DATABASE_URL
   if (!url) return null
   try {
-    const sql = postgres(url, { max: 5, idle_timeout: 30, prepare: false })
+    const sql = postgres(url, { max: 15, idle_timeout: 30, prepare: false })
     _db = drizzle(sql, { schema })
     return _db
   } catch (err) {
