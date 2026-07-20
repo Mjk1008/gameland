@@ -182,3 +182,15 @@ export const gamenets = pgTable('app_gamenets', {
 }, (t) => ({
   byCity: index('gn_city_idx').on(t.city),
 }))
+
+// ─── Promo slides (home carousel, admin-managed) ─────────────
+export const promos = pgTable('app_promos', {
+  id:        text('id').primaryKey(),
+  imageData: text('image_data').notNull(),          // data: URL (base64) or external URL
+  linkType:  text('link_type').notNull().default('none'), // 'event' | 'url' | 'none'
+  eventId:   text('event_id'),                      // when link_type='event'
+  url:       text('url'),                           // when link_type='url'
+  sort:      integer('sort').notNull().default(0),
+  active:    boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})

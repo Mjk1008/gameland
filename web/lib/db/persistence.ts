@@ -26,6 +26,7 @@ export function startHydration(loaders: {
   loadMatch:     (m: any) => void
   loadEventConfig?: (compId: string, json: string) => void
   loadCompetition?: (c: any) => void
+  loadPromo?:    (p: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -41,6 +42,7 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
+        `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -112,6 +114,15 @@ export function startHydration(loaders: {
         winnerUserId: m.winnerUserId ?? undefined, score: m.score ?? undefined,
         status: m.status as any, createdAt: ms(m.createdAt),
       })
+
+      try {
+        const pr = await d.select().from(schema.promos)
+        for (const p of pr) loaders.loadPromo?.({
+          id: p.id, imageData: p.imageData, linkType: (p as any).linkType ?? 'none',
+          eventId: p.eventId ?? undefined, url: p.url ?? undefined,
+          sort: p.sort ?? 0, active: p.active ?? true, createdAt: ms(p.createdAt),
+        })
+      } catch (e) { console.error('[db] load promos:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -295,6 +306,19 @@ export const persist = {
       fire(d.insert(schema.placements).values({
         id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
       }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
+    },
+  },
+  promo: {
+    insert(p: { id: string; imageData: string; linkType: string; eventId?: string; url?: string; sort: number; active: boolean }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.promos).values({
+        id: p.id, imageData: p.imageData, linkType: p.linkType, eventId: p.eventId,
+        url: p.url, sort: p.sort, active: p.active,
+      }).onConflictDoUpdate({ target: schema.promos.id, set: { imageData: p.imageData, linkType: p.linkType, eventId: p.eventId, url: p.url, sort: p.sort, active: p.active } }))
+    },
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.promos).where(eq(schema.promos.id, id)))
     },
   },
   maintenance: {

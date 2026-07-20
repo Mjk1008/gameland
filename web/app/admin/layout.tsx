@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 const TABS = [
   { href: '/admin', label: 'داشبورد' },
   { href: '/admin/events', label: 'مسابقات' },
+  { href: '/admin/promos', label: 'اسلایدر' },
   { href: '/admin/requests', label: 'درخواست‌ها' },
   { href: '/admin/gamers', label: 'گیمرها' },
   { href: '/admin/disciplines', label: 'رشته‌ها' },

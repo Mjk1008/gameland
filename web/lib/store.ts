@@ -64,6 +64,7 @@ function ensureHydrated() {
     loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
     loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
+    loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
   })
 }
 
@@ -752,6 +753,66 @@ const sponsors = new Map<string, SponsorRow>()
 
 // Gameland is privately funded — no external sponsors seeded. Admin can still
 // add real sponsors later via /admin/sponsors if that ever changes.
+
+// ─── Promo slides (home carousel, admin-managed) ───────────────────────────
+export interface PromoRow {
+  id: string
+  imageData: string                       // data: URL (base64) or external URL
+  linkType: 'event' | 'url' | 'none'      // where tapping the slide goes
+  eventId?: string                        // link_type='event' → /competitions/{eventId}
+  url?: string                            // link_type='url'  → custom/landing link
+  sort: number                            // ascending display order
+  active: boolean
+  createdAt: number
+}
+
+const promos = new Map<string, PromoRow>()
+
+export function allPromos(): PromoRow[] {
+  return Array.from(promos.values()).sort((a, b) => a.sort - b.sort || a.createdAt - b.createdAt)
+}
+export function activePromos(): PromoRow[] {
+  return allPromos().filter(p => p.active)
+}
+export function createPromo(input: Omit<PromoRow, 'id' | 'createdAt' | 'sort'> & { sort?: number }): PromoRow {
+  const maxSort = allPromos().reduce((m, p) => Math.max(m, p.sort), -1)
+  const p: PromoRow = {
+    id: 'promo_' + Math.random().toString(36).slice(2, 10),
+    imageData: input.imageData,
+    linkType: input.linkType,
+    eventId: input.eventId,
+    url: input.url,
+    sort: input.sort ?? maxSort + 1,
+    active: input.active ?? true,
+    createdAt: Date.now(),
+  }
+  promos.set(p.id, p)
+  persist.promo.insert(p)
+  return p
+}
+export function updatePromo(id: string, patch: Partial<PromoRow>): PromoRow {
+  const p = promos.get(id)
+  if (!p) throw new Error('PROMO_NOT_FOUND')
+  Object.assign(p, patch)
+  persist.promo.insert(p)
+  return p
+}
+export function deletePromo(id: string): void {
+  promos.delete(id)
+  persist.promo.delete(id)
+}
+// Move a slide up/down by swapping sort with its neighbour.
+export function reorderPromo(id: string, dir: 'up' | 'down'): void {
+  const list = allPromos()
+  const idx = list.findIndex(p => p.id === id)
+  if (idx < 0) return
+  const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+  if (swapIdx < 0 || swapIdx >= list.length) return
+  const a = list[idx], b = list[swapIdx]
+  const as = a.sort, bs = b.sort
+  updatePromo(a.id, { sort: bs })
+  updatePromo(b.id, { sort: as })
+}
 
 // ─── Placements (final competition results → feeds ranking engine) ─────────
 

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
@@ -42,6 +42,18 @@ export default async function HomePage() {
   const myRegs = uid ? registrationsForUser(uid).length : 0
   const rankedCount = ranked.length
 
+  // Home slider — admin-managed slides (image + optional link). Fall back to the
+  // bundled game posters when the admin hasn't added any yet.
+  const promos = activePromos()
+  const slides = promos.length
+    ? promos.map(p => ({
+        src: p.imageData,
+        href: p.linkType === 'event' && p.eventId ? `/competitions/${p.eventId}`
+            : p.linkType === 'url' && p.url ? p.url
+            : undefined,
+      }))
+    : [GAME_POSTER.efootball, GAME_POSTER.fc26, GAME_POSTER.pes21, GAME_POSTER.ufc6, GAME_POSTER.nba2k26].map(src => ({ src }))
+
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
@@ -53,8 +65,8 @@ export default async function HomePage() {
         </span>
       </div>
 
-      {/* Promo slider — competition posters (admin-uploadable images: next batch) */}
-      <PromoSlider images={[GAME_POSTER.efootball, GAME_POSTER.fc26, GAME_POSTER.pes21, GAME_POSTER.ufc6, GAME_POSTER.nba2k26]} />
+      {/* Promo slider — admin-managed posters, each optionally linking to a competition or URL */}
+      <PromoSlider slides={slides} />
 
       {/* Signed-in gamer's own overview card */}
       {signedIn && me && me.role === 'gamer' && (
