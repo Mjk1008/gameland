@@ -194,8 +194,6 @@ export default async function HomePage() {
           <Link href="/about" style={{ color: C.tmut, textDecoration: 'none' }}>درباره</Link>
           <span>·</span>
           <Link href="/rules" style={{ color: C.tmut, textDecoration: 'none' }}>قوانین</Link>
-          <span>·</span>
-          <Link href="/sponsors" style={{ color: C.tmut, textDecoration: 'none' }}>حامیان</Link>
         </div>
         <EnamadSeal size={84} />
       </div>

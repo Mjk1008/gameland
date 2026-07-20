@@ -48,11 +48,8 @@ export const players: Player[] = Array.from({ length: 36 }, (_, i) => {
   }
 })
 
-export const sponsors: Sponsor[] = [
-  { id: 's-cube',    name: 'Cube Gaming' },
-  { id: 's-oxin',    name: 'OxinGame' },
-  { id: 's-tapsell', name: 'Tapsell' },
-]
+// Privately funded — no external sponsors.
+export const sponsors: Sponsor[] = []
 
 export const competitions: Competition[] = [
   {
@@ -66,7 +63,7 @@ export const competitions: Competition[] = [
     organizer: 'Gameland',
     format: 'six-prelim-128-final',
     prizePoolToman: 30_000_000,
-    sponsorIds: ['s-cube'],
+    sponsorIds: [],
   },
   {
     id: 'c-allstar-1403-spring',
@@ -79,7 +76,7 @@ export const competitions: Competition[] = [
     organizer: 'Gameland',
     format: 'six-prelim-128-final',
     prizePoolToman: 10_000_000,
-    sponsorIds: ['s-tapsell'],
+    sponsorIds: [],
   },
   {
     id: 'c-major-1403-autumn',
@@ -92,7 +89,7 @@ export const competitions: Competition[] = [
     organizer: 'Gameland × IRCG',
     format: 'six-prelim-128-final',
     prizePoolToman: 100_000_000,
-    sponsorIds: ['s-cube', 's-oxin'],
+    sponsorIds: [],
   },
   {
     id: 'c-gltech-1404-winter',
@@ -105,7 +102,7 @@ export const competitions: Competition[] = [
     organizer: 'Gameland',
     format: 'six-prelim-128-final',
     prizePoolToman: 40_000_000,
-    sponsorIds: ['s-cube'],
+    sponsorIds: [],
   },
 ]
 

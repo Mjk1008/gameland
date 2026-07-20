@@ -25,8 +25,7 @@ export default async function SettingsPage() {
 
         <Section title="درباره">
           <Row href="/about" label="دربارهٔ گیم‌لند" />
-          <Row href="/rules" label="قوانین مسابقات" />
-          <Row href="/sponsors" label="حامیان مالی" last />
+          <Row href="/rules" label="قوانین مسابقات" last />
         </Section>
 
         <form action="/api/auth/signout" method="POST">

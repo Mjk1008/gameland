@@ -750,16 +750,8 @@ export interface SponsorRow {
 
 const sponsors = new Map<string, SponsorRow>()
 
-;(function seedSponsors() {
-  if (sponsors.size > 0) return
-  const seed: SponsorRow[] = [
-    { id: 's-cube',    name: 'مکعب',     website: 'https://maka3b.ir' },
-    { id: 's-oxin',    name: 'اوکسین',  website: 'https://oxin.io' },
-    { id: 's-tapsell', name: 'تپسل',     website: 'https://tapsell.ir' },
-    { id: 's-ngg',     name: 'NG Games', website: 'https://nggames.io' },
-  ]
-  for (const s of seed) sponsors.set(s.id, s)
-})()
+// Gameland is privately funded — no external sponsors seeded. Admin can still
+// add real sponsors later via /admin/sponsors if that ever changes.
 
 // ─── Placements (final competition results → feeds ranking engine) ─────────
 

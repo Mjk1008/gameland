@@ -13,7 +13,6 @@ const TABS = [
   { href: '/admin/requests', label: 'درخواست‌ها' },
   { href: '/admin/gamers', label: 'گیمرها' },
   { href: '/admin/disciplines', label: 'رشته‌ها' },
-  { href: '/admin/sponsors', label: 'حامیان' },
   { href: '/admin/notify', label: 'اعلان' },
 ]
 

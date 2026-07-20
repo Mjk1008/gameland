@@ -120,8 +120,7 @@ export default async function MePage() {
         </Link>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 6, fontSize: 11, color: C.tmut }}>
           <Link href="/about" style={{ color: C.tmut }}>درباره</Link><span>·</span>
-          <Link href="/rules" style={{ color: C.tmut }}>قوانین</Link><span>·</span>
-          <Link href="/sponsors" style={{ color: C.tmut }}>حامیان</Link>
+          <Link href="/rules" style={{ color: C.tmut }}>قوانین</Link>
         </div>
       </div>
     </div>
