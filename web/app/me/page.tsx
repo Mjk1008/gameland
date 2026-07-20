@@ -30,7 +30,7 @@ export default async function MePage() {
           <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{u.name}</div>
           <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{u.tag} · {u.city || '—'}</div>
         </div>
-        <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tbody, padding: '7px 11px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
+        <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: C.tbody, minHeight: 40, display: 'inline-flex', alignItems: 'center', padding: '0 14px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
       </div>
 
       {/* Profile completion meter — only for gamers who aren't 100% yet */}

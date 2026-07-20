@@ -2,9 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonts — Vazirmatn (UI fa), Saira Condensed (display/numerals), Inter (Latin body) */
-@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
-@import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+/* Fonts — SELF-HOSTED (Google Fonts & jsdelivr are blocked/slow from Iran, so we
+   bundle the woff2 in /public/fonts and never fetch cross-origin at runtime).
+   Vazirmatn = UI (fa), Saira Condensed = display/numerals, Inter = Latin body. */
+@font-face { font-family:'Vazirmatn'; font-weight:400; font-display:swap; src:url('/fonts/vazirmatn-400.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:500; font-display:swap; src:url('/fonts/vazirmatn-500.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:600; font-display:swap; src:url('/fonts/vazirmatn-600.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:700; font-display:swap; src:url('/fonts/vazirmatn-700.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:800; font-display:swap; src:url('/fonts/vazirmatn-800.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:600; font-display:swap; src:url('/fonts/saira-600.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:700; font-display:swap; src:url('/fonts/saira-700.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:800; font-display:swap; src:url('/fonts/saira-800.woff2') format('woff2'); }
+@font-face { font-family:'Inter'; font-weight:400; font-display:swap; src:url('/fonts/inter-400.woff2') format('woff2'); }
+@font-face { font-family:'Inter'; font-weight:500; font-display:swap; src:url('/fonts/inter-500.woff2') format('woff2'); }
+@font-face { font-family:'Inter'; font-weight:600; font-display:swap; src:url('/fonts/inter-600.woff2') format('woff2'); }
+@font-face { font-family:'Inter'; font-weight:700; font-display:swap; src:url('/fonts/inter-700.woff2') format('woff2'); }
 
 /* ── Broadcast tokens (docs/23) ── */
 :root {

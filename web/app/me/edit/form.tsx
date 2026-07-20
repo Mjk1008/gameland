@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { DISC } from '@/lib/mock-data'
+import { C, DISP, Button, GameBadge, inp, Field, BackHeader } from '@/components/ui'
 
 export default function EditForm({ user }: { user: { name: string; tag: string; city: string; primaryDisc: string; nationalId: string } }) {
   const router = useRouter()
@@ -31,48 +31,40 @@ export default function EditForm({ user }: { user: { name: string; tag: string; 
   }
 
   return (
-    <div style={{ padding: '12px 16px 28px' }} className="animate-fade-up">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <Link href="/me" style={{ all: 'unset', cursor: 'pointer', width: 36, height: 36, borderRadius: 11, background: '#121821', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </Link>
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>ویرایش پروفایل</span>
-      </div>
+    <div className="animate-fade-up">
+      <BackHeader title="ویرایش پروفایل" href="/me" />
 
-      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={submit} style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="نام و نام خانوادگی"><input value={name} onChange={e => setName(e.target.value)} required style={inp}/></Field>
-        <Field label="تگ بازی (انگلیسی و یکتا)"><input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }}/></Field>
+        <Field label="تگ بازی (انگلیسی و یکتا)"><input dir="ltr" value={tag} onChange={e => setTag(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))} required style={{ ...inp, fontFamily: DISP, textAlign: 'left' }}/></Field>
         <Field label="شهر"><input value={city} onChange={e => setCity(e.target.value)} required style={inp}/></Field>
         <Field label="رشتهٔ اصلی">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => {
               const d = DISC[k], on = disc === k
               return (
-                <button key={k} type="button" onClick={() => setDisc(k)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? d.color : '#1e293b'}`, borderRadius: 11, background: on ? d.color + '22' : '#121821', color: on ? d.color : '#94a3b8', fontWeight: 700, fontSize: 13 }}>
-                  {d.name}
+                <button key={k} type="button" onClick={() => setDisc(k)} style={{ ...chip(on), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <GameBadge disc={k} size={20} />{d.name}
                 </button>
               )
             })}
           </div>
         </Field>
         <Field label="کد ملی (اختیاری — برای احراز هویت در مسابقه‌های بزرگ)">
-          <input dir="ltr" value={nid} onChange={e => setNid(e.target.value.replace(/\D/g, '').slice(0, 10))} style={{ ...inp, fontFamily: 'Rajdhani, sans-serif', textAlign: 'left' }} placeholder="0010000000"/>
+          <input dir="ltr" value={nid} onChange={e => setNid(e.target.value.replace(/\D/g, '').slice(0, 10))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="0010000000"/>
         </Field>
 
-        {err && <Alert color="#fb7185">{err}</Alert>}
-        {ok && <Alert color="#34d399">پروفایلت ذخیره شد ✓</Alert>}
+        {err && <Alert color={C.live}>{err}</Alert>}
+        {ok && <Alert color={C.win}>پروفایلت ذخیره شد ✓</Alert>}
 
-        <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', background: '#22d3ee', color: '#0b0f14', fontWeight: 700, fontSize: 15, padding: '13px 0', borderRadius: 12, opacity: busy ? 0.6 : 1, marginTop: 4 }}>
-          {busy ? 'در حال ذخیره…' : 'ذخیره'}
-        </button>
+        <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'در حال ذخیره…' : 'ذخیره'}</Button>
       </form>
     </div>
   )
 }
 
-const inp: React.CSSProperties = { background: '#121821', border: '1px solid #1e293b', borderRadius: 12, padding: '12px 14px', color: '#e2e8f0', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>{children}</label>
+function chip(on: boolean): React.CSSProperties {
+  return { all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, boxSizing: 'border-box', padding: '11px 0', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 11, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13 }
 }
 function Alert({ color, children }: { color: string; children: React.ReactNode }) {
   return <div style={{ fontSize: 12, color, background: color + '1a', border: `1px solid ${color}33`, padding: 10, borderRadius: 10 }}>{children}</div>

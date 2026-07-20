@@ -48,7 +48,7 @@ export default async function HomePage() {
       {/* Header — compact brand lockup (small logo + name side by side) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
         <Wordmark size={17} />
-        <span className="gl-label" style={{ fontSize: 9.5, color: C.tmut, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '5px 10px' }}>
+        <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
         </span>
       </div>
@@ -207,8 +207,8 @@ function MiniStat({ label, value, sub, color }: { label: string; value: string; 
   return (
     <div style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 8px', textAlign: 'center' }}>
       <div className="gl-num" style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 9.5, color: C.tmut, marginTop: 4 }}>{label}</div>
-      {sub && <div style={{ fontSize: 9, color: C.tmut, marginTop: 1 }}>{sub}</div>}
+      <div style={{ fontSize: 11, color: C.tbody, marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: C.tmut, marginTop: 1 }}>{sub}</div>}
     </div>
   )
 }

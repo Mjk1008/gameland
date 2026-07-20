@@ -139,6 +139,24 @@ export function Button({ children, kind = 'primary', href, onClick, type, disabl
   return <button type={type ?? 'button'} onClick={onClick} disabled={disabled} style={s}>{children}</button>
 }
 
+// ── shared form input style (16px → never triggers iOS focus-zoom; 46px touch) ──
+export const inp: React.CSSProperties = {
+  background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11,
+  padding: '12px 14px', minHeight: 46, color: C.thi, fontSize: 16,
+  outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-fa)',
+}
+
+// ── labelled field wrapper (visible label above the control) ──
+export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 12.5, color: C.tmut, fontWeight: 600 }}>{label}</span>
+      {children}
+      {hint && <span style={{ fontSize: 11.5, color: C.tmut }}>{hint}</span>}
+    </label>
+  )
+}
+
 // ── status chip ──
 export function StatusChip({ status }: { status: string }) {
   const m = STATUS[status] ?? STATUS.soon

@@ -45,8 +45,8 @@ export default function PayView({ compId, title, attempts, status }: { compId: s
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16 }}>
           <div style={{ fontSize: 11, color: C.tmut, marginBottom: 8 }}>شماره کارت</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span dir="ltr" style={{ flex: 1, fontFamily: DISP, fontWeight: 700, fontSize: 22, letterSpacing: '.08em', color: C.thi }}>{PAYMENT.card.replace(/(\d{4})(?=\d)/g, '$1 ')}</span>
-            <button onClick={copyCard} style={{ all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: copied ? C.win : C.accent, background: copied ? C.winSoft : C.accentSoft, border: `1px solid ${copied ? C.win : C.accent}55`, borderRadius: 9, padding: '8px 12px' }}>
+            <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: 700, fontSize: 18, letterSpacing: '.04em', color: C.thi, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{PAYMENT.card.replace(/(\d{4})(?=\d)/g, '$1 ')}</span>
+            <button onClick={copyCard} style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, minHeight: 44, display: 'flex', alignItems: 'center', fontSize: 12.5, fontWeight: 700, color: copied ? C.win : C.accent, background: copied ? C.winSoft : C.accentSoft, border: `1px solid ${copied ? C.win : C.accent}55`, borderRadius: 9, padding: '0 14px' }}>
               {copied ? 'کپی شد ✓' : 'کپی'}
             </button>
           </div>

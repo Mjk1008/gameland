@@ -27,18 +27,18 @@ export default function StatusControl({ compId, status }: { compId: string; stat
   return (
     <div>
       <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>وضعیت مسابقه</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
         {STEPS.map(s => {
           const on = status === s.key
           return (
             <button key={s.key} type="button" disabled={busy !== null} onClick={() => setStatus(s.key)}
-              style={{ all: 'unset', cursor: on ? 'default' : 'pointer', textAlign: 'center', padding: '10px 0', border: `1px solid ${on ? s.color : C.line}`, borderRadius: 10, background: on ? s.color + '22' : C.sf2, color: on ? s.color : C.tbody, fontWeight: 700, fontSize: 12, opacity: busy === s.key ? 0.5 : 1 }}>
+              style={{ all: 'unset', boxSizing: 'border-box', cursor: on ? 'default' : 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 6px', border: `1px solid ${on ? s.color : C.line}`, borderRadius: 10, background: on ? s.color + '22' : C.sf2, color: on ? s.color : C.tbody, fontWeight: 700, fontSize: 12.5, opacity: busy === s.key ? 0.5 : 1 }}>
               {busy === s.key ? '…' : s.label}
             </button>
           )
         })}
       </div>
-      <div style={{ fontSize: 10, color: C.tmut, marginTop: 6 }}>ثبت‌نام فقط توی حالت «ثبت‌نام باز» ممکنه. با تغییر وضعیت، به بازیکن‌ها اعلان می‌ره.</div>
+      <div style={{ fontSize: 11, color: C.tmut, marginTop: 6 }}>ثبت‌نام فقط توی حالت «ثبت‌نام باز» ممکنه. با تغییر وضعیت، به بازیکن‌ها اعلان می‌ره.</div>
     </div>
   )
 }

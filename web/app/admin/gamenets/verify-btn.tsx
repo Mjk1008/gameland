@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { C } from '@/components/ui'
 
 export default function VerifyBtn({ id, verified }: { id: string; verified: boolean }) {
   const router = useRouter()
@@ -15,7 +16,7 @@ export default function VerifyBtn({ id, verified }: { id: string; verified: bool
   }
 
   return (
-    <button onClick={toggle} disabled={busy} style={{ all: 'unset', cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: '4px 9px', borderRadius: 6, background: verified ? '#34d39922' : '#475569', color: verified ? '#34d399' : '#cbd5e1', opacity: busy ? 0.6 : 1 }}>
+    <button onClick={toggle} disabled={busy} style={{ all: 'unset', boxSizing: 'border-box', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, fontSize: 13, fontWeight: 700, padding: '0 14px', borderRadius: 11, border: `1px solid ${verified ? C.win : C.line2}`, background: verified ? C.winSoft : C.sf2, color: verified ? C.win : C.tbody, opacity: busy ? 0.6 : 1, flexShrink: 0 }}>
       {verified ? '✓ تأییدشده' : 'تأیید'}
     </button>
   )

@@ -78,7 +78,7 @@ export default function TournamentPanel(p: Props) {
                   {g.brackets.map(b => (
                     <div key={b.bracket} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 11px' }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: C.tbody, minWidth: 58 }}>براکت {b.bracket}</span>
-                      <span style={{ flex: 1, fontSize: 11, color: b.complete ? C.win : C.tmut }}>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
                         {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
                       </span>
                       <Stepper value={b.qualify} disabled={busy != null} onChange={n => setQualify(b, n)} />
@@ -141,12 +141,12 @@ function Stat({ label, value, c }: { label: string; value: number; c: string }) 
   return (
     <div style={{ flex: 1, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 0', textAlign: 'center' }}>
       <div className="gl-num" style={{ fontSize: 20, fontWeight: 800, color: c }}>{value}</div>
-      <div style={{ fontSize: 9.5, color: C.tmut, marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{label}</div>
     </div>
   )
 }
 const seg = (on: boolean): React.CSSProperties => ({ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, fontSize: 13, fontWeight: 700, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, border: `1px solid ${on ? C.accent : C.line}` })
-const stepBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 17, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}` }
+const stepBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, fontSize: 18, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}` }
 function primaryBtn(secondary: boolean, disabled: boolean): React.CSSProperties {
   return { all: 'unset', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: secondary ? 'transparent' : C.accent, border: secondary ? `1px solid ${C.accent}` : 'none', color: secondary ? C.accent : '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: disabled ? 0.5 : 1 }
 }
