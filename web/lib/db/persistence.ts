@@ -375,5 +375,15 @@ export const persist = {
       fire(d.delete(schema.placements))
       fire(d.delete(schema.users).where(like(schema.users.email, '%@gameland.test')))
     },
+    // Fresh start: drop all competition data, keep users/avatars/disciplines/promos.
+    // FK-safe delete order (children before parents).
+    async resetCompetitions() {
+      const d = db(); if (!d) return
+      await d.delete(schema.matches)
+      await d.delete(schema.placements)
+      await d.delete(schema.registrations)
+      await d.delete(schema.events)
+      await d.delete(schema.competitions)
+    },
   },
 }

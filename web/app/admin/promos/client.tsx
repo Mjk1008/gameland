@@ -46,8 +46,37 @@ export default function PromosClient({ initial, events }: { initial: Promo[]; ev
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const editFileRef = useRef<HTMLInputElement>(null)
+
+  // per-slide edit state
+  const [editId, setEditId] = useState<string | null>(null)
+  const [eLinkType, setELinkType] = useState<LinkType>('none')
+  const [eEventId, setEEventId] = useState<string>('')
+  const [eUrl, setEUrl] = useState<string>('')
 
   const eventLabel = (id?: string) => { const e = events.find(x => x.id === id); return e ? e.title : id }
+
+  function startEdit(p: Promo) {
+    setEditId(p.id); setErr(null)
+    setELinkType(p.linkType); setEEventId(p.eventId ?? events[0]?.id ?? ''); setEUrl(p.url ?? '')
+  }
+  async function saveEdit(id: string) {
+    if (eLinkType === 'url' && !/^(https?:\/\/|\/)/.test(eUrl.trim())) { setErr('لینک باید با http(s):// یا / شروع شه'); return }
+    const body: any = { id, action: 'edit', linkType: eLinkType, eventId: eLinkType === 'event' ? eEventId : undefined, url: eLinkType === 'url' ? eUrl.trim() : undefined }
+    setList(l => l.map(x => x.id === id ? { ...x, linkType: eLinkType, eventId: body.eventId, url: body.url } : x))
+    setEditId(null)
+    await patch(id, body)
+  }
+  async function replaceImage(id: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return
+    setErr(null)
+    try {
+      const dataUrl = await fileToDataUrl(f)
+      setList(l => l.map(x => x.id === id ? { ...x, imageData: dataUrl } : x))
+      await patch(id, { id, action: 'edit', imageData: dataUrl })
+    } catch (e: any) { setErr(e.message) }
+    finally { if (editFileRef.current) editFileRef.current.value = '' }
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
@@ -166,24 +195,50 @@ export default function PromosClient({ initial, events }: { initial: Promo[]; ev
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {list.map((p, i) => (
-            <div key={p.id} style={{ display: 'flex', gap: 11, padding: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, opacity: p.active ? 1 : 0.55 }}>
-              <div style={{ width: 92, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.line}` }}>
-                <img src={p.imageData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.thi }}>اسلاید {i + 1}</div>
-                <div dir="ltr" style={{ fontSize: 11, color: C.tbody, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                  {p.linkType === 'event' ? `→ ${eventLabel(p.eventId)}` : p.linkType === 'url' ? `→ ${p.url}` : 'بدون لینک'}
+            <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, background: C.sf1, border: `1px solid ${editId === p.id ? C.accent : C.line}`, borderRadius: 12, opacity: p.active ? 1 : 0.55 }}>
+              <div style={{ display: 'flex', gap: 11 }}>
+                <div style={{ position: 'relative', width: 92, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.line}` }}>
+                  <img src={p.imageData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
-                  <button onClick={() => reorder(p.id, 'up')} disabled={i === 0} style={{ ...iconBtn, opacity: i === 0 ? 0.4 : 1 }} aria-label="بالا">↑</button>
-                  <button onClick={() => reorder(p.id, 'down')} disabled={i === list.length - 1} style={{ ...iconBtn, opacity: i === list.length - 1 ? 0.4 : 1 }} aria-label="پایین">↓</button>
-                  <button onClick={() => toggle(p)} style={{ ...iconBtn, width: 'auto', padding: '0 12px', fontSize: 12, fontWeight: 700, color: p.active ? C.win : C.tmut }}>{p.active ? 'فعال' : 'خاموش'}</button>
-                  <button onClick={() => del(p.id)} style={{ ...iconBtn, marginInlineStart: 'auto', color: C.live, borderColor: `${C.live}55` }} aria-label="حذف">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
-                  </button>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.thi }}>اسلاید {i + 1}</div>
+                  <div dir="ltr" style={{ fontSize: 11, color: C.tbody, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    {p.linkType === 'event' ? `→ ${eventLabel(p.eventId)}` : p.linkType === 'url' ? `→ ${p.url}` : 'بدون لینک'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 'auto', flexWrap: 'wrap' }}>
+                    <button onClick={() => reorder(p.id, 'up')} disabled={i === 0} style={{ ...iconBtn, opacity: i === 0 ? 0.4 : 1 }} aria-label="بالا">↑</button>
+                    <button onClick={() => reorder(p.id, 'down')} disabled={i === list.length - 1} style={{ ...iconBtn, opacity: i === list.length - 1 ? 0.4 : 1 }} aria-label="پایین">↓</button>
+                    <button onClick={() => (editId === p.id ? setEditId(null) : startEdit(p))} style={{ ...iconBtn, width: 'auto', padding: '0 12px', fontSize: 12, fontWeight: 700, color: editId === p.id ? C.accent : C.tbody }}>{editId === p.id ? 'بستن' : 'ویرایش'}</button>
+                    <button onClick={() => toggle(p)} style={{ ...iconBtn, width: 'auto', padding: '0 12px', fontSize: 12, fontWeight: 700, color: p.active ? C.win : C.tmut }}>{p.active ? 'فعال' : 'خاموش'}</button>
+                    <button onClick={() => del(p.id)} style={{ ...iconBtn, marginInlineStart: 'auto', color: C.live, borderColor: `${C.live}55` }} aria-label="حذف">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {editId === p.id && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={() => setELinkType('none')} style={seg(eLinkType === 'none')}>هیچ‌جا</button>
+                    <button type="button" onClick={() => setELinkType('event')} style={seg(eLinkType === 'event')}>مسابقه</button>
+                    <button type="button" onClick={() => setELinkType('url')} style={seg(eLinkType === 'url')}>لینک</button>
+                  </div>
+                  {eLinkType === 'event' && (
+                    <select value={eEventId} onChange={e => setEEventId(e.target.value)} style={{ ...inp, appearance: 'none' }}>
+                      {events.map(e => <option key={e.id} value={e.id}>{e.title} — {e.disc}</option>)}
+                    </select>
+                  )}
+                  {eLinkType === 'url' && (
+                    <input value={eUrl} onChange={e => setEUrl(e.target.value)} placeholder="https://…" dir="ltr" style={{ ...inp, fontFamily: DISP }} />
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input ref={editFileRef} type="file" accept="image/*" onChange={e => replaceImage(p.id, e)} style={{ display: 'none' }} />
+                    <button type="button" onClick={() => editFileRef.current?.click()} style={{ ...iconBtn, width: 'auto', flex: 1, padding: '0 12px', fontSize: 12, fontWeight: 700 }}>تغییر عکس</button>
+                    <button type="button" onClick={() => saveEdit(p.id)} style={{ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, fontSize: 12.5, fontWeight: 700, background: C.accent, color: C.ink }}>ذخیرهٔ لینک</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

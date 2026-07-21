@@ -44,6 +44,27 @@ export async function PATCH(req: Request) {
   try {
     if (b.action === 'reorder' && (b.dir === 'up' || b.dir === 'down')) reorderPromo(b.id, b.dir)
     else if (b.action === 'toggle') updatePromo(b.id, { active: !!b.active })
+    else if (b.action === 'edit') {
+      const patch: any = {}
+      // link target
+      if (b.linkType === 'event' || b.linkType === 'url' || b.linkType === 'none') {
+        patch.linkType = b.linkType
+        if (b.linkType === 'event') {
+          if (!b.eventId || !getEvent(b.eventId)) return NextResponse.json({ error: 'مسابقهٔ انتخابی معتبر نیست' }, { status: 400 })
+          patch.eventId = b.eventId; patch.url = undefined
+        } else if (b.linkType === 'url') {
+          const u = (b.url ?? '').toString().trim()
+          if (!/^(https?:\/\/|\/)/.test(u)) return NextResponse.json({ error: 'لینک باید با http(s):// یا / شروع شه' }, { status: 400 })
+          patch.url = u; patch.eventId = undefined
+        } else { patch.eventId = undefined; patch.url = undefined }
+      }
+      // optional image replacement
+      if (typeof b.imageData === 'string' && b.imageData) {
+        if (b.imageData.length > MAX_IMAGE_CHARS) return NextResponse.json({ error: 'حجم عکس زیاده' }, { status: 413 })
+        patch.imageData = b.imageData
+      }
+      updatePromo(b.id, patch)
+    }
     else return NextResponse.json({ error: 'action نامعتبر' }, { status: 400 })
     return NextResponse.json({ ok: true })
   } catch (e: any) {

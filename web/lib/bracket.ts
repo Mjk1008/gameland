@@ -16,7 +16,7 @@ import {
   Registration, Match, GroupMode,
   clearMatchesForComp, clearMatchesByStage, pushMatch, saveMatch, matchesForComp, getMatch,
   findNextMatch, getUserById, prelimGroupKeys,
-  getEventConfig, setEventConfig, qualifyKey, pushNotif,
+  getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
 } from './store'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
@@ -233,8 +233,11 @@ export function assembleFinal(compId: string): { seats: number; capped: boolean 
   } else {
     ids = shuffle(ids, rng(seedFrom(compId + 'final')))
   }
-  const capped = ids.length > 128
-  if (capped) ids = ids.slice(0, 128)
+  // Final capacity is per-discipline (FIFA/fc26 = 128, others default 32);
+  // falls back to 128 when unset. Below that many qualifiers → one smaller bracket.
+  const cap = getEvent(compId)?.finalSize ?? 128
+  const capped = ids.length > cap
+  if (capped) ids = ids.slice(0, cap)
 
   clearMatchesByStage(compId, 'final')
   if (ids.length >= 2) buildTree(compId, 'final', '', 0, ids, seedFrom(compId + 'final-tree'))

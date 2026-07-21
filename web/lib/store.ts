@@ -467,6 +467,21 @@ export function purgeTestData(): { users: number; matches: number } {
   return { users: removedUsers, matches: removedMatches }
 }
 
+// Fresh start: wipe ALL competition data (competitions, disciplines-as-events,
+// registrations, matches, placements, configs) but KEEP users/gamers, avatars,
+// disciplines catalog and promo slides. Used to clear test data before go-live.
+export function resetCompetitionData(): { events: number; placements: number } {
+  const n = { events: events.size, placements: placements.length }
+  events.clear()
+  competitions.clear()
+  eventConfigs.clear()
+  matches.length = 0
+  placements.length = 0
+  for (const [k, r] of regs) { void r; regs.delete(k) }
+  persist.maintenance?.resetCompetitions?.()
+  return n
+}
+
 export function allEvents(): Event[] {
   return Array.from(events.values()).sort((a, b) => b.createdAt - a.createdAt)
 }
