@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { allUsers, allEvents, pendingRegistrations, allPromos } from '@/lib/store'
+import { allUsers, allEvents, pendingRegistrations, allPromos, allCompetitions } from '@/lib/store'
 import { C, Num, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
 import PurgeTestsButton from './purge-button'
 import ResetCompetitionsButton from './reset-competitions-button'
@@ -12,9 +12,11 @@ export default function AdminHome() {
   const liveComps = events.filter(c => c.status === 'live' || c.status === 'open').length
   const pending = pendingRegistrations().length
   const slideCount = allPromos().length
+  const comps = allCompetitions()
 
   const tools: { href: string; label: string; sub: string; icon: JSX.Element; badge?: number }[] = [
-    { href: '/admin/events',      label: 'مسابقات',    sub: `${events.length} مسابقه`,   icon: <IconTrophy /> },
+    { href: '/admin/competitions/new', label: 'رویداد چندرشته‌ای', sub: 'مسابقهٔ مادر + رشته‌ها', icon: <IconTrophy /> },
+    { href: '/admin/events',      label: 'مسابقات',    sub: `${events.length} مسابقه`,   icon: <IconGrid /> },
     { href: '/admin/promos',      label: 'اسلایدر',    sub: `${slideCount} اسلاید`,      icon: <IconImage /> },
     { href: '/admin/requests',    label: 'درخواست‌ها', sub: pending ? `${pending} منتظر` : 'همه رسیدگی‌شده', icon: <IconInbox />, badge: pending },
     { href: '/admin/gamers',      label: 'گیمرها',     sub: `${userCount} کاربر`,        icon: <IconUsers /> },
@@ -63,9 +65,25 @@ export default function AdminHome() {
         </div>
       </div>
 
-      {/* competitions quick list */}
+      {/* multi-discipline events (رویدادها) */}
+      {comps.length > 0 && (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.thi, marginBottom: 10 }}>رویدادها</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {comps.map(cp => (
+              <Link key={cp.id} href={`/admin/competitions/${cp.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: C.gold, flexShrink: 0 }} />
+                <span style={{ fontWeight: 700, fontSize: 13, color: C.thi, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cp.title}</span>
+                <span style={{ color: C.tmut, fontSize: 13 }}>›</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* per-discipline competitions quick list */}
       <div>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.thi, marginBottom: 10 }}>مسابقات</div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.thi, marginBottom: 10 }}>مسابقات (رشته‌ها)</div>
         {events.length === 0 ? (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای نساختی." /></div>
         ) : (
