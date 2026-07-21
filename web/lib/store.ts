@@ -514,12 +514,34 @@ export interface Registration {
 
 const regs = new Map<string, Registration>()
 
+// Register / buy tickets. Each user may hold up to 6 سهم per discipline. Buying
+// more tops up the SAME registration (never a duplicate) up to that cap; the
+// top-up goes back to 'pending' for admin re-approval with the new receipt.
+// `attempts` = how many tickets to buy now. Locked once the bracket is drawn.
 export function createRegistration(userId: string, compId: string, attempts: number): Registration {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
   const key = userId + '|' + compId
   const existing = regs.get(key)
-  // A rejected registration may be re-submitted; pending/approved may not.
-  if (existing && existing.status !== 'rejected') throw new Error('ALREADY_REGISTERED')
+
+  if (existing && existing.status !== 'rejected') {
+    // active registration → top up, capped at 6 total for this discipline
+    if (existing.attempts >= 6) throw new Error('MAX_TICKETS')
+    if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
+    existing.attempts += attempts
+    existing.status = 'pending'
+    persist.reg.update(existing.id, { attempts: existing.attempts, status: 'pending' } as any)
+    return existing
+  }
+  if (existing) {
+    // a previously-rejected registration is reused (same row) with a fresh count
+    existing.attempts = attempts
+    existing.status = 'pending'
+    existing.seedsEarned = 0
+    existing.prelimsCompleted = 0
+    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0 } as any)
+    return existing
+  }
   const r: Registration = {
     id: 'r_' + Math.random().toString(36).slice(2, 10),
     userId, compId, attempts,
@@ -532,11 +554,30 @@ export function createRegistration(userId: string, compId: string, attempts: num
   return r
 }
 
+// Tickets a user can still buy for a discipline (0..6). 0 = cap reached.
+export function remainingTickets(userId: string, compId: string): number {
+  const r = regs.get(userId + '|' + compId)
+  if (!r || r.status === 'rejected') return 6
+  return Math.max(0, 6 - r.attempts)
+}
+
 export function setRegistrationStatus(regId: string, status: RegStatus): Registration {
   const r = getRegistrationById(regId)
   if (!r) throw new Error('REG_NOT_FOUND')
   r.status = status
   persist.reg.update(r.id, { status } as any)
+  return r
+}
+
+// Admin-adjust the ticket count (سهم) on a registration — fixes over/under-paid
+// selections and lets someone top up before the draw. Locked once the bracket is
+// drawn (attempts feed the seat distribution → changing it would corrupt matches).
+export function setRegistrationAttempts(regId: string, attempts: number): Registration {
+  const r = getRegistrationById(regId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  if (matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
+  r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
+  persist.reg.update(r.id, { attempts: r.attempts } as any)
   return r
 }
 

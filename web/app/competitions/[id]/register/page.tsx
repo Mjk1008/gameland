@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, profileCompletion } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, profileCompletion, remainingTickets, matchesForComp } from '@/lib/store'
 import { C } from '@/components/ui'
 import Link from 'next/link'
 import RegisterForm from './form'
@@ -18,8 +18,12 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   const u = uid ? getUserById(uid) : null
   if (!uid || !u) redirect(`/login?callbackUrl=/competitions/${params.id}/register`)
 
-  // If already registered, go straight to roadmap
-  if (getRegistration(uid, params.id)) redirect(`/competitions/${params.id}/me`)
+  // Ticket cap is per discipline (6). Once the draw is done, or the cap is
+  // reached, buying is closed → send them to their roadmap.
+  const owned = getRegistration(uid, params.id)?.attempts ?? 0
+  const remaining = remainingTickets(uid, params.id)
+  const drawn = matchesForComp(params.id).length > 0
+  if ((owned > 0 && remaining === 0) || drawn) redirect(`/competitions/${params.id}/me`)
 
   // A complete gamer profile is required before joining any competition.
   const pc = profileCompletion(u)
@@ -49,5 +53,5 @@ export default async function RegisterPage({ params }: { params: { id: string } 
     )
   }
 
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }}/>
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} />
 }

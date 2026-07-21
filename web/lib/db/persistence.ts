@@ -289,13 +289,14 @@ export const persist = {
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
-      }).onConflictDoNothing()
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
       const set: any = {}
       if (patch.seedsEarned !== undefined)      set.seedsEarned = patch.seedsEarned
       if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
+      if (patch.attempts !== undefined)         set.attempts = patch.attempts
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))

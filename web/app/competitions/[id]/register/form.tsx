@@ -5,9 +5,9 @@ import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { TICKET, ticketOffPercent, toman } from '@/lib/payment'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number } }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number }
 
-export default function RegisterForm({ comp }: Props) {
+export default function RegisterForm({ comp, owned, remaining }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
@@ -66,11 +66,19 @@ export default function RegisterForm({ comp }: Props) {
           <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, textAlign: 'center', lineHeight: 1.5 }}>پیشنهاد<br />محدود</div>
         </div>
 
-        {/* Ticket picker */}
+        {/* quota — how many tickets you already hold + how many more you can buy */}
+        {owned > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: C.thi, lineHeight: 1.8 }}>
+            <span style={{ fontWeight: 700 }}>الان <span className="gl-num" style={{ color: C.accent }}>{owned}</span> سهم داری.</span>
+            <span style={{ color: C.tbody }}>تا سقفِ ۶، می‌تونی <span className="gl-num" style={{ color: C.accent }}>{remaining}</span> سهمِ دیگه بخری.</span>
+          </div>
+        )}
+
+        {/* Ticket picker (capped at the remaining quota) */}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>تعداد بلیط</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>{owned > 0 ? 'چند سهمِ دیگه؟' : 'تعداد سهم'}</div>
           <div style={{ display: 'flex', gap: 7 }}>
-            {[1, 2, 3, 4, 5, 6].map(n => {
+            {Array.from({ length: Math.min(6, remaining) }, (_, i) => i + 1).map(n => {
               const on = attempts === n
               return (
                 <button key={n} type="button" onClick={() => setAttempts(n)} dir="ltr"
@@ -94,7 +102,7 @@ export default function RegisterForm({ comp }: Props) {
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
         <Button onClick={submit} disabled={busy} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
-          {busy ? 'یه لحظه…' : `ثبت‌نام و پرداخت (${attempts} بلیط)`}
+          {busy ? 'یه لحظه…' : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
         </Button>
       </div>
     </div>

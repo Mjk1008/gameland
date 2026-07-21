@@ -40,8 +40,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, registration: r })
   } catch (e: any) {
     const map: Record<string, string> = {
-      ALREADY_REGISTERED: 'قبلاً در این مسابقه ثبت‌نام کرده‌ای',
-      ATTEMPTS_OUT_OF_RANGE: 'تعداد بلیط باید ۱ تا ۶ باشد',
+      MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',
+      EXCEEDS_MAX: 'بیشتر از سهمیهٔ باقی‌مونده انتخاب کردی',
+      REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
+      ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
       INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
     }
     return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })

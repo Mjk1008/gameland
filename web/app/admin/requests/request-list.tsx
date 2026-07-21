@@ -17,6 +17,14 @@ export default function RequestList({ rows }: { rows: Row[] }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState<string | null>(null)   // regId whose reject panel is open
   const [reason, setReason] = useState('')
+  const [tickets, setTickets] = useState<Record<string, number>>(() => Object.fromEntries(rows.map(r => [r.regId, r.attempts])))
+
+  async function setAttempts(regId: string, n: number) {
+    const v = Math.max(1, Math.min(6, n))
+    setTickets(t => ({ ...t, [regId]: v }))
+    const res = await fetch('/api/admin/reg-attempts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ regId, attempts: v }) })
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'تغییر نشد'); router.refresh() }
+  }
 
   async function send(regId: string, action: 'approve' | 'reject', rsn?: string) {
     setBusy(regId)
@@ -51,9 +59,13 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                     <div style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{r.name}</div>
                     <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11.5, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{r.tag}{r.city ? ` · ${r.city}` : ''}{r.phone ? ` · ${r.phone}` : ''}</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <Num size={20} color={C.accent}>{r.attempts}</Num>
-                    <div style={{ fontSize: 9, color: C.tmut }}>بلیط</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={() => setAttempts(r.regId, (tickets[r.regId] ?? r.attempts) - 1)} disabled={(tickets[r.regId] ?? r.attempts) <= 1} style={stepBtn}>−</button>
+                      <Num size={20} color={C.accent}>{tickets[r.regId] ?? r.attempts}</Num>
+                      <button onClick={() => setAttempts(r.regId, (tickets[r.regId] ?? r.attempts) + 1)} disabled={(tickets[r.regId] ?? r.attempts) >= 6} style={stepBtn}>+</button>
+                    </div>
+                    <div style={{ fontSize: 9, color: C.tmut }}>سهم (قابل تصحیح)</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 8 }}>{r.event}</div>
@@ -96,4 +108,9 @@ export default function RequestList({ rows }: { rows: Row[] }) {
       )}
     </div>
   )
+}
+
+const stepBtn: React.CSSProperties = {
+  all: 'unset', cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  borderRadius: 8, fontSize: 17, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}`,
 }
