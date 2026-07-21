@@ -63,7 +63,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId }: Props) 
   const [bracket, setBracketState] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
   const bracket_ = bracketIds.includes(bracket) ? bracket : (myBracket ?? bracketIds[0] ?? 0)
   const setBracket = setBracketState
-  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('rounds')
+  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('radial')
   const [myPathOnly, setMyPathOnly] = useState(false)
 
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
