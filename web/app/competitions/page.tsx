@@ -45,8 +45,8 @@ export default async function CompetitionsPage() {
             return (
               <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', display: 'block', borderRadius: 20, overflow: 'hidden', transform: 'translateZ(0)', border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}`, boxShadow: `0 10px 34px -18px rgba(0,0,0,.8)` }}>
                 {/* cover banner — discipline imagery + color, with a scrim for legibility */}
-                <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
-                  {cover && <img src={cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                <div style={{ position: 'relative', height: 120, overflow: 'hidden', background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
+                  {cover && <img src={cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />}
                   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(20,17,13,.15) 0%, rgba(20,17,13,.55) 55%, rgba(20,17,13,.92) 100%)` }} />
                   {/* discipline logo tile — bottom start (right in RTL) */}
                   <div style={{ position: 'absolute', bottom: 12, insetInlineStart: 14 }}><GameBadge disc={c.disc} size={44} /></div>

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { C, DISP } from '@/components/ui'
+import RadialBracket from './RadialBracket'
 
 // ── types coming from the server ──
 export type Player = { uid: string; tag: string; name: string } | null
@@ -62,7 +63,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId }: Props) 
   const [bracket, setBracketState] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
   const bracket_ = bracketIds.includes(bracket) ? bracket : (myBracket ?? bracketIds[0] ?? 0)
   const setBracket = setBracketState
-  const [mode, setMode] = useState<'rounds' | 'tree'>('rounds')
+  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('rounds')
   const [myPathOnly, setMyPathOnly] = useState(false)
 
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
@@ -84,9 +85,9 @@ export default function BracketView({ matches, meUid, isAdmin, compId }: Props) 
       {/* controls */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6 }}>
-          {(['rounds', 'tree'] as const).map(v => (
+          {(['rounds', 'tree', 'radial'] as const).map(v => (
             <button key={v} onClick={() => setMode(v)} style={segBtn(mode === v)}>
-              {v === 'rounds' ? 'نمای مرحله‌ای' : 'نمای کامل براکت'}
+              {v === 'rounds' ? 'مرحله‌ای' : v === 'tree' ? 'درختی' : 'دایره‌ای'}
             </button>
           ))}
         </div>
@@ -121,7 +122,9 @@ export default function BracketView({ matches, meUid, isAdmin, compId }: Props) 
 
       {mode === 'rounds'
         ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} isAdmin={isAdmin} compId={compId} />
-        : <TreeView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} />}
+        : mode === 'tree'
+        ? <TreeView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} />
+        : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
     </div>
   )
 }
