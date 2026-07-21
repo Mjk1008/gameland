@@ -17,6 +17,19 @@ export default function RequestList({ rows }: { rows: Row[] }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState<string | null>(null)   // regId whose reject panel is open
   const [reason, setReason] = useState('')
+  const [notifying, setNotifying] = useState(false)
+  const [notifyMsg, setNotifyMsg] = useState<string | null>(null)
+
+  async function notifyPending() {
+    if (!confirm('به همهٔ کسایی که ثبت‌نامشون تأیید نشده و هنوز فیش نذاشتن، اعلان و پیامکِ «فیشتو آپلود کن» بفرستم؟')) return
+    setNotifying(true); setNotifyMsg(null)
+    try {
+      const res = await fetch('/api/admin/notify-pending', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j.error || 'ارسال نشد')
+      setNotifyMsg(`به ${j.sent} نفر یادآوری فرستاده شد ✓`)
+    } catch (e: any) { setNotifyMsg(e.message) } finally { setNotifying(false) }
+  }
 
   async function send(regId: string, action: 'approve' | 'reject', rsn?: string) {
     setBusy(regId)
@@ -37,6 +50,12 @@ export default function RequestList({ rows }: { rows: Row[] }) {
         <span style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>درخواست‌های ثبت‌نام</span>
         <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{rows.length}</span> در انتظار</span>
       </div>
+
+      <button onClick={notifyPending} disabled={notifying} style={{ all: 'unset', cursor: notifying ? 'default' : 'pointer', boxSizing: 'border-box', width: '100%', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, borderRadius: 11, fontSize: 12.5, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}66`, opacity: notifying ? 0.6 : 1 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0" /></svg>
+        {notifying ? 'در حال ارسال…' : 'یادآوریِ پرداخت به تأییدنشده‌ها'}
+      </button>
+      {notifyMsg && <div style={{ fontSize: 12, color: C.tbody, textAlign: 'center', marginBottom: 12 }}>{notifyMsg}</div>}
 
       {rows.length === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="درخواست منتظری نداری — همه رسیدگی شدن." /></div>
