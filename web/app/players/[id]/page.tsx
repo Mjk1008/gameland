@@ -20,6 +20,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   const events = allEvents()
   const eventMap = new Map(events.map(e => [e.id, e]))
   const pointsAcc = new Map<string, number>()
+  for (const g of gamers) pointsAcc.set(g.id, g.bonusPoints ?? 0)   // admin-set base points
   for (const pl of allPlacements()) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue
