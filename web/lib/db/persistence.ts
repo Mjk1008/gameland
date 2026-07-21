@@ -28,6 +28,7 @@ export function startHydration(loaders: {
   loadCompetition?: (c: any) => void
   loadPromo?:    (p: any) => void
   loadAvatarId?: (userId: string) => void
+  loadReceiptId?: (regId: string) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -46,6 +47,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bonus_points INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -133,6 +135,11 @@ export function startHydration(loaders: {
         const av = await d.execute(sql.raw('SELECT user_id FROM app_avatars'))
         for (const row of (av as any as { user_id: string }[])) loaders.loadAvatarId?.(row.user_id)
       } catch (e) { console.error('[db] load avatar ids:', e) }
+
+      try {
+        const rc = await d.execute(sql.raw('SELECT reg_id FROM app_receipts'))
+        for (const row of (rc as any as { reg_id: string }[])) loaders.loadReceiptId?.(row.reg_id)
+      } catch (e) { console.error('[db] load receipt ids:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -368,6 +375,19 @@ export const persist = {
     delete(userId: string) {
       const d = db(); if (!d) return
       fire(d.delete(schema.avatars).where(eq(schema.avatars.userId, userId)))
+    },
+  },
+  receipt: {
+    // Payment receipt bytes live only in Postgres, served on demand to the admin.
+    async upsertAsync(regId: string, dataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.receipts).values({ regId, dataUrl })
+        .onConflictDoUpdate({ target: schema.receipts.regId, set: { dataUrl, createdAt: new Date() } })
+    },
+    async read(regId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.receipts.dataUrl }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
+      return rows[0]?.dataUrl ?? null
     },
   },
   maintenance: {

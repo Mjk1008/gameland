@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 
-interface Row { regId: string; attempts: number; name: string; tag: string; phone: string; city: string; event: string }
+interface Row { regId: string; attempts: number; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
 
 const REJECT_REASONS = [
   'فیش پرداخت ارسال نشده',
@@ -57,6 +57,16 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                   </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 8 }}>{r.event}</div>
+
+                {/* payment receipt (فیش) attached to this request */}
+                {r.hasReceipt ? (
+                  <a href={`/api/admin/receipt/${r.regId}`} target="_blank" rel="noopener noreferrer" style={{ all: 'unset', cursor: 'pointer', display: 'block', marginTop: 10, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.line2}`, position: 'relative' }}>
+                    <img src={`/api/admin/receipt/${r.regId}`} alt="فیش" style={{ display: 'block', width: '100%', maxHeight: 220, objectFit: 'cover' }} />
+                    <span style={{ position: 'absolute', bottom: 8, insetInlineEnd: 8, fontSize: 11, fontWeight: 700, color: C.thi, background: 'rgba(20,17,13,.8)', border: `1px solid ${C.line2}`, borderRadius: 8, padding: '5px 10px' }}>دیدنِ فیش (بزرگ) ›</span>
+                  </a>
+                ) : (
+                  <div style={{ marginTop: 10, fontSize: 11.5, fontWeight: 700, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 9, padding: '8px 11px' }}>⚠ فیشی آپلود نشده — از راه‌های دیگه چک کن</div>
+                )}
 
                 {!isRejecting ? (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>

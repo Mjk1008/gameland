@@ -86,6 +86,7 @@ function ensureHydrated() {
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
+    loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
   }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
 }
 
@@ -95,6 +96,12 @@ const avatarIds = new Set<string>()
 export function hasAvatar(userId: string): boolean { return avatarIds.has(userId) }
 export function markAvatar(userId: string): void { avatarIds.add(userId) }
 export function unmarkAvatar(userId: string): void { avatarIds.delete(userId) }
+
+// Which registrations have an uploaded payment receipt — ids only (image bytes
+// stay in Postgres, served on demand), so RAM stays flat with many receipts.
+const receiptRegIds = new Set<string>()
+export function hasReceipt(regId: string): boolean { return receiptRegIds.has(regId) }
+export function markReceipt(regId: string): void { receiptRegIds.add(regId) }
 
 // Admin-set manual ranking points (added on top of points earned from results).
 export function setUserBonusPoints(id: string, points: number): User | undefined {

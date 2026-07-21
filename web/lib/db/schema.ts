@@ -192,6 +192,13 @@ export const avatars = pgTable('app_avatars', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// ─── Payment receipts (فیش) — one per registration, base64, served on demand ─
+export const receipts = pgTable('app_receipts', {
+  regId:     text('reg_id').primaryKey(),
+  dataUrl:   text('data_url').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Promo slides (home carousel, admin-managed) ─────────────
 export const promos = pgTable('app_promos', {
   id:        text('id').primaryKey(),

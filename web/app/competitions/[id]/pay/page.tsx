@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, getRegistration, getUserById } from '@/lib/store'
+import { getEvent, getRegistration, getUserById, hasReceipt } from '@/lib/store'
 import PayView from './pay-view'
 
 export const dynamic = 'force-dynamic'
@@ -15,5 +15,5 @@ export default async function PayPage({ params }: { params: { id: string } }) {
   const reg = getRegistration(uid, params.id)
   if (!reg) redirect(`/competitions/${params.id}/register`)
 
-  return <PayView compId={c.id} title={c.title} attempts={reg.attempts} status={reg.status} />
+  return <PayView compId={c.id} title={c.title} attempts={reg.attempts} status={reg.status} hasReceipt={hasReceipt(reg.id)} />
 }
