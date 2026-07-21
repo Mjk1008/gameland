@@ -593,6 +593,11 @@ export function registrationsForComp(compId: string): Registration[] {
   return Array.from(regs.values()).filter(r => r.compId === compId)
 }
 
+// Every registration across all events — read-only, for admin analytics.
+export function allRegistrations(): Registration[] {
+  return Array.from(regs.values())
+}
+
 // Only approved registrations enter the draw / bracket.
 export function approvedRegistrationsForComp(compId: string): Registration[] {
   return Array.from(regs.values()).filter(r => r.compId === compId && r.status === 'approved')
