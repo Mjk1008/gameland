@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import { allUsers, allEvents, pendingRegistrations, allPromos, allCompetitions } from '@/lib/store'
 import { C, Num, StatusChip, EmptyState, DISC_DOT } from '@/components/ui'
-import PurgeTestsButton from './purge-button'
-import ResetCompetitionsButton from './reset-competitions-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,13 +95,6 @@ export default function AdminHome() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* maintenance */}
-      <div style={{ marginTop: 4, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
-        <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 8 }}>نگهداری — پاک‌سازی داده‌ها (گیمرها همیشه می‌مونن)</div>
-        <PurgeTestsButton />
-        <ResetCompetitionsButton />
       </div>
     </div>
   )

@@ -489,43 +489,6 @@ export function deleteEvent(id: string) {
   persist.event.delete?.(id)
 }
 
-// One-time maintenance: wipe every fake test participant (email ends with
-// @gameland.test) plus all bracket matches (test draws). Real accounts stay.
-export function purgeTestData(): { users: number; matches: number } {
-  let removedUsers = 0
-  for (const u of Array.from(users.values())) {
-    if (u.email && u.email.toLowerCase().endsWith('@gameland.test')) {
-      users.delete(u.id)
-      if (u.phone) usersByPhone.delete(u.phone)
-      usersByTag.delete(u.tag.toLowerCase())
-      if (u.email) usersByEmail.delete(u.email.toLowerCase())
-      if (u.googleSub) usersByGoogleSub.delete(u.googleSub)
-      for (const [k, r] of regs) if (r.userId === u.id) regs.delete(k)
-      removedUsers++
-    }
-  }
-  const removedMatches = matches.length
-  matches.length = 0
-  for (let i = placements.length - 1; i >= 0; i--) placements.splice(i, 1)
-  persist.maintenance?.purgeTests()
-  return { users: removedUsers, matches: removedMatches }
-}
-
-// Fresh start: wipe ALL competition data (competitions, disciplines-as-events,
-// registrations, matches, placements, configs) but KEEP users/gamers, avatars,
-// disciplines catalog and promo slides. Used to clear test data before go-live.
-export function resetCompetitionData(): { events: number; placements: number } {
-  const n = { events: events.size, placements: placements.length }
-  events.clear()
-  competitions.clear()
-  eventConfigs.clear()
-  matches.length = 0
-  placements.length = 0
-  for (const [k, r] of regs) { void r; regs.delete(k) }
-  persist.maintenance?.resetCompetitions?.()
-  return n
-}
-
 export function allEvents(): Event[] {
   return Array.from(events.values()).sort((a, b) => b.createdAt - a.createdAt)
 }

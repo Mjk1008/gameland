@@ -10,7 +10,7 @@
 // should swap store.ts for direct async Drizzle calls. For Liara single-
 // instance MVP this is sufficient.
 
-import { eq, and, like, sql } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { db, schema } from './client'
 import type { User, Event, Registration, Notification } from '../store'
 
@@ -388,25 +388,6 @@ export const persist = {
       const d = db(); if (!d) return null
       const rows = await d.select({ dataUrl: schema.receipts.dataUrl }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
       return rows[0]?.dataUrl ?? null
-    },
-  },
-  maintenance: {
-    // wipe fake test participants (email @gameland.test) + all bracket matches
-    purgeTests() {
-      const d = db(); if (!d) return
-      fire(d.delete(schema.matches))
-      fire(d.delete(schema.placements))
-      fire(d.delete(schema.users).where(like(schema.users.email, '%@gameland.test')))
-    },
-    // Fresh start: drop all competition data, keep users/avatars/disciplines/promos.
-    // FK-safe delete order (children before parents).
-    async resetCompetitions() {
-      const d = db(); if (!d) return
-      await d.delete(schema.matches)
-      await d.delete(schema.placements)
-      await d.delete(schema.registrations)
-      await d.delete(schema.events)
-      await d.delete(schema.competitions)
     },
   },
 }
