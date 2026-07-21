@@ -47,11 +47,27 @@ export default async function BracketPage({ params }: { params: { id: string } }
       <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
       <div style={{ padding: '14px 16px 28px' }}>
         <div style={{ fontSize: 12.5, color: C.tbody, padding: '12px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, lineHeight: 1.9 }}>
-          هنوز قرعه‌کشی نشده. بعد از بسته‌شدن ثبت‌نام‌ها و تأیید پرداخت‌ها، ادمین قرعه‌کشی رو انجام می‌ده و کل جدول اینجا میاد — از مرحلهٔ اول تا فینال.
+          هنوز قرعه‌کشی نشده. بعد از بسته‌شدن ثبت‌نام‌ها و تأیید پرداخت‌ها، ادمین قرعه‌کشی رو انجام می‌ده و کل جدول اینجا میاد — مسیرِ خودت و همهٔ حریف‌ها.
         </div>
-        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '30px 0', border: `1px dashed ${C.line}`, borderRadius: 14 }}>
-          <span style={{ fontSize: 30 }}>🏆</span>
-          <span style={{ fontSize: 13, color: C.tmut }}>جدول مسابقات به‌زودی</span>
+        {/* empty structure preview so the player knows the stages ahead */}
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column' }}>
+          {[
+            { title: 'مرحلهٔ مقدماتی', sub: 'گروه‌بندیِ شهری · تا ۶ براکت' },
+            { title: `فینالِ ${(c.finalSize ?? 128).toLocaleString('fa-IR')} نفره`, sub: 'برگزیده‌های مقدماتی' },
+          ].map((s, i, arr) => (
+            <div key={i} style={{ display: 'flex', gap: 13, minHeight: 56 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
+                <div style={{ width: 15, height: 15, borderRadius: '50%', background: C.sf1, border: `2px dashed ${C.line2}`, marginTop: 4 }} />
+                {i < arr.length - 1 && <div style={{ flex: 1, width: 2, background: C.line }} />}
+              </div>
+              <div style={{ flex: 1, paddingBottom: 13, minWidth: 0 }}>
+                <div style={{ background: C.sf1, border: `1px dashed ${C.line2}`, borderRadius: 12, padding: '11px 14px', opacity: 0.75 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.tbody }}>{s.title}</div>
+                  <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 4 }}>{s.sub}</div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { DISC, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
+import { DISC, prizeBreakdown } from '@/lib/mock-data'
 import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig } from '@/lib/store'
 import { rulesForDisc } from '@/lib/discipline-rules'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
@@ -17,13 +17,20 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const uid = (session as any)?.uid as string | undefined
   const reg = uid ? getRegistration(uid, params.id) : undefined
 
-  const drawn = matchesForComp(params.id).length > 0
+  const allMatches = matchesForComp(params.id)
+  const drawn = allMatches.length > 0
+  const prelimMatches = allMatches.filter(m => m.stage === 'prelim')
+  const finalMatches = allMatches.filter(m => m.stage === 'final')
+  const prelimGroups = Array.from(new Set(prelimMatches.map(m => m.groupKey)))
+  const finalSize = c.finalSize ?? 128
+  const myMatch = uid ? allMatches.find(m => m.p1UserId === uid || m.p2UserId === uid) : undefined
+  const myGroupLabel = myMatch && myMatch.stage === 'prelim' ? (myMatch.groupKey.split(':')[1] || myMatch.groupKey) : undefined
+
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }
   const customSplit = getEventConfig(params.id).prizeSplit ?? []
   const prizeRows = customSplit.length
     ? customSplit.map((amt, i) => ({ place: (i + 1).toLocaleString('fa-IR'), amount: amt.toLocaleString('fa-IR') + ' ت' }))
     : prizeBreakdown(c.prize).map(b => ({ place: b.place, amount: b.amount }))
-  const roadmap = roadmapStages(c.status)
   const discRules = rulesForDisc(c.disc)
 
   const compPlacements = placementsForComp(params.id)
@@ -114,25 +121,53 @@ export default async function CompetitionPage({ params }: { params: { id: string
           </div>
         )}
 
-        {/* Roadmap */}
+        {/* Structure & the player's path (مقدماتی → فینال) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>مسیر بازیکن</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>مراحل مسابقه و مسیرِ تو</span>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {roadmap.map((r, i) => (
-              <div key={i} style={{ display: 'flex', gap: 13, minHeight: 50 }}>
+            {[
+              {
+                title: 'مرحلهٔ مقدماتی',
+                sub: drawn
+                  ? (prelimGroups.length ? `${prelimGroups.length.toLocaleString('fa-IR')} گروهِ شهری · تا ۶ براکت` : 'بدونِ مقدماتی — مستقیم به فینال')
+                  : 'گروه‌بندیِ شهری · بعد از قرعه‌کشی',
+                mine: myMatch?.stage === 'prelim' ? `تو در گروهِ «${myGroupLabel}»‌ای` : null,
+                on: !drawn || prelimGroups.length > 0,
+              },
+              {
+                title: `فینالِ ${finalSize.toLocaleString('fa-IR')} نفره`,
+                sub: drawn ? (finalMatches.length ? 'براکتِ نهایی فعاله' : 'بعد از تکمیلِ مقدماتی') : `${finalSize.toLocaleString('fa-IR')} نفرِ برتر`,
+                mine: myMatch?.stage === 'final' ? 'به فینال رسیدی 🎉' : null,
+                on: true,
+              },
+            ].map((s, i, arr) => (
+              <div key={i} style={{ display: 'flex', gap: 13, minHeight: 56 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: '50%', background: C.sf1, border: `2px solid ${C.accent}`, marginTop: 4 }} />
-                  {i < roadmap.length - 1 && <div style={{ flex: 1, width: 2, background: C.line }} />}
+                  <div style={{ width: 15, height: 15, borderRadius: '50%', background: s.mine ? C.accent : C.sf1, border: `2px solid ${s.on ? C.accent : C.line}`, marginTop: 4, flexShrink: 0 }} />
+                  {i < arr.length - 1 && <div style={{ flex: 1, width: 2, background: C.line }} />}
                 </div>
-                <div style={{ flex: 1, paddingBottom: 13 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: C.thi }}>{r.stage}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.tmut }}>{r.label}</span>
+                <div style={{ flex: 1, paddingBottom: 13, minWidth: 0 }}>
+                  <div style={{ background: C.sf1, border: `1px solid ${s.mine ? C.accent : C.line}`, borderRadius: 12, padding: '11px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: s.on ? C.thi : C.tmut }}>{s.title}</span>
+                      {s.mine && <span style={{ fontSize: 10.5, fontWeight: 700, color: C.accent, background: C.accentSoft, borderRadius: 999, padding: '3px 9px', flexShrink: 0 }}>{s.mine}</span>}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 4 }}>{s.sub}</div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
+
+          {drawn ? (
+            <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 48, background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12, color: C.accent, fontWeight: 700, fontSize: 13.5 }}>
+              جدولِ کامل، مسیرِ من و بقیهٔ گیمرها ›
+            </Link>
+          ) : (
+            <div style={{ fontSize: 12, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', lineHeight: 1.9 }}>
+              بعد از بسته‌شدنِ ثبت‌نام و قرعه‌کشیِ ادمین، جدولِ کامل اینجا باز می‌شه — مسیرِ خودت و همهٔ حریف‌ها رو می‌بینی.
+            </div>
+          )}
         </div>
 
         {/* Final results */}
