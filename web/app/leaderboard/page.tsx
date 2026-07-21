@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, hasAvatar } from '@/lib/store'
+import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import type { Disc } from '@/lib/mock-data'
@@ -46,6 +47,9 @@ export default async function LeaderboardPage() {
       rank: i + 1,
       name: u.name,
       tag: u.tag,
+      uid: u.id,
+      hasAvatar: hasAvatar(u.id),
+      card: playerCard(u.tag),
       disc: (u.primaryDisc ?? 'fc26') as Disc,
       points: pointsAcc.get(u.id) ?? 0,
       winrate: 0,

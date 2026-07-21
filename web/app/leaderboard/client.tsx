@@ -5,13 +5,14 @@ import { DISC, Player, Disc } from '@/lib/mock-data'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
 
 type DiscFilter = 'all' | Disc
+type Row = Player & { uid: string; hasAvatar: boolean; card: string | null }
 
 const DISCS: { id: DiscFilter; name: string }[] = [
   { id: 'all', name: 'همه' },
   ...(Object.keys(DISC) as Disc[]).map(id => ({ id, name: DISC[id].name })),
 ]
 
-export default function LeaderboardClient({ initial, meTag }: { initial: Player[]; meTag?: string }) {
+export default function LeaderboardClient({ initial, meTag }: { initial: Row[]; meTag?: string }) {
   const [q, setQ] = useState('')
   const [disc, setDisc] = useState<DiscFilter>('all')
 
@@ -62,9 +63,13 @@ export default function LeaderboardClient({ initial, meTag }: { initial: Player[
           return (
             <Link key={p.rank} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 13, boxSizing: 'border-box', padding: '11px 13px', background: isMe ? C.accentSoft : C.sf1, border: `1px solid ${isMe ? C.accent : C.line}`, borderRadius: 12 }}>
               {isMe && <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 3, background: C.accent }} />}
-              <span className="gl-num" style={{ width: 34, textAlign: 'center', fontWeight: 800, fontSize: 30, color: p.rank === 1 ? C.accent : p.rank <= 3 ? C.gold : C.tbody }}>{p.rank}</span>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 700, fontSize: 18, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>
+              <span className="gl-num" style={{ width: 22, textAlign: 'center', fontWeight: 800, fontSize: 19, color: p.rank === 1 ? C.accent : p.rank <= 3 ? C.gold : C.tmut, flexShrink: 0 }}>{p.rank}</span>
+              <div style={{ width: 54, height: 54, borderRadius: 13, overflow: 'hidden', background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${p.rank <= 3 ? C.gold + '88' : C.line2}` }}>
+                {p.hasAvatar
+                  ? <img src={`/api/avatar/${p.uid}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : p.card
+                  ? <img src={p.card} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }} />
+                  : <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 700, fontSize: 20, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}{isMe ? ' · تو' : ''}</span>
