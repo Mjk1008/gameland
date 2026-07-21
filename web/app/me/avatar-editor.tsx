@@ -72,7 +72,10 @@ export default function AvatarEditor({ uid, initial, hasPhoto }: { uid: string; 
         aria-label="تغییر عکس پروفایل">
         {showPhoto
           ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: busy ? 0.6 : 1 }} />
-          : <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 24, color: C.accent }}>{initial}</span>}
+          : <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: C.accent }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4zM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+              <span style={{ fontSize: 9.5, fontWeight: 700 }}>عکس</span>
+            </span>}
       </button>
       {/* camera badge */}
       <span aria-hidden style={{ position: 'absolute', bottom: -3, insetInlineEnd: -3, width: 22, height: 22, borderRadius: 999, background: C.accent, border: `2px solid ${C.sf1}`, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
