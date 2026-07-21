@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition } from '@/lib/store'
 import { computeQualifiers } from '@/lib/bracket'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic'
 export default function AdminEventPage({ params }: { params: { id: string } }) {
   const c = getEvent(params.id)
   if (!c) return notFound()
+  const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending').length
@@ -46,6 +47,14 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Link href="/admin/events" style={{ fontSize: 12, color: C.tmut, textDecoration: 'none' }}>‹ مسابقات</Link>
+
+      {/* parent event → jump back to add / manage the other disciplines */}
+      {parent && (
+        <Link href={`/admin/competitions/${parent.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: C.accent, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>رویداد: {parent.title} — افزودن/مدیریت رشته‌ها</span>
+        </Link>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <GameBadge disc={c.disc} size={38} />

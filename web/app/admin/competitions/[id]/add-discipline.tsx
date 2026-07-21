@@ -11,8 +11,9 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
   compId: string; compTitle: string; compDate: string; existing: string[]
 }) {
   const router = useRouter()
+  const firstFree = ((Object.keys(DISC) as Disc[]).find(k => !existing.includes(k)) ?? 'fc26') as Disc
   const [open, setOpen] = useState(false)
-  const [disc, setDisc] = useState<Disc>('fc26')
+  const [disc, setDisc] = useState<Disc>(firstFree)
   const [prize, setPrize] = useState(0)
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>('A')
   const [finalSize, setFinalSize] = useState(128)

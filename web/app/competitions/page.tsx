@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { allEvents, getUserById, registrationsForUser } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
-import { C, Num, StatusChip, EmptyState, GameBadge, GAME_COVER, DISC_DOT, glass } from '@/components/ui'
+import { C, Num, StatusChip, EmptyState, GameBadge, GAME_COVER, DISC_DOT } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,9 +43,9 @@ export default async function CompetitionsPage() {
             const cover = GAME_COVER[c.disc as keyof typeof GAME_COVER]
             const discColor = DISC_DOT[c.disc] ?? C.accent
             return (
-              <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', display: 'block', borderRadius: 20, overflow: 'hidden', border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}`, boxShadow: `0 10px 34px -18px rgba(0,0,0,.8)` }}>
+              <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', display: 'block', borderRadius: 20, overflow: 'hidden', transform: 'translateZ(0)', border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}`, boxShadow: `0 10px 34px -18px rgba(0,0,0,.8)` }}>
                 {/* cover banner — discipline imagery + color, with a scrim for legibility */}
-                <div style={{ position: 'relative', height: 104, background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
+                <div style={{ position: 'relative', height: 104, overflow: 'hidden', background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
                   {cover && <img src={cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(20,17,13,.15) 0%, rgba(20,17,13,.55) 55%, rgba(20,17,13,.92) 100%)` }} />
                   {/* discipline logo tile — bottom start (right in RTL) */}
@@ -54,14 +54,14 @@ export default async function CompetitionsPage() {
                   <div style={{ position: 'absolute', top: 12, insetInlineStart: 14 }}><StatusChip status={c.status} /></div>
                   {/* prize badge — top end */}
                   {c.prize > 0 && (
-                    <div style={{ position: 'absolute', top: 12, insetInlineEnd: 14, ...glass, borderRadius: 999, padding: '5px 11px', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+                    <div style={{ position: 'absolute', top: 12, insetInlineEnd: 14, background: 'rgba(20,17,13,.72)', border: '1px solid rgba(246,239,228,.14)', borderRadius: 999, padding: '5px 11px', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
                       <Num size={14} color={C.gold}>{c.prize}M</Num><span style={{ fontSize: 9.5, color: C.thi }}>تومان</span>
                     </div>
                   )}
                 </div>
 
-                {/* glass body */}
-                <div style={{ ...glass, borderTop: 'none', padding: '13px 15px 15px' }}>
+                {/* body — solid glassy gradient (no backdrop-filter → clips cleanly on iOS) */}
+                <div style={{ background: 'linear-gradient(160deg, rgba(56,48,38,.92), rgba(24,20,15,.96))', borderTop: 'none', padding: '13px 15px 15px' }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: discColor }}>{d.name}</span>
