@@ -139,6 +139,16 @@ export function Button({ children, kind = 'primary', href, onClick, type, disabl
   return <button type={type ?? 'button'} onClick={onClick} disabled={disabled} style={s}>{children}</button>
 }
 
+// ── glassmorphism surface — translucent + blur, for cards/panels over imagery.
+// Pairs with the warm-dark Broadcast palette; a subtle top sheen sells the glass.
+export const glass: React.CSSProperties = {
+  background: 'linear-gradient(160deg, rgba(56,48,38,.55), rgba(30,26,20,.62))',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  border: '1px solid rgba(246,239,228,.10)',
+  boxShadow: '0 8px 30px -14px rgba(0,0,0,.7), inset 0 1px 0 rgba(246,239,228,.06)',
+}
+
 // ── shared form input style (16px → never triggers iOS focus-zoom; 46px touch) ──
 export const inp: React.CSSProperties = {
   background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11,

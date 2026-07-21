@@ -919,6 +919,9 @@ export interface EventConfig {
   qualify: Record<string, number>
   // manual final seeding override: ordered userIds (optional)
   finalSeeding?: string[]
+  // admin-defined prize split — amount (تومان) per finishing place, index 0 = 1st.
+  // when set, overrides the default percentage breakdown.
+  prizeSplit?: number[]
 }
 const eventConfigs = new Map<string, EventConfig>()
 

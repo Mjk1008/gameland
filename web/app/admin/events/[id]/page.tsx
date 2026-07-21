@@ -8,6 +8,7 @@ import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
 import TournamentPanel, { type BracketInfo } from './tournament-panel'
 import DeleteEventButton from './delete-button'
+import PrizeEditor from './prize-editor'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,8 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       )}
 
       <Card><StatusControl compId={c.id} status={c.status} /></Card>
+
+      <Card><PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} /></Card>
 
       <TournamentPanel
         compId={c.id} drawn={drawn} regCount={regs.length}

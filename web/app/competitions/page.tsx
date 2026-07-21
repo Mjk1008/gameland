@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { allEvents, getUserById, registrationsForUser } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
-import { C, Num, Label, StatusChip, EmptyState, GameBadge } from '@/components/ui'
+import { C, Num, StatusChip, EmptyState, GameBadge, GAME_COVER, DISC_DOT, glass } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,56 +40,61 @@ export default async function CompetitionsPage() {
             const filled = cap ? Math.min(1, (c.teams || 0) / cap) : 0
             const reg = regByComp.get(c.id)
             const rs = reg ? REG_STATE[reg.status] : null
+            const cover = GAME_COVER[c.disc as keyof typeof GAME_COVER]
+            const discColor = DISC_DOT[c.disc] ?? C.accent
             return (
-              <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', display: 'block', background: C.sf1, border: `1px solid ${rs ? rs.c + '55' : C.line}`, borderRadius: 14, padding: 15, overflow: 'hidden' }}>
-                {/* accent stripe when the viewer is in this competition */}
-                {rs && <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: rs.c }} />}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <GameBadge disc={c.disc} size={34} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      <Label size={9.5}>{d.name}</Label>
-                      {c.date && <span style={{ fontSize: 10.5, color: C.tmut }}>· {c.date}</span>}
-                    </div>
-                  </div>
-                  <StatusChip status={c.status} />
-                </div>
-
-                {/* registration state — the thing the user could never see before */}
-                {rs && (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: rs.s, border: `1px solid ${rs.c}55`, borderRadius: 8, padding: '5px 10px', marginBottom: 11 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: rs.c }} />
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: rs.c }}>{rs.label}</span>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'stretch', background: C.ink, border: `1px solid ${C.line}`, borderRadius: 11, overflow: 'hidden' }}>
+              <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', display: 'block', borderRadius: 20, overflow: 'hidden', border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}`, boxShadow: `0 10px 34px -18px rgba(0,0,0,.8)` }}>
+                {/* cover banner — discipline imagery + color, with a scrim for legibility */}
+                <div style={{ position: 'relative', height: 104, background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
+                  {cover && <img src={cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(20,17,13,.15) 0%, rgba(20,17,13,.55) 55%, rgba(20,17,13,.92) 100%)` }} />
+                  {/* discipline logo tile — bottom start (right in RTL) */}
+                  <div style={{ position: 'absolute', bottom: 12, insetInlineStart: 14 }}><GameBadge disc={c.disc} size={44} /></div>
+                  {/* status — top start */}
+                  <div style={{ position: 'absolute', top: 12, insetInlineStart: 14 }}><StatusChip status={c.status} /></div>
+                  {/* prize badge — top end */}
                   {c.prize > 0 && (
-                    <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, borderLeft: `1px solid ${C.line}` }}>
-                      <Num size={17} color={C.gold}>{c.prize}M</Num>
-                      <span style={{ fontSize: 9.5, color: C.tmut }}>تومان جایزه</span>
+                    <div style={{ position: 'absolute', top: 12, insetInlineEnd: 14, ...glass, borderRadius: 999, padding: '5px 11px', display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
+                      <Num size={14} color={C.gold}>{c.prize}M</Num><span style={{ fontSize: 9.5, color: C.thi }}>تومان</span>
                     </div>
                   )}
-                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, borderLeft: `1px solid ${C.line}` }}>
-                    <Num size={17}>{cap || c.teams}</Num>
-                    <span style={{ fontSize: 9.5, color: C.tmut }}>ظرفیت</span>
-                  </div>
-                  <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.tbody, textAlign: 'center' }}>{c.format || '—'}</span>
-                    <span style={{ fontSize: 9.5, color: C.tmut }}>فرمت</span>
-                  </div>
                 </div>
 
-                {cap > 0 && !reg && c.status === 'open' && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ height: 5, borderRadius: 999, background: C.ink, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.round(filled * 100)}%`, background: C.accent, borderRadius: 999 }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, marginTop: 7 }}>برای ثبت‌نام بزن ›</div>
+                {/* glass body */}
+                <div style={{ ...glass, borderTop: 'none', padding: '13px 15px 15px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: discColor }}>{d.name}</span>
+                    {c.date && <span style={{ fontSize: 10.5, color: C.tmut }}>· {c.date}</span>}
                   </div>
-                )}
+
+                  {rs && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: rs.s, border: `1px solid ${rs.c}55`, borderRadius: 8, padding: '5px 10px', marginTop: 11 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: rs.c }} />
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: rs.c }}>{rs.label}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'stretch', marginTop: 12, background: 'rgba(20,17,13,.45)', border: `1px solid rgba(246,239,228,.07)`, borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, borderInlineEnd: `1px solid rgba(246,239,228,.07)` }}>
+                      <Num size={17}>{cap || c.teams}</Num>
+                      <span style={{ fontSize: 10, color: C.tmut }}>ظرفیت</span>
+                    </div>
+                    <div style={{ flex: 1.4, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: C.tbody, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{c.format || '—'}</span>
+                      <span style={{ fontSize: 10, color: C.tmut }}>فرمت</span>
+                    </div>
+                  </div>
+
+                  {cap > 0 && !reg && c.status === 'open' && (
+                    <div style={{ marginTop: 11 }}>
+                      <div style={{ height: 5, borderRadius: 999, background: 'rgba(20,17,13,.6)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.round(filled * 100)}%`, background: `linear-gradient(90deg, ${C.accent}, ${C.accentStrong})`, borderRadius: 999 }} />
+                      </div>
+                      <div style={{ fontSize: 10.5, color: C.accent, fontWeight: 700, marginTop: 7 }}>برای ثبت‌نام بزن ›</div>
+                    </div>
+                  )}
+                </div>
               </Link>
             )
           })}

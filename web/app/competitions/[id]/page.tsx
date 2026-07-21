@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown, roadmapStages } from '@/lib/mock-data'
-import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp } from '@/lib/store'
+import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig } from '@/lib/store'
 import { rulesForDisc } from '@/lib/discipline-rules'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
@@ -19,7 +19,10 @@ export default async function CompetitionPage({ params }: { params: { id: string
 
   const drawn = matchesForComp(params.id).length > 0
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }
-  const breakdown = prizeBreakdown(c.prize)
+  const customSplit = getEventConfig(params.id).prizeSplit ?? []
+  const prizeRows = customSplit.length
+    ? customSplit.map((amt, i) => ({ place: (i + 1).toLocaleString('fa-IR'), amount: amt.toLocaleString('fa-IR') + ' ت' }))
+    : prizeBreakdown(c.prize).map(b => ({ place: b.place, amount: b.amount }))
   const roadmap = roadmapStages(c.status)
   const discRules = rulesForDisc(c.disc)
 
@@ -63,14 +66,14 @@ export default async function CompetitionPage({ params }: { params: { id: string
         </div>
 
         {/* Prize pool */}
-        {c.prize > 0 && (
+        {(c.prize > 0 || prizeRows.length > 0) && (
           <div style={{ background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 16, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>جایزهٔ کل</span>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}><Num size={30} color={C.gold}>{c.prize}M</Num><span style={{ fontSize: 12, color: C.tbody }}>تومان</span></span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {breakdown.map(b => (
+              {prizeRows.map(b => (
                 <div key={b.place} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                   <span className="gl-num" style={{ width: 26, height: 26, borderRadius: 8, border: `1px solid ${C.gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: C.gold, flexShrink: 0 }}>{b.place}</span>
                   <span style={{ flex: 1, fontSize: 12, color: C.tbody }}>مقام {b.place}</span>
