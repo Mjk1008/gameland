@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { C } from '@/components/ui'
+import JalaliRangePicker from '@/components/JalaliRangePicker'
 
 export default function NewCompetitionPage() {
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function NewCompetitionPage() {
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
         <Field label="عنوان مسابقه"><input value={title} onChange={e => setTitle(e.target.value)} style={inp} placeholder="جام تابستانهٔ گیم‌لند" /></Field>
         <Field label="محل برگزاری"><input value={location} onChange={e => setLocation(e.target.value)} style={inp} placeholder="ایران‌مال، تهران" /></Field>
-        <Field label="تاریخ (متن)"><input value={date} onChange={e => setDate(e.target.value)} style={inp} placeholder="۱۵ تا ۲۰ مرداد ۱۴۰۵" /></Field>
+        <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
         <button type="submit" disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: C.accent, color: '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: busy ? 0.5 : 1 }}>
           {busy ? 'در حال ساخت…' : 'ساخت مسابقه و افزودن رشته‌ها'}

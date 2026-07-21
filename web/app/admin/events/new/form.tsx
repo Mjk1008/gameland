@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DISC } from '@/lib/mock-data'
 import { C, Button, GameBadge, inp, Field } from '@/components/ui'
+import JalaliRangePicker from '@/components/JalaliRangePicker'
 
 export default function NewEventForm() {
   const router = useRouter()
@@ -87,7 +88,7 @@ export default function NewEventForm() {
         <b style={{ color: C.thi }}>نحوهٔ برگزاری:</b> بعد از بسته‌شدنِ ثبت‌نام، «قرعه‌کشی» رو تو صفحهٔ همین مسابقه می‌زنی → بازیکن‌ها بر اساس <b>شهر</b> به براکت‌های <b>مقدماتی</b> (تا ۶ براکت) تقسیم می‌شن (ممکنه روزها/شهرهای مختلف). برگزیده‌های هر براکت به <b>فینالِ {finalSize} نفره</b> می‌رن. همه‌چی بعداً هم قابلِ ویرایشه.
       </div>
 
-      <Field label="تاریخ (متن)"><input value={date} onChange={e => setDate(e.target.value)} style={inp} placeholder="۱ تا ۷ تیر ۱۴۰۵" /></Field>
+      <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>
 
       <Field label="وضعیت اولیه">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>

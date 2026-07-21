@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DISC } from '@/lib/mock-data'
 import { C, Button, GameBadge } from '@/components/ui'
+import JalaliRangePicker from '@/components/JalaliRangePicker'
 
 export type EventInit = {
   id: string; title: string; season: string; disc: keyof typeof DISC
@@ -77,7 +78,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
       </Field>
 
       <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی تک / مقدماتی + فینال" /></Field>
-      <Field label="تاریخ (متن)"><input value={date} onChange={e => setDate(e.target.value)} style={inp} placeholder="۱ تا ۷ تیر ۱۴۰۵" /></Field>
+      <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>
 
       <Field label="وضعیت">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
