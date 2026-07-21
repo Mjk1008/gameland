@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, type Event } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, hasAvatar, type Event } from '@/lib/store'
+import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT, GamerAvatar } from '@/components/ui'
 import PromoSlider from './promo-slider'
 import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
@@ -32,7 +33,7 @@ export default async function HomePage() {
 
   const ranked = [...gamers]
     .sort((a, b) => (pointsAcc.get(b.id) ?? 0) - (pointsAcc.get(a.id) ?? 0))
-    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0 }))
+    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0, hasPhoto: hasAvatar(u.id), card: playerCard(u.tag) }))
 
   const champ = ranked[0]
   const top = ranked.slice(0, 3)
@@ -184,10 +185,8 @@ export default async function HomePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {top.map(p => (
               <Link key={p.tag} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 13, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 13px' }}>
-                <span className="gl-num" style={{ fontWeight: 800, fontSize: 26, color: p.rank === 1 ? C.accent : C.tbody, width: 30, textAlign: 'center' }}>{p.rank}</span>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 700, fontSize: 18, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>
-                </div>
+                <span className="gl-num" style={{ fontWeight: 800, fontSize: 20, color: p.rank === 1 ? C.accent : p.rank <= 3 ? C.gold : C.tmut, width: 22, textAlign: 'center' }}>{p.rank}</span>
+                <GamerAvatar uid={p.id} tag={p.tag} hasPhoto={p.hasPhoto} card={p.card} size={48} ring={p.rank <= 3 ? C.gold + '88' : undefined} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.thi }}>{p.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>

@@ -112,6 +112,22 @@ export function Wordmark({ size = 22, tagline = false, stacked = false }: { size
   )
 }
 
+// ── gamer avatar badge — uploaded photo, else ranking-card face, else initial ──
+export function GamerAvatar({ uid, tag, hasPhoto, card, size = 44, ring }: {
+  uid: string; tag: string; hasPhoto?: boolean; card?: string | null; size?: number; ring?: string
+}) {
+  const radius = Math.round(size * 0.28)
+  return (
+    <span style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: C.line, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${ring ?? C.line2}` }}>
+      {hasPhoto
+        ? <img src={`/api/avatar/${uid}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : card
+        ? <img src={card} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }} />
+        : <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: size * 0.42, color: ring ?? C.thi }}>{tag[0]?.toUpperCase()}</span>}
+    </span>
+  )
+}
+
 // ── logo mark only (square) ──
 export function LogoMark({ size = 40 }: { size?: number }) {
   return <img src="/logo.png" alt="گیم‌لند" width={size} height={size} style={{ display: 'block', objectFit: 'contain' }} />

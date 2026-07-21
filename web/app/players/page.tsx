@@ -1,13 +1,15 @@
 import Link from 'next/link'
-import { allUsers } from '@/lib/store'
+import { allUsers, hasAvatar } from '@/lib/store'
+import { playerCard } from '@/lib/player-cards'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, EmptyState, GameBadge } from '@/components/ui'
+import { C, DISP, EmptyState, GameBadge, GamerAvatar } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
 
 export default function PlayersPage() {
   const players = allUsers().filter(u => u.role === 'gamer').map(u => ({
     id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc,
+    hasPhoto: hasAvatar(u.id), card: playerCard(u.tag),
   }))
 
   return (
@@ -27,9 +29,7 @@ export default function PlayersPage() {
             const d = p.disc ? DISC[p.disc as keyof typeof DISC] : null
             return (
               <Link key={p.id} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '18px 12px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, textAlign: 'center' }}>
-                <div style={{ width: 56, height: 56, borderRadius: 15, background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 24, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>
-                </div>
+                <GamerAvatar uid={p.id} tag={p.tag} hasPhoto={p.hasPhoto} card={p.card} size={56} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}</div>
                   <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2 }}>@{p.tag}</div>
