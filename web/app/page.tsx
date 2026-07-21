@@ -7,7 +7,7 @@ import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
 import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT } from '@/components/ui'
 import PromoSlider from './promo-slider'
-import { CompetitionCard, DisciplineCard } from './cards'
+import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
 
 export const dynamic = 'force-dynamic'

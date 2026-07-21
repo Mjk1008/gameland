@@ -60,12 +60,19 @@ ensureHydrated()
 // initial DB→memory load (which would create duplicate accounts / drop rows).
 export function whenReady(): Promise<void> { return _ready ?? Promise.resolve() }
 
-// First boot with an empty slider → seed the bundled game posters as real,
-// editable slides so the home carousel matches what admin sees & can edit.
-function seedDefaultPromosIfEmpty() {
-  if (promos.size > 0) return
-  const defaults = ['fc26', 'pes21', 'efootball', 'nba2k26', 'ufc6']
-  defaults.forEach(disc => createPromo({ imageData: `/games/${disc}-poster.png`, linkType: 'none', active: true }))
+// Keep the slider clean: de-duplicate slides (earlier random-id re-seeds created
+// duplicates) and, on a truly empty slider, seed the bundled posters ONCE with
+// STABLE ids so any future re-run is an idempotent upsert (never a new row).
+function reconcileDefaultPromos() {
+  const seen = new Set<string>()
+  for (const p of allPromos()) { if (seen.has(p.imageData)) deletePromo(p.id); else seen.add(p.imageData) }
+  if (promos.size === 0) {
+    ['fc26', 'pes21', 'efootball', 'nba2k26', 'ufc6'].forEach((disc, i) => {
+      const p: PromoRow = { id: 'promo_def_' + disc, imageData: `/games/${disc}-poster.png`, linkType: 'none', sort: i, active: true, createdAt: Date.now() }
+      promos.set(p.id, p)
+      persist.promo.insert(p)   // onConflictDoUpdate(id) → idempotent, no duplicates
+    })
+  }
 }
 function ensureHydrated() {
   _ready = startHydration({
@@ -79,7 +86,7 @@ function ensureHydrated() {
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
-  }).then(() => { seedDefaultPromosIfEmpty(); seedRankingIfEmpty() })
+  }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
 }
 
 // Which users have a profile photo — ids only (the image bytes stay in Postgres
