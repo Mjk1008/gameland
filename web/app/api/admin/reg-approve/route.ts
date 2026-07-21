@@ -10,22 +10,25 @@ export async function POST(req: Request) {
   if (!uid || !getUserById(uid)) return NextResponse.json({ error: 'لاگین کنید' }, { status: 401 })
   if (role !== 'admin' && role !== 'organizer') return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
-  const { regId, action } = await req.json().catch(() => ({}))
+  const { regId, action, reason } = await req.json().catch(() => ({}))
   if (!regId || (action !== 'approve' && action !== 'reject')) {
     return NextResponse.json({ error: 'پارامتر نامعتبر' }, { status: 400 })
   }
   const r = getRegistrationById(regId)
   if (!r) return NextResponse.json({ error: 'ثبت‌نام پیدا نشد' }, { status: 404 })
 
+  const rsn = (reason ?? '').toString().trim().slice(0, 240)   // optional admin reason/note
   const status = action === 'approve' ? 'approved' : 'rejected'
   setRegistrationStatus(regId, status)
 
   const c = getEvent(r.compId)
   const title = c?.title ?? 'مسابقه'
   if (action === 'approve') {
-    pushNotif(r.userId, 'registration', 'ثبت‌نامت تایید شد ✓', `پرداخت «${title}» تایید شد. حالا در قرعه‌کشی شرکت داده می‌شوی.`)
+    pushNotif(r.userId, 'registration', 'ثبت‌نامت تایید شد ✓',
+      `پرداخت «${title}» تایید شد.${rsn ? ` یادداشت: ${rsn}` : ''} حالا در قرعه‌کشی شرکت داده می‌شوی.`)
   } else {
-    pushNotif(r.userId, 'registration', 'ثبت‌نام رد شد', `ثبت‌نام «${title}» تایید نشد. برای پیگیری با پشتیبانی تماس بگیر.`)
+    pushNotif(r.userId, 'registration', 'ثبت‌نام رد شد',
+      `ثبت‌نام «${title}» تایید نشد.${rsn ? ` دلیل: ${rsn}` : ' برای پیگیری با پشتیبانی تماس بگیر.'}`)
   }
 
   return NextResponse.json({ ok: true, status })
