@@ -12,7 +12,8 @@ export default function NewEventForm() {
   const [disc, setDisc] = useState<keyof typeof DISC>('fc26')
   const [prize, setPrize] = useState(100)
   const [teams, setTeams] = useState(64)
-  const [format, setFormat] = useState('حذفی تک')
+  const [format, setFormat] = useState('مقدماتی (شهری) + فینال')
+  const [finalSize, setFinalSize] = useState(128)
   const [date, setDate] = useState('')
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>('A')
   const [status, setStatus] = useState<'open' | 'soon' | 'live'>('open')
@@ -24,7 +25,7 @@ export default function NewEventForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true)
     try {
-      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, date, status, statusLabel: statusLabels[status] }) })
+      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status] }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ساخته نشد، دوباره امتحان کن')
       router.push('/admin/events'); router.refresh()
@@ -48,7 +49,7 @@ export default function NewEventForm() {
           {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => {
             const on = disc === k
             return (
-              <button key={k} type="button" onClick={() => setDisc(k)} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13 }}>
+              <button key={k} type="button" onClick={() => { setDisc(k); setFinalSize(k === 'fc26' ? 128 : 32) }} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13 }}>
                 <GameBadge disc={k} size={22} />{DISC[k].name}
               </button>
             )
@@ -70,7 +71,22 @@ export default function NewEventForm() {
         </div>
       </Field>
 
-      <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی تک / مقدماتی + فینال" /></Field>
+      <Field label="فرمت (متن نمایشی)"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="مقدماتی (شهری) + فینال" /></Field>
+
+      <Field label="سایزِ براکتِ فینال" hint="FIFA معمولاً ۱۲۸ · بقیهٔ رشته‌ها ۳۲">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[16, 32, 64, 128].map(n => {
+            const on = finalSize === n
+            return <button key={n} type="button" onClick={() => setFinalSize(n)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-disp)' }}>{n}</button>
+          })}
+        </div>
+      </Field>
+
+      {/* how it runs — the fixed tournament structure */}
+      <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px', lineHeight: 1.9 }}>
+        <b style={{ color: C.thi }}>نحوهٔ برگزاری:</b> بعد از بسته‌شدنِ ثبت‌نام، «قرعه‌کشی» رو تو صفحهٔ همین مسابقه می‌زنی → بازیکن‌ها بر اساس <b>شهر</b> به براکت‌های <b>مقدماتی</b> (تا ۶ براکت) تقسیم می‌شن (ممکنه روزها/شهرهای مختلف). برگزیده‌های هر براکت به <b>فینالِ {finalSize} نفره</b> می‌رن. همه‌چی بعداً هم قابلِ ویرایشه.
+      </div>
+
       <Field label="تاریخ (متن)"><input value={date} onChange={e => setDate(e.target.value)} style={inp} placeholder="۱ تا ۷ تیر ۱۴۰۵" /></Field>
 
       <Field label="وضعیت اولیه">

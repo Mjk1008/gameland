@@ -58,6 +58,14 @@ ensureHydrated()
 // Await this before serving auth/signup/register so requests never race the
 // initial DB→memory load (which would create duplicate accounts / drop rows).
 export function whenReady(): Promise<void> { return _ready ?? Promise.resolve() }
+
+// First boot with an empty slider → seed the bundled game posters as real,
+// editable slides so the home carousel matches what admin sees & can edit.
+function seedDefaultPromosIfEmpty() {
+  if (promos.size > 0) return
+  const defaults = ['fc26', 'pes21', 'efootball', 'nba2k26', 'ufc6']
+  defaults.forEach(disc => createPromo({ imageData: `/games/${disc}-poster.png`, linkType: 'none', active: true }))
+}
 function ensureHydrated() {
   _ready = startHydration({
     loadUser:      (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
@@ -70,7 +78,7 @@ function ensureHydrated() {
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
-  })
+  }).then(seedDefaultPromosIfEmpty)
 }
 
 // Which users have a profile photo — ids only (the image bytes stay in Postgres
