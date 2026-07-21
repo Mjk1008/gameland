@@ -35,6 +35,11 @@ export const GAME_POSTER: Record<string, string> = {
   fc26: '/games/fc26-poster.png', pes21: '/games/pes21-poster.png', efootball: '/games/efootball-poster.png',
   ufc6: '/games/ufc6-poster.png', nba2k26: '/games/nba2k26-poster.png',
 }
+// 16:9 subject-framed banner crops (from the box-arts) — for discipline cards.
+export const GAME_BANNER: Record<string, string> = {
+  fc26: '/games/fc26-banner.jpg', pes21: '/games/pes21-banner.jpg', efootball: '/games/efootball-banner.jpg',
+  ufc6: '/games/ufc6-banner.jpg', nba2k26: '/games/nba2k26-banner.jpg',
+}
 
 // Game logo tile — the real game logo on a clean light tile (so dark logos
 // stay visible on the dark app). Falls back to a colored monogram if unknown.
