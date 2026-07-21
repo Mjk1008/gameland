@@ -50,6 +50,7 @@ export async function PATCH(req: Request) {
   if (b.teams != null) patch.teams = Number(b.teams) || 0
   if (b.maxPlayers != null && b.maxPlayers !== '') patch.maxPlayers = Number(b.maxPlayers)
   if (b.format != null) patch.format = String(b.format)
+  if (b.finalSize != null && b.finalSize !== '') patch.finalSize = Number(b.finalSize)
   if (b.date != null) patch.date = String(b.date)
   if (['open', 'soon', 'live', 'done'].includes(b.status)) patch.status = b.status
   if (b.statusLabel != null) patch.statusLabel = String(b.statusLabel)

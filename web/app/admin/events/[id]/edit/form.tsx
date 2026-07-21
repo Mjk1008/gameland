@@ -8,7 +8,7 @@ import JalaliRangePicker from '@/components/JalaliRangePicker'
 
 export type EventInit = {
   id: string; title: string; season: string; disc: keyof typeof DISC
-  prize: number; teams: number; format: string; date: string
+  prize: number; teams: number; format: string; date: string; finalSize: number
   tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done'
 }
 const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته' }
@@ -22,6 +22,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   const [teams, setTeams] = useState(init.teams)
   const [format, setFormat] = useState(init.format)
   const [date, setDate] = useState(init.date)
+  const [finalSize, setFinalSize] = useState(init.finalSize || 128)
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>(init.tier)
   const [status, setStatus] = useState<'open' | 'soon' | 'live' | 'done'>(init.status)
   const [busy, setBusy] = useState(false)
@@ -31,7 +32,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true); setSaved(false)
     try {
-      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, date, status, statusLabel: statusLabels[status] }) })
+      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status] }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setSaved(true); router.refresh()
@@ -78,6 +79,16 @@ export default function EditEventForm({ init }: { init: EventInit }) {
       </Field>
 
       <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی تک / مقدماتی + فینال" /></Field>
+
+      <Field label="سایزِ براکتِ فینال">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[16, 32, 64, 128].map(n => {
+            const on = finalSize === n
+            return <button key={n} type="button" onClick={() => setFinalSize(n)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-disp)' }}>{n}</button>
+          })}
+        </div>
+      </Field>
+
       <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>
 
       <Field label="وضعیت">

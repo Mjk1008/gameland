@@ -454,7 +454,7 @@ export function updateEventStatus(id: string, status: Event['status'], statusLab
 }
 
 // Admin edit of any competition field (except id/createdAt/organizerId).
-const EVENT_EDITABLE: (keyof Event)[] = ['title', 'season', 'disc', 'tier', 'prize', 'teams', 'maxPlayers', 'status', 'statusLabel', 'format', 'date', 'startsAt', 'regDeadline']
+const EVENT_EDITABLE: (keyof Event)[] = ['title', 'season', 'disc', 'tier', 'prize', 'teams', 'maxPlayers', 'status', 'statusLabel', 'format', 'date', 'startsAt', 'regDeadline', 'finalSize']
 export function updateEvent(id: string, patch: Partial<Event>): Event {
   const e = events.get(id)
   if (!e) throw new Error('EVENT_NOT_FOUND')

@@ -16,6 +16,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
   const init: EventInit = {
     id: e.id, title: e.title, season: e.season, disc: e.disc as any,
     prize: e.prize, teams: e.teams, format: e.format, date: e.date,
+    finalSize: e.finalSize ?? 128,
     tier: e.tier, status: e.status,
   }
   return <EditEventForm init={init} />
