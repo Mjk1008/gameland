@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, type Event } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, Label, Wordmark, Button, StatusChip, EmptyState, GameBadge, GAME_POSTER, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT } from '@/components/ui'
 import PromoSlider from './promo-slider'
+import { CompetitionCard, DisciplineCard } from './cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,21 @@ export default async function HomePage() {
 
   const champ = ranked[0]
   const top = ranked.slice(0, 3)
-  const activeComps = events.filter(c => c.status === 'live' || c.status === 'open' || c.status === 'soon')
+
+  // group into mother competitions (رویداد) + standalone events for the home cards
+  const ACTIVE = new Set(['live', 'open', 'soon'])
+  const compsAll = allCompetitions()
+  const compIds = new Set(compsAll.map(c => c.id))
+  const byComp = new Map<string, Event[]>()
+  const standalone: Event[] = []
+  for (const e of events) {
+    if (e.competitionId && compIds.has(e.competitionId)) { const a = byComp.get(e.competitionId) ?? []; a.push(e); byComp.set(e.competitionId, a) }
+    else standalone.push(e)
+  }
+  const activeMothers = compsAll.filter(c => (byComp.get(c.id) ?? []).some(e => ACTIVE.has(e.status))).slice(0, 3)
+  const activeStandalone = standalone.filter(e => ACTIVE.has(e.status)).slice(0, 2)
+  const homeCount = activeMothers.length + activeStandalone.length
+  const motherStatus = (evs: Event[]) => evs.some(e => e.status === 'live') ? 'live' : evs.some(e => e.status === 'open') ? 'open' : 'soon'
 
   // the signed-in gamer's own overview (rank, points, competitions entered)
   const me = uid ? getUserById(uid) : null
@@ -140,33 +155,19 @@ export default async function HomePage() {
           <span style={{ fontSize: 19, fontWeight: 700, color: C.thi }}>مسابقات فعال</span>
           <Link href="/competitions" style={{ fontSize: 12.5, color: C.accent, textDecoration: 'none' }}>همه ›</Link>
         </div>
-        {activeComps.length === 0 ? (
+        {homeCount === 0 ? (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز مسابقه‌ای برگزار نمی‌شه — به‌زودی اولین‌ها می‌رسن." /></div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {activeComps.slice(0, 4).map(c => {
-              const d = DISC[c.disc as keyof typeof DISC]
-              const cap = c.maxPlayers ?? c.teams
-              const filled = Math.min(1, (c.teams || 0) / (cap || 1))
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {activeMothers.map(c => {
+              const evs = byComp.get(c.id) ?? []
               return (
-                <Link key={c.id} href={`/competitions/${c.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'block', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
-                    <GameBadge disc={c.disc} size={28} />
-                    <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: C.thi }}>{c.title}</span>
-                    <StatusChip status={c.status} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Label size={10} color={C.tmut}>{d?.name ?? c.disc}</Label>
-                      {c.prize > 0 && <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}><Num size={14} color={C.gold}>{c.prize}M</Num><span style={{ fontSize: 10, color: C.tmut }}>تومان</span></span>}
-                    </div>
-                    <div style={{ height: 6, borderRadius: 999, background: C.ink, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.round(filled * 100)}%`, background: C.accent, borderRadius: 999 }} />
-                    </div>
-                  </div>
-                </Link>
+                <CompetitionCard key={c.id} href={`/competitions/e/${c.id}`} title={c.title}
+                  sub={[c.location, c.date].filter(Boolean).join(' · ') || undefined}
+                  coverDisc={evs[0]?.disc} discCount={evs.length} prizeSum={evs.reduce((s, e) => s + (e.prize || 0), 0)} status={motherStatus(evs)} />
               )
             })}
+            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} />)}
           </div>
         )}
       </div>
