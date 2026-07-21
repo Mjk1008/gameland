@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar } from '@/lib/store'
+import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
@@ -29,10 +30,18 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   const myPlacements = placementsForUser(u.id)
   const points = pointsAcc.get(u.id) ?? 0
   const top3 = rank >= 1 && rank <= 3
+  const card = playerCard(u.tag)
 
   return (
     <div className="animate-fade-up">
       <BackHeader title="پروفایل گیمر" href="/players" />
+
+      {/* official ranking card (hero) when the player has one */}
+      {card && (
+        <div style={{ padding: '16px 16px 0' }}>
+          <img src={card} alt={u.name} style={{ width: '100%', display: 'block', borderRadius: 16, border: `1px solid ${C.line}`, boxShadow: '0 14px 40px -20px rgba(0,0,0,.85)' }} />
+        </div>
+      )}
 
       <div style={{ padding: '20px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Hero */}

@@ -98,16 +98,16 @@ export function setUserBonusPoints(id: string, points: number): User | undefined
 }
 export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
 
-// One-time seed of the launch top-list (by tag → points). Runs only when no user
-// has manual points yet, so admin edits later are never overwritten.
+// Seed the launch top-list (by tag → points). Per-user idempotent: each listed
+// player gets their points only if they currently have none, so admin edits are
+// never overwritten AND late-registering players (e.g. Mahyar) get seeded once.
 function seedRankingIfEmpty() {
-  if (Array.from(users.values()).some(u => (u.bonusPoints ?? 0) > 0)) return
   const seed: [string, number][] = [
     ['nimasadeghilm101', 3725], ['JT26', 3250], ['VahidKooshki', 2850],
-    ['MatinMp', 2050], ['ferifcone', 1750], ['mahdigezderazi', 1500],
-    ['AdamanT', 1400], ['Hammer', 1400], ['sajjadrashidi81', 1075],
+    ['mahyartahvilian', 2750], ['MatinMp', 2050], ['ferifcone', 1750],
+    ['mahdigezderazi', 1500], ['AdamanT', 1400], ['Hammer', 1400], ['sajjadrashidi81', 1075],
   ]
-  for (const [tag, pts] of seed) { const u = getUserByTag(tag); if (u) setUserBonusPoints(u.id, pts) }
+  for (const [tag, pts] of seed) { const u = getUserByTag(tag); if (u && !(u.bonusPoints ?? 0)) setUserBonusPoints(u.id, pts) }
 }
 
 function indexUser(u: User) {
