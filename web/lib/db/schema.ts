@@ -61,6 +61,7 @@ export const users = pgTable('app_users', {
   role:        userRoleEnum('role').notNull().default('gamer'),
   coinBalance: integer('coin_balance').notNull().default(0),
   playerId:    text('player_id'),
+  bonusPoints: integer('bonus_points'),   // admin-set manual ranking points
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:   timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({

@@ -43,6 +43,7 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bonus_points INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
@@ -70,6 +71,7 @@ export function startHydration(loaders: {
         role: u.role as any, coinBalance: u.coinBalance,
         createdAt: ms(u.createdAt), deletedAt: u.deletedAt ? ms(u.deletedAt) : undefined,
         playerId: u.playerId ?? undefined,
+        bonusPoints: (u as any).bonusPoints ?? undefined,
       })
 
       const ev = await d.select().from(schema.events)
@@ -159,7 +161,7 @@ function userValues(u: User) {
     experienceYears: u.experienceYears, teamName: u.teamName,
     nationalId: u.nationalId, passwordHash: u.passwordHash,
     role: u.role, coinBalance: u.coinBalance ?? 0,
-    playerId: u.playerId,
+    playerId: u.playerId, bonusPoints: u.bonusPoints,
   }
 }
 
@@ -191,6 +193,7 @@ export const persist = {
       if (patch.teamName !== undefined)    set.teamName = patch.teamName
       if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
       if (patch.playerId !== undefined)    set.playerId = patch.playerId
+      if (patch.bonusPoints !== undefined) set.bonusPoints = patch.bonusPoints
       if (patch.email !== undefined)       set.email = patch.email
       if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
       if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl

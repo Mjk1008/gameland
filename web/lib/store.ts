@@ -40,6 +40,7 @@ export interface User {
   createdAt: number
   deletedAt?: number
   playerId?: string
+  bonusPoints?: number   // admin-set manual ranking points (added to earned points)
 }
 
 const users = new Map<string, User>()
@@ -78,7 +79,7 @@ function ensureHydrated() {
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
-  }).then(seedDefaultPromosIfEmpty)
+  }).then(() => { seedDefaultPromosIfEmpty(); seedRankingIfEmpty() })
 }
 
 // Which users have a profile photo — ids only (the image bytes stay in Postgres
@@ -87,6 +88,27 @@ const avatarIds = new Set<string>()
 export function hasAvatar(userId: string): boolean { return avatarIds.has(userId) }
 export function markAvatar(userId: string): void { avatarIds.add(userId) }
 export function unmarkAvatar(userId: string): void { avatarIds.delete(userId) }
+
+// Admin-set manual ranking points (added on top of points earned from results).
+export function setUserBonusPoints(id: string, points: number): User | undefined {
+  const u = users.get(id); if (!u) return
+  u.bonusPoints = Math.max(0, Math.round(points))
+  persist.user.update(id, { bonusPoints: u.bonusPoints })
+  return u
+}
+export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
+
+// One-time seed of the launch top-list (by tag → points). Runs only when no user
+// has manual points yet, so admin edits later are never overwritten.
+function seedRankingIfEmpty() {
+  if (Array.from(users.values()).some(u => (u.bonusPoints ?? 0) > 0)) return
+  const seed: [string, number][] = [
+    ['nimasadeghilm101', 3725], ['JT26', 3250], ['VahidKooshki', 2850],
+    ['MatinMp', 2050], ['ferifcone', 1750], ['mahdigezderazi', 1500],
+    ['AdamanT', 1400], ['Hammer', 1400], ['sajjadrashidi81', 1075],
+  ]
+  for (const [tag, pts] of seed) { const u = getUserByTag(tag); if (u) setUserBonusPoints(u.id, pts) }
+}
 
 function indexUser(u: User) {
   if (u.phone) usersByPhone.set(u.phone, u.id)

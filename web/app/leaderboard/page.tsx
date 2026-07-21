@@ -25,6 +25,8 @@ export default async function LeaderboardPage() {
   const pointsAcc = new Map<string, number>()
   const eventsAcc = new Map<string, number>()
 
+  for (const u of users) pointsAcc.set(u.id, u.bonusPoints ?? 0)   // admin-set base points
+
   for (const pl of placements) {
     const event = eventMap.get(pl.compId)
     if (!event) continue

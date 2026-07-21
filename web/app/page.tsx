@@ -22,6 +22,7 @@ export default async function HomePage() {
   const eventMap = new Map(events.map(e => [e.id, e]))
 
   const pointsAcc = new Map<string, number>()
+  for (const g of gamers) pointsAcc.set(g.id, g.bonusPoints ?? 0)   // admin-set base points
   for (const pl of placements) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue
