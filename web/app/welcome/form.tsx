@@ -10,7 +10,7 @@ type Disc = keyof typeof DISC
 export type ProfileInit = {
   firstName: string; lastName: string; province: string; city: string
   phone: string; messenger: Messenger; tag: string; discs: Disc[]
-  exp: string; team: string; hasPhone: boolean; isComplete: boolean
+  exp: string; team: string; playerId: string; hasPhone: boolean; isComplete: boolean
 }
 
 export default function WelcomeForm({ init }: { init: ProfileInit }) {
@@ -24,6 +24,7 @@ export default function WelcomeForm({ init }: { init: ProfileInit }) {
   const [discs,     setDiscs]     = useState<Disc[]>(init.discs)
   const [exp,       setExp]       = useState(init.exp)
   const [team,      setTeam]      = useState(init.team)
+  const [playerId,  setPlayerId]  = useState(init.playerId)
   const [busy, setBusy] = useState(false)
   const [fe, setFe] = useState<Record<string, string>>({})
   const clear = (k: string) => setFe(p => { if (!p[k]) return p; const n = { ...p }; delete n[k]; return n })
@@ -47,7 +48,7 @@ export default function WelcomeForm({ init }: { init: ProfileInit }) {
     try {
       const res = await fetch('/api/profile/complete', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, province, city, phone, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined }),
+        body: JSON.stringify({ firstName, lastName, province, city, phone, messenger, tag, discs, experienceYears: exp ? Number(exp) : undefined, teamName: team || undefined, playerId: playerId || undefined }),
       })
       const j = await res.json()
       if (!res.ok) {
@@ -125,6 +126,10 @@ export default function WelcomeForm({ init }: { init: ProfileInit }) {
           </div>
           {fe.discs && <span style={{ fontSize: 11.5, color: C.live }}>{fe.discs}</span>}
         </div>
+
+        <Field label="آیدی داخل بازی / پلتفرم (اختیاری)">
+          <input dir="ltr" value={playerId} onChange={e => setPlayerId(e.target.value.slice(0, 60))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="PSN / EA ID / Xbox …" />
+        </Field>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="سابقهٔ بازی (سال)"><input inputMode="numeric" value={exp} onChange={e => setExp(e.target.value.replace(/\D/g, '').slice(0, 2))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="3" /></Field>

@@ -23,6 +23,7 @@ export async function POST(req: Request) {
   const discs     = Array.isArray(b.discs) ? b.discs.filter((d: string) => VALID_DISCS.has(d)) : []
   const experienceYears = b.experienceYears != null && b.experienceYears !== '' ? Number(b.experienceYears) : undefined
   const teamName  = (b.teamName ?? '').trim() || undefined
+  const playerId  = (b.playerId ?? '').trim().slice(0, 60) || undefined   // in-game / platform ID
 
   if (!firstName || !lastName || !province || !city || !phone || !tag || discs.length === 0) {
     return NextResponse.json({ error: 'همهٔ فیلدها به‌جز نام تیم الزامی است' }, { status: 400 })
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   try {
     const u = updateUser(uid, {
       firstName, lastName, province, city, phone, messenger,
-      tag, discs, primaryDisc: discs[0], experienceYears, teamName,
+      tag, discs, primaryDisc: discs[0], experienceYears, teamName, playerId,
     })
     return NextResponse.json({ ok: true, user: { id: u.id, tag: u.tag } })
   } catch (e: any) {

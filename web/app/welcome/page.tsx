@@ -23,6 +23,7 @@ export default async function WelcomePage() {
     discs:     (u.discs as any) ?? [],
     exp:       u.experienceYears != null ? String(u.experienceYears) : '',
     team:      u.teamName ?? '',
+    playerId:  u.playerId ?? '',
     hasPhone:  !!u.phone,
     isComplete: profileCompletion(u).complete,
   }

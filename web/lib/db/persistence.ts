@@ -190,6 +190,7 @@ export const persist = {
       if (patch.experienceYears !== undefined) set.experienceYears = patch.experienceYears
       if (patch.teamName !== undefined)    set.teamName = patch.teamName
       if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
+      if (patch.playerId !== undefined)    set.playerId = patch.playerId
       if (patch.email !== undefined)       set.email = patch.email
       if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
       if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
