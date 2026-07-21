@@ -116,7 +116,7 @@ export default async function HomePage() {
             <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.accent }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: C.goldSoft, border: `1px solid ${C.gold}`, color: C.gold, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}><span className="gl-num">#1</span> قهرمان</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: C.goldSoft, border: `1px solid ${C.gold}`, color: C.gold, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}><span className="gl-num">#1</span> صدرنشین</span>
                 {champ.disc && <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[champ.disc] ?? C.tmut }} />}
               </div>
               <div style={{ fontSize: 19, fontWeight: 800, color: C.thi, marginTop: 8 }}>{champ.name}</div>
