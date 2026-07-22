@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, hasAvatar } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, hasAvatar, activityPointsOf } from '@/lib/store'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -26,7 +26,9 @@ export default async function LeaderboardPage() {
   const pointsAcc = new Map<string, number>()
   const eventsAcc = new Map<string, number>()
 
-  for (const u of users) pointsAcc.set(u.id, u.bonusPoints ?? 0)   // admin-set base points
+  // admin-set base points + live activity points (profile/photo/tickets) so
+  // every gamer holds a real rank from their first action
+  for (const u of users) pointsAcc.set(u.id, (u.bonusPoints ?? 0) + activityPointsOf(u))
 
   for (const pl of placements) {
     const event = eventMap.get(pl.compId)
@@ -59,5 +61,19 @@ export default async function LeaderboardPage() {
       city: u.city,
     }))
 
-  return <LeaderboardClient initial={ranked} meTag={meTag} />
+  // "your rank" — the logged-in gamer's own row, pinned at the top of the page
+  const meRow = meUid ? ranked.find(r => r.uid === meUid) ?? null : null
+
+  // city league — same points, aggregated per city (city pride, zero new data)
+  const cityAcc = new Map<string, { city: string; gamers: number; points: number }>()
+  for (const r of ranked) {
+    const city = (r.city || '').trim()
+    if (!city) continue
+    const c = cityAcc.get(city) ?? { city, gamers: 0, points: 0 }
+    c.gamers += 1; c.points += r.points
+    cityAcc.set(city, c)
+  }
+  const cities = Array.from(cityAcc.values()).sort((a, b) => b.points - a.points || b.gamers - a.gamers)
+
+  return <LeaderboardClient initial={ranked} meTag={meTag} me={meRow} cities={cities} />
 }

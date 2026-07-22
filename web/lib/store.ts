@@ -112,6 +112,22 @@ export function setUserBonusPoints(id: string, points: number): User | undefined
 }
 export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
 
+// Activity points — derived live from existing data (never stored), so every
+// gamer earns a nonzero rank from their first action. Deliberately small next
+// to placement/seed points (min seed 1075) so real results always outrank
+// participation: complete profile +25, photo +10, each approved سهم +15,
+// each pending سهم +5 (registered but awaiting approval still counts a bit).
+export function activityPointsOf(u: User): number {
+  let pts = 0
+  if (u.role === 'gamer' && profileCompletion(u).complete) pts += 25
+  if (hasAvatar(u.id)) pts += 10
+  for (const r of registrationsForUser(u.id)) {
+    if (r.status === 'approved') pts += r.attempts * 15
+    else if (r.status === 'pending') pts += r.attempts * 5
+  }
+  return pts
+}
+
 // Seed the launch top-list (by tag → points). Per-user idempotent: each listed
 // player gets their points only if they currently have none, so admin edits are
 // never overwritten AND late-registering players (e.g. Mahyar) get seeded once.

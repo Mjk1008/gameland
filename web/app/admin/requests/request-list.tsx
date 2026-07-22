@@ -43,7 +43,10 @@ export default function RequestList({ rows }: { rows: Row[] }) {
     <div style={{ padding: '16px 16px 28px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
         <span style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>درخواست‌های ثبت‌نام</span>
-        <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{rows.length}</span> در انتظار</span>
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 12 }}>
+          <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{rows.length}</span> در انتظار</span>
+          <a href="/admin/requests/history" style={{ fontSize: 12.5, fontWeight: 700, color: C.accent, textDecoration: 'none' }}>سوابق ›</a>
+        </span>
       </div>
 
       {rows.length === 0 ? (

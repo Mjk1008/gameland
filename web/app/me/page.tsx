@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion, hasAvatar } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf } from '@/lib/store'
+import { pointsForPlacement } from '@/lib/ranking'
+import type { EventTier } from '@/lib/schema'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
 import AvatarEditor from './avatar-editor'
+import ShareCard from './share-card'
 
 export default async function MePage() {
   const session = await getServerSession(authOptions)
@@ -18,6 +21,20 @@ export default async function MePage() {
   const unread = unreadCount(uid)
   const openEvents = allEvents().filter(c => c.status === 'open' || c.status === 'live' || c.status === 'soon').slice(0, 3)
   const pc = profileCompletion(u)
+
+  // my national rank — same formula as home/leaderboard (bonus + activity + placements)
+  const gamers = allUsers().filter(g => g.role === 'gamer')
+  const evMap = new Map(allEvents().map(e => [e.id, e]))
+  const pts = new Map<string, number>()
+  for (const g of gamers) pts.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
+  for (const pl of allPlacements()) {
+    const ev = evMap.get(pl.compId); if (!ev) continue
+    pts.set(pl.userId, (pts.get(pl.userId) ?? 0) + pointsForPlacement(pl.rank, (ev.tier ?? 'A') as EventTier))
+  }
+  const ordered = [...gamers].sort((a, b) => (pts.get(b.id) ?? 0) - (pts.get(a.id) ?? 0))
+  const myIdx = ordered.findIndex(g => g.id === uid)
+  const myRank = myIdx >= 0 && (pts.get(uid) ?? 0) > 0 ? myIdx + 1 : null
+  const myPoints = pts.get(uid) ?? 0
 
   return (
     <div style={{ padding: '16px 16px 28px' }} className="animate-fade-up">
@@ -47,6 +64,13 @@ export default async function MePage() {
           </div>
           <div style={{ fontSize: 11.5, color: C.gold, fontWeight: 700, marginTop: 8 }}>تکمیل پروفایل ›</div>
         </Link>
+      )}
+
+      {/* shareable gamer card — identity worth showing off */}
+      {u.role === 'gamer' && (
+        <div style={{ marginBottom: 16 }}>
+          <ShareCard uid={uid} name={u.name} tag={u.tag} city={u.city} disc={u.primaryDisc ?? null} rank={myRank} points={myPoints} total={gamers.length} hasPhoto={hasAvatar(uid)} />
+        </div>
       )}
 
       {/* Tiles */}

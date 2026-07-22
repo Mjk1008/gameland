@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, hasAvatar, type Event } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, allRegistrations, activePromos, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -24,7 +24,8 @@ export default async function HomePage() {
   const eventMap = new Map(events.map(e => [e.id, e]))
 
   const pointsAcc = new Map<string, number>()
-  for (const g of gamers) pointsAcc.set(g.id, g.bonusPoints ?? 0)   // admin-set base points
+  // admin-set base + live activity points — same formula as the leaderboard
+  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
   for (const pl of placements) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue
@@ -59,6 +60,15 @@ export default async function HomePage() {
   const myRegs = uid ? registrationsForUser(uid).length : 0
   const rankedCount = ranked.length
 
+  // "today on Gameland" — live pulse derived from existing data (7-day window)
+  const weekAgo = Date.now() - 7 * 86400000
+  const newGamersWeek = gamers.filter(g => g.createdAt >= weekAgo).length
+  const ticketsWeek = allRegistrations().filter(r => r.createdAt >= weekAgo).reduce((a, r) => a + r.attempts, 0)
+  const nextDeadline = events
+    .filter(e => e.status === 'open' && e.regDeadline && e.regDeadline > Date.now())
+    .sort((a, b) => (a.regDeadline ?? 0) - (b.regDeadline ?? 0))[0]
+  const deadlineDays = nextDeadline ? Math.max(1, Math.ceil(((nextDeadline.regDeadline ?? 0) - Date.now()) / 86400000)) : null
+
   // Home slider — admin-managed slides (image + optional link). Fall back to the
   // bundled game posters when the admin hasn't added any yet.
   const promos = activePromos()
@@ -84,6 +94,27 @@ export default async function HomePage() {
 
       {/* Promo slider — admin-managed posters, each optionally linking to a competition or URL */}
       <PromoSlider slides={slides} />
+
+      {/* Today on Gameland — live pulse, changes every day so there's always something new */}
+      {(newGamersWeek > 0 || ticketsWeek > 0 || deadlineDays) && (
+        <div className="gl-scroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '-6px -16px', padding: '0 16px 2px' }}>
+          {deadlineDays && nextDeadline && (
+            <Link href={`/competitions/${nextDeadline.id}`} style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.gold }}>
+              ⏳ <span className="gl-num">{deadlineDays}</span> روز تا بستنِ ثبت‌نامِ {DISC[nextDeadline.disc]?.short ?? ''}
+            </Link>
+          )}
+          {ticketsWeek > 0 && (
+            <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.tbody }}>
+              🎟 <span className="gl-num" style={{ color: C.accent }}>{ticketsWeek}</span> سهم این هفته فروخته شد
+            </span>
+          )}
+          {newGamersWeek > 0 && (
+            <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.tbody }}>
+              🎮 <span className="gl-num" style={{ color: C.win }}>{newGamersWeek}</span> گیمرِ جدید این هفته
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Signed-in gamer's own overview card */}
       {signedIn && me && me.role === 'gamer' && (
