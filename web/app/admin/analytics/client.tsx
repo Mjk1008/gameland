@@ -30,8 +30,10 @@ const dayShort = (ms: number) => { const d = new Date(ms); const j = toJalali(d.
 
 interface Bucket { label: string; sub?: string; approved: number; pending: number; rejected: number; total: number; dot?: string }
 
-export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions }: {
-  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]
+export interface ReferralSnap { invited: number; freeGranted: number; top: { uid: string; name: string; tag: string; count: number }[] }
+
+export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, referral }: {
+  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; referral?: ReferralSnap
 }) {
   const [now] = useState(() => Date.now())
   const [time, setTime] = useState<(typeof TIMES)[number]['key']>('all')
@@ -153,6 +155,25 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
               <DailyBars data={daily} />
             </Section>
           </>
+        )}
+
+        {/* referral campaign — campaign-wide, unaffected by the filters above */}
+        {referral && (
+          <Section title="کمپین دعوت (کل کمپین)">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 10 }}>
+              <Tile label="با کد دعوت اومدن" value={fa(referral.invited)} color={C.accent} />
+              <Tile label="سهمِ جایزه" value={fa(referral.freeGranted)} color={C.gold} sub="کلِ اعطاشده" />
+            </div>
+            {referral.top.length === 0
+              ? <div style={{ fontSize: 12, color: C.tmut, padding: '4px 0' }}>هنوز دعوتِ تاییدشده‌ای نیست.</div>
+              : referral.top.map((t, i) => (
+                <div key={t.uid} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 0' }}>
+                  <span className="gl-num" style={{ width: 18, textAlign: 'center', fontWeight: 800, color: i === 0 ? C.gold : C.tmut }}>{fa(i + 1)}</span>
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: C.thi }}>{t.name} <span dir="ltr" style={{ fontFamily: DISP, fontSize: 10.5, color: C.tmut }}>@{t.tag}</span></span>
+                  <span className="gl-num" style={{ fontWeight: 800, color: C.thi }}>{fa(t.count)}</span>
+                </div>
+              ))}
+          </Section>
         )}
       </div>
     </div>

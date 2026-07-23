@@ -10,6 +10,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (!m) return new Response(null, { status: 404 })
   const buf = Buffer.from(m[2], 'base64')
   return new Response(buf, {
-    headers: { 'Content-Type': m[1], 'Cache-Control': 'public, max-age=300' },
+    headers: { 'Content-Type': m[1], 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400' },
   })
 }

@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { C, DISP, EmptyState } from '@/components/ui'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
@@ -16,8 +17,26 @@ const jdate = (ms: number) => {
 }
 
 export default function HistoryList({ rows }: { rows: Row[] }) {
+  const router = useRouter()
   const [st, setSt] = useState<'all' | 'approved' | 'rejected'>('all')
   const [q, setQ] = useState('')
+  const [busy, setBusy] = useState<string | null>(null)
+
+  // reversal — fix a wrong decision (rejected→approved or approved→rejected).
+  // Locked server-side once the bracket is drawn.
+  async function flip(regId: string, to: 'approve' | 'reject') {
+    const label = to === 'approve' ? 'برگردوندن به «تایید»' : 'تغییر به «رد»'
+    if (!confirm(`${label}؟ به کاربر اطلاع داده می‌شه.`)) return
+    setBusy(regId)
+    try {
+      const res = await fetch('/api/admin/reg-approve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regId, action: to, reason: to === 'reject' ? 'بازبینی ادمین' : undefined }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'انجام نشد') }
+      router.refresh()
+    } finally { setBusy(null) }
+  }
 
   const filtered = useMemo(() => {
     let list = rows
@@ -69,9 +88,15 @@ export default function HistoryList({ rows }: { rows: Row[] }) {
                   <span style={{ fontSize: 11.5, color: C.tbody, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.event}</span>
                   <span style={{ fontSize: 10.5, color: C.tmut, flexShrink: 0 }}>{jdate(r.at)}</span>
                 </div>
-                {r.hasReceipt && (
-                  <a href={`/api/admin/receipt/${r.regId}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 700, color: C.accent, textDecoration: 'none' }}>دیدنِ فیش ›</a>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
+                  {r.hasReceipt
+                    ? <a href={`/api/admin/receipt/${r.regId}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: C.accent, textDecoration: 'none' }}>دیدنِ فیش ›</a>
+                    : <span />}
+                  <button disabled={busy === r.regId} onClick={() => flip(r.regId, ok ? 'reject' : 'approve')}
+                    style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '7px 12px', borderRadius: 9, background: C.sf2, color: ok ? C.live : C.win, border: `1px solid ${(ok ? C.live : C.win)}55`, opacity: busy === r.regId ? 0.5 : 1 }}>
+                    {busy === r.regId ? '…' : ok ? 'تغییر به رد' : 'برگردوندن به تایید'}
+                  </button>
+                </div>
               </div>
             )
           })}

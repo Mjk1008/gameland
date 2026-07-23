@@ -15,5 +15,5 @@ export default async function PayPage({ params }: { params: { id: string } }) {
   const reg = getRegistration(uid, params.id)
   if (!reg) redirect(`/competitions/${params.id}/register`)
 
-  return <PayView compId={c.id} title={c.title} attempts={reg.attempts} status={reg.status} hasReceipt={hasReceipt(reg.id)} />
+  return <PayView compId={c.id} title={c.title} attempts={reg.attempts} freeAttempts={reg.freeAttempts ?? 0} status={reg.status} hasReceipt={hasReceipt(reg.id)} />
 }

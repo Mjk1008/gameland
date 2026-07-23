@@ -45,6 +45,10 @@ export function startHydration(loaders: {
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bonus_points INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referred_by TEXT`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS free_tickets INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referral_milestone INTEGER`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS free_attempts INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -74,6 +78,9 @@ export function startHydration(loaders: {
         createdAt: ms(u.createdAt), deletedAt: u.deletedAt ? ms(u.deletedAt) : undefined,
         playerId: u.playerId ?? undefined,
         bonusPoints: (u as any).bonusPoints ?? undefined,
+        referredBy: (u as any).referredBy ?? undefined,
+        freeTickets: (u as any).freeTickets ?? undefined,
+        referralMilestone: (u as any).referralMilestone ?? undefined,
       })
 
       const ev = await d.select().from(schema.events)
@@ -95,6 +102,7 @@ export function startHydration(loaders: {
       for (const r of rg) loaders.loadReg({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: (r as any).status ?? 'approved',
+        freeAttempts: (r as any).freeAttempts ?? undefined,
         seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
         createdAt: ms(r.createdAt),
       })
@@ -169,6 +177,7 @@ function userValues(u: User) {
     nationalId: u.nationalId, passwordHash: u.passwordHash,
     role: u.role, coinBalance: u.coinBalance ?? 0,
     playerId: u.playerId, bonusPoints: u.bonusPoints,
+    referredBy: u.referredBy, freeTickets: u.freeTickets, referralMilestone: u.referralMilestone,
   }
 }
 
@@ -201,6 +210,9 @@ export const persist = {
       if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
       if (patch.playerId !== undefined)    set.playerId = patch.playerId
       if (patch.bonusPoints !== undefined) set.bonusPoints = patch.bonusPoints
+      if (patch.referredBy !== undefined)  set.referredBy = patch.referredBy
+      if (patch.freeTickets !== undefined) set.freeTickets = patch.freeTickets
+      if (patch.referralMilestone !== undefined) set.referralMilestone = patch.referralMilestone
       if (patch.email !== undefined)       set.email = patch.email
       if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
       if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
@@ -279,7 +291,7 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -288,8 +300,8 @@ export const persist = {
       const d = db(); if (!d) return
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any } })
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -297,6 +309,7 @@ export const persist = {
       if (patch.seedsEarned !== undefined)      set.seedsEarned = patch.seedsEarned
       if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
       if (patch.attempts !== undefined)         set.attempts = patch.attempts
+      if ((patch as any).freeAttempts !== undefined) set.freeAttempts = (patch as any).freeAttempts
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))

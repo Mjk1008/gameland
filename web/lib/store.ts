@@ -41,6 +41,9 @@ export interface User {
   deletedAt?: number
   playerId?: string
   bonusPoints?: number   // admin-set manual ranking points (added to earned points)
+  referredBy?: string          // referrer's user id — set once at signup, immutable
+  freeTickets?: number         // referral-reward ticket balance (redeemed at registration)
+  referralMilestone?: number   // last reward milestone granted (0|2|5) — idempotency guard
 }
 
 const users = new Map<string, User>()
@@ -119,6 +122,7 @@ export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
 // each pending سهم +5 (registered but awaiting approval still counts a bit).
 export function activityPointsOf(u: User): number {
   let pts = 0
+  if (u.referredBy) pts += 50   // came via a friend's invite — welcome bonus
   if (u.role === 'gamer' && profileCompletion(u).complete) pts += 25
   if (hasAvatar(u.id)) pts += 10
   for (const r of registrationsForUser(u.id)) {
@@ -126,6 +130,82 @@ export function activityPointsOf(u: User): number {
     else if (r.status === 'pending') pts += r.attempts * 5
   }
   return pts
+}
+
+// ─── Referral campaign («رفیقتو بیار») ──────────────────────────────────────
+// Code = the user's own @tag. Attribution is set ONCE at signup and never
+// changes. Rewards count only APPROVED (paid + admin-verified) registrations,
+// which is the anti-fraud gate. Milestones: 2 approved referrals → 1 free
+// ticket, 5 → 2 more. Free tickets are redeemed inside a normal registration.
+
+export function setReferrerByTag(userId: string, refTag: string): boolean {
+  const u = users.get(userId)
+  if (!u || u.referredBy) return false                    // immutable once set
+  const ref = getUserByTag(refTag.trim().replace(/^@/, ''))
+  if (!ref || ref.id === userId) return false             // must exist, no self-referral
+  u.referredBy = ref.id
+  persist.user.update(userId, { referredBy: ref.id })
+  return true
+}
+
+// Distinct referred users who have at least one APPROVED registration.
+export function approvedReferralCount(referrerId: string): number {
+  let n = 0
+  for (const u of users.values()) {
+    if (u.referredBy !== referrerId) continue
+    if (registrationsForUser(u.id).some(r => r.status === 'approved')) n++
+  }
+  return n
+}
+
+// Called after a registration is approved: reward the referee's referrer if a
+// milestone was crossed. Idempotent via referralMilestone.
+export function grantReferralRewards(referredUserId: string) {
+  const referred = users.get(referredUserId)
+  const refId = referred?.referredBy
+  if (!refId) return
+  const referrer = users.get(refId)
+  if (!referrer) return
+  const count = approvedReferralCount(refId)
+  const milestone = referrer.referralMilestone ?? 0
+  let granted = 0
+  if (count >= 2 && milestone < 2) { granted += 1; referrer.referralMilestone = 2 }
+  if (count >= 5 && (referrer.referralMilestone ?? 0) < 5) { granted += 2; referrer.referralMilestone = 5 }
+  if (granted === 0) return
+  referrer.freeTickets = (referrer.freeTickets ?? 0) + granted
+  persist.user.update(refId, { freeTickets: referrer.freeTickets, referralMilestone: referrer.referralMilestone })
+  pushNotif(refId, 'announcement', granted === 1 ? '🎟 یه سهمِ رایگان گرفتی!' : '🎟 ۲ سهمِ رایگانِ دیگه گرفتی!',
+    count >= 5
+      ? 'به ۵ دعوتِ تاییدشده رسیدی — نشانِ «سفیر گیم‌لند» مالِ توئه. سهم‌های رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شن.'
+      : `${count} نفر از دعوتی‌هات تایید شدن. سهمِ رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شه — ۳ تای دیگه بیار تا ۲ سهمِ دیگه بگیری!`)
+}
+
+// Redeem free tickets inside a registration (called right after createRegistration).
+export function consumeFreeTickets(userId: string, regId: string, n: number) {
+  if (n <= 0) return
+  const u = users.get(userId); const r = getRegistrationById(regId)
+  if (!u || !r) return
+  const use = Math.min(n, u.freeTickets ?? 0)
+  if (use <= 0) return
+  u.freeTickets = (u.freeTickets ?? 0) - use
+  r.freeAttempts = (r.freeAttempts ?? 0) + use
+  persist.user.update(userId, { freeTickets: u.freeTickets })
+  persist.reg.update(regId, { freeAttempts: r.freeAttempts } as any)
+}
+
+// Public campaign leaderboard — top referrers by approved referrals.
+export function referralLeaderboard(limit = 10): { uid: string; name: string; tag: string; count: number }[] {
+  const acc = new Map<string, number>()
+  for (const u of users.values()) {
+    if (!u.referredBy) continue
+    if (!registrationsForUser(u.id).some(r => r.status === 'approved')) continue
+    acc.set(u.referredBy, (acc.get(u.referredBy) ?? 0) + 1)
+  }
+  return Array.from(acc.entries())
+    .map(([uid, count]) => { const u = users.get(uid); return u ? { uid, name: u.name, tag: u.tag, count } : null })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
 }
 
 // Seed the launch top-list (by tag → points). Per-user idempotent: each listed
@@ -522,6 +602,7 @@ export interface Registration {
   userId: string
   compId: string
   attempts: number          // 1-6
+  freeAttempts?: number     // of attempts, how many were referral-reward tickets (unpaid)
   status: RegStatus         // pending payment/approval → approved by admin
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
@@ -555,7 +636,8 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.status = 'pending'
     existing.seedsEarned = 0
     existing.prelimsCompleted = 0
-    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0 } as any)
+    existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
+    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0 } as any)
     return existing
   }
   const r: Registration = {
@@ -619,9 +701,9 @@ export function approvedRegistrationsForComp(compId: string): Registration[] {
   return Array.from(regs.values()).filter(r => r.compId === compId && r.status === 'approved')
 }
 
-// All pending requests across events (admin approval queue).
+// All pending requests across events (admin approval queue), newest first.
 export function pendingRegistrations(): Registration[] {
-  return Array.from(regs.values()).filter(r => r.status === 'pending').sort((a, b) => a.createdAt - b.createdAt)
+  return Array.from(regs.values()).filter(r => r.status === 'pending').sort((a, b) => b.createdAt - a.createdAt)
 }
 
 export function getRegistrationById(id: string): Registration | undefined {
@@ -682,7 +764,7 @@ export function pushNotif(userId: string, type: NotifType, title: string, body: 
 }
 
 export function notifsForUser(userId: string): Notification[] {
-  return notifs.filter(n => n.userId === userId)
+  return notifs.filter(n => n.userId === userId).sort((a, b) => b.createdAt - a.createdAt)   // newest first
 }
 
 export function markNotifRead(id: string) {

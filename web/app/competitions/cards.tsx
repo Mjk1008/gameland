@@ -33,13 +33,15 @@ function Banner({ disc, title, sub, status, discColor }: { disc?: string; title:
 
 // One discipline (child Event) — banner + prize/capacity/format + reg state.
 export function DisciplineCard({ ev, reg }: { ev: Event; reg?: Registration }) {
+  // days-to-start countdown — shown only when a real future start time exists
+  const daysToStart = ev.startsAt && ev.startsAt > Date.now() ? Math.max(1, Math.ceil((ev.startsAt - Date.now()) / 86400000)) : null
   const d = DISC[ev.disc as keyof typeof DISC]
   const discColor = DISC_DOT[ev.disc] ?? C.accent
   const cap = ev.maxPlayers ?? ev.teams
   const rs = reg ? REG_STATE[reg.status] : null
   return (
     <Link href={`/competitions/${ev.id}`} style={{ ...cardShell, border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}` }}>
-      <Banner disc={ev.disc} title={d?.name ?? ev.disc} sub={ev.date || undefined} status={ev.status} discColor={discColor} />
+      <Banner disc={ev.disc} title={d?.name ?? ev.disc} sub={daysToStart ? `⏳ ${daysToStart} روز تا شروع${ev.date ? ' · ' + ev.date : ''}` : (ev.date || undefined)} status={ev.status} discColor={discColor} />
       <div style={{ background: bodyBg, padding: '12px 14px 14px' }}>
         {rs && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: rs.s, border: `1px solid ${rs.c}55`, borderRadius: 8, padding: '5px 10px', marginBottom: 10 }}>

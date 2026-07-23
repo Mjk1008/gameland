@@ -1,4 +1,4 @@
-import { allUsers, allRegistrations, allEvents, getUserById } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, referralLeaderboard } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
 import AnalyticsClient, { type RegRec, type UserRec } from './client'
@@ -40,5 +40,13 @@ export default function AnalyticsPage() {
     .filter(c => c !== 'نامشخص')
     .sort((a, b) => a.localeCompare(b, 'fa'))
 
-  return <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} />
+  // referral campaign snapshot (unfiltered — campaign-wide truth)
+  const us = allUsers()
+  const referral = {
+    invited: us.filter(u => u.referredBy).length,
+    freeGranted: us.reduce((a, u) => a + (u.freeTickets ?? 0), 0) + allRegistrations().reduce((a, r) => a + (r.freeAttempts ?? 0), 0),
+    top: referralLeaderboard(5),
+  }
+
+  return <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} referral={referral} />
 }

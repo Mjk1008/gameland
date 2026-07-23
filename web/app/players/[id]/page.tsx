@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar } from '@/lib/store'
+import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar, activityPointsOf } from '@/lib/store'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -20,7 +20,8 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   const events = allEvents()
   const eventMap = new Map(events.map(e => [e.id, e]))
   const pointsAcc = new Map<string, number>()
-  for (const g of gamers) pointsAcc.set(g.id, g.bonusPoints ?? 0)   // admin-set base points
+  // admin-set base + live activity points — same formula as home/leaderboard
+  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
   for (const pl of allPlacements()) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue
@@ -35,7 +36,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="پروفایل گیمر" href="/players" />
+      <BackHeader title="پروفایل گیمر" href="/leaderboard" />
 
       {/* official ranking card (hero) when the player has one */}
       {card && (

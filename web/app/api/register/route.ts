@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
+import { createRegistration, consumeFreeTickets, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 
 export async function POST(req: Request) {
@@ -32,12 +32,19 @@ export async function POST(req: Request) {
 
   try {
     const r = createRegistration(uid, compId, attempts)
+    // referral-reward tickets cover part (or all) of this purchase automatically
+    const free = Math.min(u.freeTickets ?? 0, attempts)
+    if (free > 0) consumeFreeTickets(uid, r.id, free)
     // Durable + ordered: commit the user row first, then the registration, so a
     // surge can't lose the reg or hit the users FK. Notif stays fire-and-forget.
     await persist.user.insertAsync(u)
     await persist.reg.insertAsync(r)
-    pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد', `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
-    return NextResponse.json({ ok: true, registration: r })
+    const paid = attempts - free
+    pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد',
+      free > 0
+        ? `${c.title} با ${attempts} بلیط ثبت شد (${free} سهمِ رایگانِ دعوت + ${paid} پرداختی). ${paid > 0 ? 'برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : 'نیازی به پرداخت نیست — منتظرِ تاییدِ ادمین بمون.'}`
+        : `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
+    return NextResponse.json({ ok: true, registration: r, freeUsed: free })
   } catch (e: any) {
     const map: Record<string, string> = {
       MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',

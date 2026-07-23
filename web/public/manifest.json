@@ -1,0 +1,16 @@
+{
+  "name": "گیم‌لند — رنکینگ ملی گیمرهای ایران",
+  "short_name": "گیم‌لند",
+  "description": "مسابقات ایسپورت و رنکینگ ملی گیمرهای ایران",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14110D",
+  "theme_color": "#14110D",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

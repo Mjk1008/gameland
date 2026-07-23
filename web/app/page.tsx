@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, allRegistrations, activePromos, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -57,13 +57,14 @@ export default async function HomePage() {
   // the signed-in gamer's own overview (rank, points, competitions entered)
   const me = uid ? getUserById(uid) : null
   const myEntry = me ? ranked.find(r => r.id === me.id) : null
+  // nearest rival — the player one step above (the chase is the excitement)
+  const rival = myEntry && myEntry.rank > 1 ? ranked[myEntry.rank - 2] : null
   const myRegs = uid ? registrationsForUser(uid).length : 0
   const rankedCount = ranked.length
 
   // "today on Gameland" — live pulse derived from existing data (7-day window)
   const weekAgo = Date.now() - 7 * 86400000
   const newGamersWeek = gamers.filter(g => g.createdAt >= weekAgo).length
-  const ticketsWeek = allRegistrations().filter(r => r.createdAt >= weekAgo).reduce((a, r) => a + r.attempts, 0)
   const nextDeadline = events
     .filter(e => e.status === 'open' && e.regDeadline && e.regDeadline > Date.now())
     .sort((a, b) => (a.regDeadline ?? 0) - (b.regDeadline ?? 0))[0]
@@ -71,10 +72,12 @@ export default async function HomePage() {
 
   // Home slider — admin-managed slides (image + optional link). Fall back to the
   // bundled game posters when the admin hasn't added any yet.
+  // base64 slides are served via /api/promo/[id] (cached) — inlining them made
+  // the home HTML ~7MB and the app feel broken on mobile connections
   const promos = activePromos()
   const slides = promos.length
     ? promos.map(p => ({
-        src: p.imageData,
+        src: p.imageData.startsWith('data:') ? `/api/promo/${p.id}` : p.imageData,
         href: p.linkType === 'event' && p.eventId ? `/competitions/${p.eventId}`
             : p.linkType === 'url' && p.url ? p.url
             : undefined,
@@ -84,8 +87,8 @@ export default async function HomePage() {
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-      {/* Header — compact brand lockup (small logo + name side by side) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
+      {/* Header — compact brand lockup, sticky so the shell stays put while content scrolls */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-14px -16px 0', padding: '14px 16px 10px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
         <Wordmark size={17} />
         <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
@@ -96,17 +99,12 @@ export default async function HomePage() {
       <PromoSlider slides={slides} />
 
       {/* Today on Gameland — live pulse, changes every day so there's always something new */}
-      {(newGamersWeek > 0 || ticketsWeek > 0 || deadlineDays) && (
+      {(newGamersWeek > 0 || deadlineDays) && (
         <div className="gl-scroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '-6px -16px', padding: '0 16px 2px' }}>
           {deadlineDays && nextDeadline && (
             <Link href={`/competitions/${nextDeadline.id}`} style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.gold }}>
               ⏳ <span className="gl-num">{deadlineDays}</span> روز تا بستنِ ثبت‌نامِ {DISC[nextDeadline.disc]?.short ?? ''}
             </Link>
-          )}
-          {ticketsWeek > 0 && (
-            <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.tbody }}>
-              🎟 <span className="gl-num" style={{ color: C.accent }}>{ticketsWeek}</span> سهم این هفته فروخته شد
-            </span>
           )}
           {newGamersWeek > 0 && (
             <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '7px 13px', fontSize: 11.5, fontWeight: 700, color: C.tbody }}>
@@ -135,6 +133,14 @@ export default async function HomePage() {
             <MiniStat label="امتیاز" value={(myEntry?.points ?? 0).toLocaleString('en-US')} color={C.gold} />
             <MiniStat label="مسابقات من" value={String(myRegs)} color={C.thi} />
           </div>
+          {rival && myEntry && rival.points > myEntry.points && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 11, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 12px', fontSize: 11.5, color: C.tbody }}>
+              <span style={{ fontSize: 13 }}>🎯</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <b style={{ color: C.thi }}>{rival.name}</b> فقط <b className="gl-num" style={{ color: C.accent }}>{(rival.points - myEntry.points).toLocaleString('en-US')}</b> امتیاز ازت جلوئه — بزنش!
+              </span>
+            </div>
+          )}
         </Link>
       )}
 

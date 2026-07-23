@@ -60,9 +60,11 @@ export default async function CompetitionPage({ params }: { params: { id: string
             </div>
           )}
           {c.status !== 'done' && (
-            reg
+            reg && reg.status !== 'rejected'
               ? <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
-              : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>{uid ? 'ثبت‌نام در این مسابقه' : 'برای ثبت‌نام وارد شو'}</Button>
+              : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>
+                  {!uid ? 'برای ثبت‌نام وارد شو' : reg?.status === 'rejected' ? 'درخواستِ مجدد (ثبت‌نامت رد شده بود)' : 'ثبت‌نام در این مسابقه'}
+                </Button>
           )}
 
           {/* Bracket — always discoverable; the page itself explains the pre-draw state */}

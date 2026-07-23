@@ -20,7 +20,10 @@ export default async function RegisterPage({ params }: { params: { id: string } 
 
   // Ticket cap is per discipline (6). Once the draw is done, or the cap is
   // reached, buying is closed → send them to their roadmap.
-  const owned = getRegistration(uid, params.id)?.attempts ?? 0
+  // a rejected registration doesn't count as owned tickets — the user is
+  // starting over (store reuses the row with a fresh count)
+  const existingReg = getRegistration(uid, params.id)
+  const owned = existingReg && existingReg.status !== 'rejected' ? existingReg.attempts : 0
   const remaining = remainingTickets(uid, params.id)
   const drawn = matchesForComp(params.id).length > 0
   if ((owned > 0 && remaining === 0) || drawn) redirect(`/competitions/${params.id}/me`)

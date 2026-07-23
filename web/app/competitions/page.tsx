@@ -36,8 +36,8 @@ export default async function CompetitionsPage() {
 
   return (
     <div className="animate-fade-up" style={{ padding: '16px 16px 28px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontSize: 24, fontWeight: 800, color: C.thi }}>مسابقات</span>
+      <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '-16px -16px 16px', padding: '16px 16px 11px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>مسابقات</span>
         <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{total}</span> رویداد</span>
       </div>
 

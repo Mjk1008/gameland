@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 
-interface Row { regId: string; attempts: number; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
+interface Row { regId: string; attempts: number; freeAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
 
 const REJECT_REASONS = [
   'فیش پرداخت ارسال نشده',
@@ -72,6 +72,12 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                   </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 8 }}>{r.event}</div>
+                {(!!r.freeAttempts || r.referrerTag) && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
+                    {!!r.freeAttempts && <span style={{ fontSize: 10.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 7, padding: '3px 9px' }}>🎟 {r.freeAttempts} سهمِ جایزهٔ دعوت (بدون فیش)</span>}
+                    {r.referrerTag && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 10.5, fontWeight: 700, color: C.tbody, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 7, padding: '3px 9px' }}>ref: @{r.referrerTag}</span>}
+                  </div>
+                )}
 
                 {/* payment receipt (فیش) attached to this request */}
                 {r.hasReceipt ? (

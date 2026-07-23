@@ -62,6 +62,9 @@ export const users = pgTable('app_users', {
   coinBalance: integer('coin_balance').notNull().default(0),
   playerId:    text('player_id'),
   bonusPoints: integer('bonus_points'),   // admin-set manual ranking points
+  referredBy:  text('referred_by'),       // user id of the referrer (set once at signup)
+  freeTickets: integer('free_tickets'),   // referral-reward ticket balance
+  referralMilestone: integer('referral_milestone'), // last milestone granted (0|2|5) — idempotency
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:   timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({
@@ -100,6 +103,7 @@ export const registrations = pgTable('app_registrations', {
   userId:           text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   compId:           text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   attempts:         integer('attempts').notNull(),
+  freeAttempts:     integer('free_attempts'),   // referral-reward tickets applied to this reg
   status:           text('status').notNull().default('pending'),  // pending | approved | rejected
   seedsEarned:      integer('seeds_earned').notNull().default(0),
   prelimsCompleted: integer('prelims_completed').notNull().default(0),

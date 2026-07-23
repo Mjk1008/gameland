@@ -2,12 +2,15 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import SwRegister from './sw-register'
 import BottomNav from '@/components/BottomNav'
+import AddToHome from '@/components/AddToHome'
 import Providers from './providers'
 
 export const metadata: Metadata = {
   title: 'Gameland — گیم‌لند',
   description: 'رنکینگ ملی ای‌اسپورت ایران · مسابقات حرفه‌ای · پروفایل گیمرها',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'گیم‌لند' },
+  manifest: '/manifest.json',
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },
   other: { enamad: '37786331' },   // eNamad ownership verification
 }
 
@@ -28,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <BottomNav />
+        <AddToHome />
         </Providers>
         <SwRegister />
       </body>

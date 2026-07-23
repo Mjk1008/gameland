@@ -27,7 +27,8 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-export default function PayView({ compId, title, attempts, status, hasReceipt }: { compId: string; title: string; attempts: number; status: string; hasReceipt?: boolean }) {
+export default function PayView({ compId, title, attempts, freeAttempts = 0, status, hasReceipt }: { compId: string; title: string; attempts: number; freeAttempts?: number; status: string; hasReceipt?: boolean }) {
+  const payable = Math.max(0, attempts - freeAttempts)   // referral-reward tickets are already covered
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const links = paymentLinks()
@@ -75,10 +76,10 @@ export default function PayView({ compId, title, attempts, status, hasReceipt }:
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 14, padding: '14px 16px' }}>
           <div>
             <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت</div>
-            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{attempts} × {toman(TICKET.price)}</div>
+            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{payable} × {toman(TICKET.price)}{freeAttempts > 0 ? ` (+${freeAttempts} رایگان)` : ''}</div>
           </div>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-            <Num size={28} color={C.accent}>{toman(attempts * TICKET.price)}</Num>
+            <Num size={28} color={C.accent}>{toman(payable * TICKET.price)}</Num>
             <span style={{ fontSize: 12, color: C.tbody }}>تومان</span>
           </span>
         </div>

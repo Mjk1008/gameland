@@ -100,10 +100,13 @@ async function renderCard(p: Props): Promise<Blob> {
   x.font = `700 40px 'Saira Condensed', sans-serif`
   x.fillText(`${p.points.toLocaleString('en-US')} PTS${discName ? '   ·   ' + discName : ''}`, W / 2, 1150)
 
-  // footer
+  // footer — doubles as the referral CTA
+  x.fillStyle = 'rgba(255,255,255,0.7)'
+  x.font = `600 30px Vazirmatn, sans-serif`
+  x.fillText(`با کدِ من بیا: @${p.tag}`, W / 2, 1245)
   x.fillStyle = 'rgba(255,255,255,0.45)'
-  x.font = `600 28px 'Saira Condensed', sans-serif`
-  x.fillText('gamelandteam.ir', W / 2, 1262)
+  x.font = `600 26px 'Saira Condensed', sans-serif`
+  x.fillText(`gamelandteam.ir/?ref=${p.tag}`, W / 2, 1290)
 
   return await new Promise<Blob>((ok, no) => cv.toBlob(b => b ? ok(b) : no(new Error('render')), 'image/png'))
 }
@@ -118,7 +121,7 @@ export default function ShareCard(props: Props) {
       const blob = await renderCard(props)
       const file = new File([blob], `gameland-${props.tag}.png`, { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'کارت گیمر من — گیم‌لند' }).catch(() => {})
+        await navigator.share({ files: [file], title: 'کارت گیمر من — گیم‌لند', text: `با کدِ من بیا گیم‌لند: https://gamelandteam.ir/?ref=${props.tag}` }).catch(() => {})
       } else {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')

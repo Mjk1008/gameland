@@ -18,6 +18,7 @@ export default function LeaderboardClient({ initial, meTag, me, cities }: { init
   const [q, setQ] = useState('')
   const [disc, setDisc] = useState<DiscFilter>('all')
   const [view, setView] = useState<'players' | 'cities'>('players')
+  const [visible, setVisible] = useState(50)   // incremental render — hundreds of rows made the page heavy
 
   const filtered = useMemo(() => {
     let list = initial
@@ -106,7 +107,7 @@ export default function LeaderboardClient({ initial, meTag, me, cities }: { init
       {view === 'players' && <div style={{ padding: '12px 16px 28px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 16px', color: C.tmut, fontSize: 13 }}>گیمری با این مشخصات پیدا نشد — فیلتر یا جستجو رو عوض کن.</div>
-        ) : filtered.map(p => {
+        ) : filtered.slice(0, visible).map(p => {
           const d = DISC[p.disc]
           const isMe = meTag && p.tag.toLowerCase() === meTag.toLowerCase()
           return (
@@ -131,6 +132,11 @@ export default function LeaderboardClient({ initial, meTag, me, cities }: { init
             </Link>
           )
         })}
+        {filtered.length > visible && (
+          <button onClick={() => setVisible(v => v + 50)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: C.sf2, border: `1px solid ${C.line}`, color: C.tbody, fontSize: 13, fontWeight: 700 }}>
+            نمایشِ بیشتر (<span className="gl-num">{filtered.length - visible}</span> نفرِ دیگه)
+          </button>
+        )}
       </div>}
 
       {view === 'players' && <p style={{ fontSize: 11, color: C.tmut, padding: '0 16px 12px', textAlign: 'center' }}>
