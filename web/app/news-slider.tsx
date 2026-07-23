@@ -39,7 +39,7 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
       <div className="gl-scroll" style={{ display: 'flex', gap: 11, overflowX: 'auto', margin: '0 -16px', padding: '0 16px 4px', scrollSnapType: 'x mandatory' }}>
         {items.map((n, i) => (
           <button key={n.id} onClick={() => setOpen(n)}
-            style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, width: items.length === 1 ? '100%' : '82%', maxWidth: 420, scrollSnapAlign: 'start', position: 'relative', borderRadius: 16, overflow: 'hidden', border: `1px solid ${C.line}`, background: C.sf1, aspectRatio: '16/9' }}>
+            style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, width: items.length === 1 ? '100%' : '82%', maxWidth: 420, scrollSnapAlign: 'start', position: 'relative', borderRadius: 16, overflow: 'hidden', border: `1px solid ${C.line}`, background: C.sf1, aspectRatio: '2.1/1' }}>
             <img src={n.cover} alt="" loading={i > 0 ? 'lazy' : undefined} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             {/* scrim + title */}
             <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,10,8,0) 30%, rgba(11,10,8,.55) 62%, rgba(11,10,8,.92) 100%)' }} />
@@ -66,7 +66,7 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
           <div onClick={e => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 560, maxHeight: '92dvh', overflowY: 'auto', background: '#171410', border: `1px solid ${C.line2}`, borderBottom: 'none', borderRadius: '22px 22px 0 0', animation: 'glSlideUp .3s cubic-bezier(.2,.9,.3,1)' }}>
             {/* cover hero */}
-            <div style={{ position: 'relative', aspectRatio: '16/9' }}>
+            <div style={{ position: 'relative', aspectRatio: '1.85/1' }}>
               <img src={open.cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
               <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(23,20,16,0) 45%, rgba(23,20,16,1) 100%)' }} />
               <button onClick={() => setOpen(null)} aria-label="بستن"
