@@ -59,7 +59,8 @@ export default function BottomNav() {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, height: 66,
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
+      height: 'calc(66px + env(safe-area-inset-bottom, 0px))',
       display: 'flex', alignItems: 'stretch', justifyContent: 'space-around',
       background: 'rgba(20,17,13,.96)', borderTop: `1px solid ${LINE}`,
       backdropFilter: 'blur(14px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)',

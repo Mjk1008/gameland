@@ -47,7 +47,7 @@ export default function AddToHome() {
   if (mode === 'hidden') return null
 
   return (
-    <div style={{ position: 'fixed', insetInline: 12, bottom: 76, zIndex: 60 }} className="animate-fade-up">
+    <div style={{ position: 'fixed', insetInline: 12, bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', zIndex: 60 }} className="animate-fade-up">
       <div style={{ background: C.sf1, border: `1px solid ${C.gold}55`, borderRadius: 15, padding: '13px 14px', boxShadow: '0 8px 30px rgba(0,0,0,.45)' }}>
         {!showIosGuide ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
