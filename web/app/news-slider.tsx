@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { C, DISP } from '@/components/ui'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
@@ -141,12 +142,13 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
         </div>
       )}
 
-      {/* ── story modal (smooth open + smooth close) ── */}
-      {open && (
+      {/* ── story modal — portaled to <body> so ancestor transforms (e.g. the
+          page's fade-up animation) can never re-anchor position:fixed ── */}
+      {open && typeof document !== 'undefined' && createPortal(
         <div onClick={closeModal}
           style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(11,10,8,.78)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: closing ? 'glFadeOut .24s ease forwards' : 'glFade .22s ease' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 560, maxHeight: '92dvh', overflowY: 'auto', background: '#171410', border: `1px solid ${C.line2}`, borderBottom: 'none', borderRadius: '22px 22px 0 0', animation: closing ? 'glSlideDown .24s ease forwards' : 'glSlideUp .3s cubic-bezier(.2,.9,.3,1)' }}>
+            style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', background: '#171410', border: `1px solid ${C.line2}`, borderBottom: 'none', borderRadius: '22px 22px 0 0', animation: closing ? 'glSlideDown .24s ease forwards' : 'glSlideUp .3s cubic-bezier(.2,.9,.3,1)' }}>
             <div style={{ position: 'relative', aspectRatio: '1.85/1' }}>
               <img src={open.cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
               <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(23,20,16,0) 45%, rgba(23,20,16,1) 100%)' }} />
@@ -172,7 +174,8 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
               <div style={{ fontSize: 13.5, color: C.tbody, lineHeight: 2.2, whiteSpace: 'pre-wrap' }}>{open.body || '—'}</div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style jsx global>{`
