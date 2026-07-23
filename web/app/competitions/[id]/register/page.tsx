@@ -56,5 +56,5 @@ export default async function RegisterPage({ params }: { params: { id: string } 
     )
   }
 
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy && Date.now() - u.createdAt < 14 * 86400000} freeTickets={u.freeTickets ?? 0} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} freeTickets={u.freeTickets ?? 0} />
 }

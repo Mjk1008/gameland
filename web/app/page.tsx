@@ -166,6 +166,12 @@ export default async function HomePage() {
 
       {/* Gameland News — admin-managed slider; tapping a card opens the story modal */}
       {newsSlides.length > 0 && <NewsSlider items={newsSlides} />}
+      {newsSlides.length === 0 && me?.role === 'admin' && (
+        <Link href="/admin/news" style={{ all: 'unset', cursor: 'pointer', display: 'block', border: `1.5px dashed ${C.line2}`, borderRadius: 14, padding: '16px 15px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.thi }}>📰 اسلایدرِ خبری اینجا میاد</div>
+          <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 4 }}>فقط تو (ادمین) اینو می‌بینی — اولین خبر رو منتشر کن ›</div>
+        </Link>
+      )}
 
       {/* Active competitions      {/* Active competitions — promoter cards */}
       <div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createPhoneUser, setReferrerByTag, whenReady } from '@/lib/store'
+import { createPhoneUser, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { hashPassword, MIN_PASSWORD } from '@/lib/password'
 
@@ -18,10 +18,6 @@ export async function POST(req: Request) {
 
   try {
     const u = createPhoneUser({ phone, email, passwordHash: hashPassword(password) })
-    // referral attribution — optional, silently ignored when invalid (never
-    // blocks signup); immutable once set
-    const ref = (b.ref ?? '').toString().trim()
-    if (ref) setReferrerByTag(u.id, ref)
     await persist.user.insertAsync(u)   // durable: only report success once committed
     return NextResponse.json({ ok: true, userId: u.id })
   } catch (e: any) {

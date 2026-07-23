@@ -23,13 +23,10 @@ export async function POST(req: Request) {
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
 
-  // Second-chance referral attribution: a fresh account that skipped the code
-  // at signup can attach it here (once, immutable). Age-gated so old accounts
-  // can't be claimed retroactively by a referrer who didn't bring them.
+  // Referral attribution happens at purchase (product decision): the buyer
+  // enters/confirms the code here; set once, immutable, self-referral blocked.
   const ref = (body.ref ?? '').toString().trim()
-  if (ref && !u.referredBy && Date.now() - u.createdAt < 14 * 86400000) {
-    setReferrerByTag(uid, ref)
-  }
+  if (ref && !u.referredBy) setReferrerByTag(uid, ref)
   // V1: registration is free (sponsor-funded prizes). Only open events accept it.
   if (c.status !== 'open') {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
@@ -13,7 +13,15 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
 
   const [attempts, setAttempts] = useState(1)
   const [ref, setRef] = useState('')
-  const [showRef, setShowRef] = useState(false)
+  // prefill from the invite link (?ref=) caught anywhere in the app
+  useEffect(() => {
+    if (!canSetRef) return
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get('ref')
+      const v = (fromUrl || localStorage.getItem('gl_ref') || '').trim()
+      if (v) setRef(v.replace(/^@/, ''))
+    } catch {}
+  }, [canSetRef])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -99,15 +107,14 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           </div>
         )}
 
-        {/* referral code — second chance for fresh accounts that skipped it at signup */}
+        {/* referral code — attribution happens here, at purchase */}
         {canSetRef && (
-          !showRef
-            ? <button type="button" onClick={() => setShowRef(true)} style={{ all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.accent }}>+ کدِ دعوت داری؟</button>
-            : <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ دعوت (تگِ رفیقی که معرفیت کرده)</div>
-                <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
-                  style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
-              </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ دعوت (اختیاری) — اگه رفیقی معرفیت کرده، تگش رو بزن</div>
+            <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
+              style={{ background: C.sf2, border: `1px solid ${ref ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
+            {ref && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ این خرید به‌نامِ @{ref} ثبت می‌شه</div>}
+          </div>
         )}
 
         {/* Total */}

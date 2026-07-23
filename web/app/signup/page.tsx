@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { C, DISP, Wordmark, Button } from '@/components/ui'
@@ -8,17 +8,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [ref, setRef] = useState('')
   const [busy, setBusy] = useState(false)
-
-  // referral code — autofilled from ?ref= (share links) or a previously
-  // caught ref stored by the landing catcher; typing is the fallback
-  useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('ref')
-    const stored = localStorage.getItem('gl_ref')
-    const v = (fromUrl || stored || '').trim()
-    if (v) setRef(v)
-  }, [])
   const [fe, setFe] = useState<Record<string, string>>({})
   const clear = (k: string) => setFe(p => { if (!p[k]) return p; const n = { ...p }; delete n[k]; return n })
 
@@ -34,7 +24,7 @@ export default function SignupPage() {
     try {
       const res = await fetch('/api/signup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, email, password, ref: ref.trim() || undefined }),
+        body: JSON.stringify({ phone, email, password }),
       })
       const j = await res.json()
       if (!res.ok) {
@@ -69,9 +59,6 @@ export default function SignupPage() {
         </Field>
         <Field label="گذرواژه (حداقل ۸ کاراکتر)" err={fe.password}>
           <input type="password" autoComplete="new-password" value={password} onChange={e => { clear('password'); setPassword(e.target.value) }} style={inp} placeholder="••••••••" />
-        </Field>
-        <Field label="کد دعوت (اختیاری) — تگِ رفیقی که معرفیت کرده" err={fe.ref}>
-          <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} style={{ ...inp, fontFamily: DISP, textAlign: 'left' }} placeholder="gamertag" />
         </Field>
 
         {fe.form && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{fe.form}</div>}
