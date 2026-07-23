@@ -88,6 +88,7 @@ function ensureHydrated() {
     loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
+    loadNews:      (n: NewsRow) => { newsRows.set(n.id, n) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
   }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
@@ -977,6 +978,51 @@ export function updatePromo(id: string, patch: Partial<PromoRow>): PromoRow {
 export function deletePromo(id: string): void {
   promos.delete(id)
   persist.promo.delete(id)
+}
+
+// ─── News (home news slider + detail modal, admin-managed) ──────────────────
+export interface NewsRow {
+  id: string
+  imageData: string     // cover — data: URL (base64) or external URL
+  title: string
+  body: string
+  tags: string[]
+  sort: number
+  active: boolean
+  createdAt: number
+}
+const newsRows = new Map<string, NewsRow>()
+
+export function allNews(): NewsRow[] {
+  return Array.from(newsRows.values()).sort((a, b) => a.sort - b.sort || b.createdAt - a.createdAt)
+}
+export function activeNews(): NewsRow[] { return allNews().filter(n => n.active) }
+export function getNews(id: string): NewsRow | undefined { return newsRows.get(id) }
+export function createNews(input: { imageData: string; title: string; body: string; tags?: string[]; sort?: number; active?: boolean }): NewsRow {
+  const id = 'news_' + Math.random().toString(36).slice(2, 10)
+  const n: NewsRow = {
+    id, imageData: input.imageData, title: input.title.trim(), body: input.body.trim(),
+    tags: (input.tags ?? []).map(t => t.trim()).filter(Boolean).slice(0, 6),
+    sort: input.sort ?? allNews().length, active: input.active ?? true, createdAt: Date.now(),
+  }
+  newsRows.set(id, n)
+  persist.news?.insert(n)
+  return n
+}
+export function updateNews(id: string, patch: Partial<Omit<NewsRow, 'id' | 'createdAt'>>): NewsRow {
+  const n = newsRows.get(id); if (!n) throw new Error('NEWS_NOT_FOUND')
+  if (patch.imageData !== undefined) n.imageData = patch.imageData
+  if (patch.title !== undefined) n.title = patch.title.trim()
+  if (patch.body !== undefined) n.body = patch.body.trim()
+  if (patch.tags !== undefined) n.tags = patch.tags.map(t => t.trim()).filter(Boolean).slice(0, 6)
+  if (patch.sort !== undefined) n.sort = patch.sort
+  if (patch.active !== undefined) n.active = patch.active
+  persist.news?.insert(n)   // upsert
+  return n
+}
+export function deleteNews(id: string): void {
+  newsRows.delete(id)
+  persist.news?.delete(id)
 }
 // Move a slide up/down by swapping sort with its neighbour.
 export function reorderPromo(id: string, dir: 'up' | 'down'): void {

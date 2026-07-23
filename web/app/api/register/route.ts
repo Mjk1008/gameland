@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, consumeFreeTickets, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
+import { createRegistration, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 
 export async function POST(req: Request) {
@@ -22,6 +22,14 @@ export async function POST(req: Request) {
   if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد بلیط باید ۱ تا ۶ باشد' }, { status: 400 })
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+
+  // Second-chance referral attribution: a fresh account that skipped the code
+  // at signup can attach it here (once, immutable). Age-gated so old accounts
+  // can't be claimed retroactively by a referrer who didn't bring them.
+  const ref = (body.ref ?? '').toString().trim()
+  if (ref && !u.referredBy && Date.now() - u.createdAt < 14 * 86400000) {
+    setReferrerByTag(uid, ref)
+  }
   // V1: registration is free (sponsor-funded prizes). Only open events accept it.
   if (c.status !== 'open') {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'

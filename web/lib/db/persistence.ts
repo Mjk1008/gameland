@@ -27,6 +27,7 @@ export function startHydration(loaders: {
   loadEventConfig?: (compId: string, json: string) => void
   loadCompetition?: (c: any) => void
   loadPromo?:    (p: any) => void
+  loadNews?:     (n: any) => void
   loadAvatarId?: (userId: string) => void
   loadReceiptId?: (regId: string) => void
 }): Promise<void> {
@@ -52,6 +53,7 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_news (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -136,6 +138,15 @@ export function startHydration(loaders: {
           eventId: p.eventId ?? undefined, url: p.url ?? undefined,
           sort: p.sort ?? 0, active: p.active ?? true, createdAt: ms(p.createdAt),
         })
+
+      try {
+        const nw = await d.select().from(schema.news)
+        for (const n of nw) loaders.loadNews?.({
+          id: n.id, imageData: n.imageData, title: n.title, body: n.body,
+          tags: n.tags ? n.tags.split(',').filter(Boolean) : [],
+          sort: n.sort, active: n.active, createdAt: ms(n.createdAt),
+        })
+      } catch (e) { console.error('[db] load news:', e) }
       } catch (e) { console.error('[db] load promos:', e) }
 
       try {
@@ -358,6 +369,18 @@ export const persist = {
       fire(d.insert(schema.placements).values({
         id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
       }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
+    },
+  },
+  news: {
+    insert(n: { id: string; imageData: string; title: string; body: string; tags: string[]; sort: number; active: boolean }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.news).values({
+        id: n.id, imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active,
+      }).onConflictDoUpdate({ target: schema.news.id, set: { imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active } }))
+    },
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.news).where(eq(schema.news.id, id)))
     },
   },
   promo: {

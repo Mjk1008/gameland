@@ -17,6 +17,7 @@ export default function AdminHome() {
     { href: '/admin/competitions/new', label: 'رویداد چندرشته‌ای', sub: 'مسابقهٔ مادر + رشته‌ها', icon: <IconTrophy /> },
     { href: '/admin/events',      label: 'مسابقات',    sub: `${events.length} مسابقه`,   icon: <IconGrid /> },
     { href: '/admin/promos',      label: 'اسلایدر',    sub: `${slideCount} اسلاید`,      icon: <IconImage /> },
+    { href: '/admin/news',        label: 'اخبار',      sub: 'اسلایدر خبری خانه',         icon: <IconNews /> },
     { href: '/admin/requests',    label: 'درخواست‌ها', sub: pending ? `${pending} منتظر` : 'همه رسیدگی‌شده', icon: <IconInbox />, badge: pending },
     { href: '/admin/gamers',      label: 'گیمرها',     sub: `${userCount} کاربر`,        icon: <IconUsers /> },
     { href: '/admin/disciplines', label: 'رشته‌ها',    sub: 'مدیریت بازی‌ها',            icon: <IconGrid /> },
@@ -123,3 +124,4 @@ const IconPin    = () => svg(<><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7
 const IconBell   = () => svg(<><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0" /></>)
 const IconPlus   = () => svg(<><path d="M12 5v14M5 12h14" /></>)
 const IconChart  = () => svg(<><path d="M3 3v18h18M8 15v3M13 9v9M18 5v13" /></>)
+const IconNews   = () => svg(<><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 8h3v9a2 2 0 0 1-2 2M7 9h7M7 13h7M7 17h4" /></>)

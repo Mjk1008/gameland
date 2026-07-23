@@ -204,6 +204,18 @@ export const receipts = pgTable('app_receipts', {
 })
 
 // ─── Promo slides (home carousel, admin-managed) ─────────────
+// ─── News (home news slider + modal, admin-managed) ─────────────
+export const news = pgTable('app_news', {
+  id:        text('id').primaryKey(),
+  imageData: text('image_data').notNull(),   // cover — data: URL (base64) or external URL
+  title:     text('title').notNull(),
+  body:      text('body').notNull().default(''),
+  tags:      text('tags').notNull().default(''),   // comma-separated
+  sort:      integer('sort').notNull().default(0),
+  active:    boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const promos = pgTable('app_promos', {
   id:        text('id').primaryKey(),
   imageData: text('image_data').notNull(),          // data: URL (base64) or external URL

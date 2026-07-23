@@ -5,13 +5,15 @@ import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { TICKET, ticketOffPercent, toman } from '@/lib/payment'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; freeTickets?: number }
 
-export default function RegisterForm({ comp, owned, remaining }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTickets = 0 }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
   const [attempts, setAttempts] = useState(1)
+  const [ref, setRef] = useState('')
+  const [showRef, setShowRef] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -20,7 +22,7 @@ export default function RegisterForm({ comp, owned, remaining }: Props) {
     try {
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ compId: comp.id, attempts }),
+        body: JSON.stringify({ compId: comp.id, attempts, ref: ref.trim() || undefined }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت‌نام انجام نشد، دوباره امتحان کن')
@@ -90,11 +92,29 @@ export default function RegisterForm({ comp, owned, remaining }: Props) {
           </div>
         </div>
 
+        {/* free referral tickets get applied automatically */}
+        {freeTickets > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, fontWeight: 700, color: C.gold }}>
+            🎟 <span className="gl-num">{Math.min(freeTickets, attempts)}</span> سهم از این ثبت‌نام با جایزهٔ دعوتت رایگان حساب می‌شه.
+          </div>
+        )}
+
+        {/* referral code — second chance for fresh accounts that skipped it at signup */}
+        {canSetRef && (
+          !showRef
+            ? <button type="button" onClick={() => setShowRef(true)} style={{ all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.accent }}>+ کدِ دعوت داری؟</button>
+            : <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ دعوت (تگِ رفیقی که معرفیت کرده)</div>
+                <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
+                  style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
+              </div>
+        )}
+
         {/* Total */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: '13px 15px' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>مبلغ قابل پرداخت</span>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
-            <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(attempts * TICKET.price)}</span>
+            <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(Math.max(0, attempts - Math.min(freeTickets, attempts)) * TICKET.price)}</span>
             <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
           </span>
         </div>

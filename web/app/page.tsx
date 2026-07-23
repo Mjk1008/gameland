@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { DISC } from '@/lib/mock-data'
 import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT, GamerAvatar } from '@/components/ui'
 import PromoSlider from './promo-slider'
+import NewsSlider from './news-slider'
 import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
 
@@ -36,7 +37,6 @@ export default async function HomePage() {
     .sort((a, b) => (pointsAcc.get(b.id) ?? 0) - (pointsAcc.get(a.id) ?? 0))
     .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0, hasPhoto: hasAvatar(u.id), card: playerCard(u.tag) }))
 
-  const champ = ranked[0]
   const top = ranked.slice(0, 3)
 
   // group into mother competitions (رویداد) + standalone events for the home cards
@@ -69,6 +69,12 @@ export default async function HomePage() {
     .filter(e => e.status === 'open' && e.regDeadline && e.regDeadline > Date.now())
     .sort((a, b) => (a.regDeadline ?? 0) - (b.regDeadline ?? 0))[0]
   const deadlineDays = nextDeadline ? Math.max(1, Math.ceil(((nextDeadline.regDeadline ?? 0) - Date.now()) / 86400000)) : null
+
+  // news slides — covers served via /api/news-image (same anti-bloat rule as promos)
+  const newsSlides = activeNews().slice(0, 5).map(n => ({
+    id: n.id, title: n.title, body: n.body, tags: n.tags,
+    cover: n.imageData.startsWith('data:') ? `/api/news-image/${n.id}` : n.imageData,
+  }))
 
   // Home slider — admin-managed slides (image + optional link). Fall back to the
   // bundled game posters when the admin hasn't added any yet.
@@ -158,36 +164,10 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* Champion lower-third hero */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <Label>National Ranking</Label>
-          <span style={{ flex: 1, height: 1, background: C.line }} />
-        </div>
-        {champ ? (
-          <div style={{ position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.accent }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: C.goldSoft, border: `1px solid ${C.gold}`, color: C.gold, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}><span className="gl-num">#1</span> صدرنشین</span>
-                {champ.disc && <span style={{ width: 8, height: 8, borderRadius: '50%', background: DISC_DOT[champ.disc] ?? C.tmut }} />}
-              </div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: C.thi, marginTop: 8 }}>{champ.name}</div>
-              <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{champ.tag} · {champ.city}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <Num size={44} color={C.accent}>{champ.points.toLocaleString('en-US')}</Num>
-              <div><Label size={10}>Points</Label></div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
-            <EmptyState text="رنکینگ ملی بعد از اولین مسابقه فعال می‌شه" />
-          </div>
-        )}
-      </div>
+      {/* Gameland News — admin-managed slider; tapping a card opens the story modal */}
+      {newsSlides.length > 0 && <NewsSlider items={newsSlides} />}
 
-      {/* Active competitions — promoter cards */}
+      {/* Active competitions      {/* Active competitions — promoter cards */}
       <div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 19, fontWeight: 700, color: C.thi }}>مسابقات فعال</span>
