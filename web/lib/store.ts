@@ -148,12 +148,12 @@ export function setReferrerByTag(userId: string, refTag: string): boolean {
   return true
 }
 
-// Distinct referred users who have at least one APPROVED registration.
+// Total APPROVED tickets (سهم) bought by this referrer's invitees.
 export function approvedReferralCount(referrerId: string): number {
   let n = 0
   for (const u of users.values()) {
     if (u.referredBy !== referrerId) continue
-    if (registrationsForUser(u.id).some(r => r.status === 'approved')) n++
+    for (const r of registrationsForUser(u.id)) if (r.status === 'approved') n += r.attempts
   }
   return n
 }
@@ -166,18 +166,18 @@ export function grantReferralRewards(referredUserId: string) {
   if (!refId) return
   const referrer = users.get(refId)
   if (!referrer) return
-  const count = approvedReferralCount(refId)
+  const count = approvedReferralCount(refId)   // approved tickets brought
   const milestone = referrer.referralMilestone ?? 0
   let granted = 0
-  if (count >= 2 && milestone < 2) { granted += 1; referrer.referralMilestone = 2 }
-  if (count >= 5 && (referrer.referralMilestone ?? 0) < 5) { granted += 2; referrer.referralMilestone = 5 }
+  if (count >= 3 && milestone < 3) { granted += 1; referrer.referralMilestone = 3 }
+  if (count >= 6 && (referrer.referralMilestone ?? 0) < 6) { granted += 2; referrer.referralMilestone = 6 }
   if (granted === 0) return
   referrer.freeTickets = (referrer.freeTickets ?? 0) + granted
   persist.user.update(refId, { freeTickets: referrer.freeTickets, referralMilestone: referrer.referralMilestone })
   pushNotif(refId, 'announcement', granted === 1 ? '🎟 یه سهمِ رایگان گرفتی!' : '🎟 ۲ سهمِ رایگانِ دیگه گرفتی!',
-    count >= 5
-      ? 'به ۵ دعوتِ تاییدشده رسیدی — نشانِ «سفیر گیم‌لند» مالِ توئه. سهم‌های رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شن.'
-      : `${count} نفر از دعوتی‌هات تایید شدن. سهمِ رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شه — ۳ تای دیگه بیار تا ۲ سهمِ دیگه بگیری!`)
+    count >= 6
+      ? 'دعوتی‌هات به ۶ سهمِ تاییدشده رسیدن — جمعاً ۳ سهمِ رایگان گرفتی و نشانِ «سفیر گیم‌لند» مالِ توئه. موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شن.'
+      : `دعوتی‌هات ${count} سهمِ تاییدشده خریدن. سهمِ رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شه — ${6 - count} سهمِ دیگه تا ۲ سهمِ رایگانِ بعدی!`)
 }
 
 // Redeem free tickets inside a registration (called right after createRegistration).
@@ -193,13 +193,12 @@ export function consumeFreeTickets(userId: string, regId: string, n: number) {
   persist.reg.update(regId, { freeAttempts: r.freeAttempts } as any)
 }
 
-// Public campaign leaderboard — top referrers by approved referrals.
+// Public campaign leaderboard — top referrers by approved tickets brought.
 export function referralLeaderboard(limit = 10): { uid: string; name: string; tag: string; count: number }[] {
   const acc = new Map<string, number>()
   for (const u of users.values()) {
     if (!u.referredBy) continue
-    if (!registrationsForUser(u.id).some(r => r.status === 'approved')) continue
-    acc.set(u.referredBy, (acc.get(u.referredBy) ?? 0) + 1)
+    for (const r of registrationsForUser(u.id)) if (r.status === 'approved') acc.set(u.referredBy, (acc.get(u.referredBy) ?? 0) + r.attempts)
   }
   return Array.from(acc.entries())
     .map(([uid, count]) => { const u = users.get(uid); return u ? { uid, name: u.name, tag: u.tag, count } : null })

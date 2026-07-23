@@ -8,8 +8,8 @@ interface Props { tag: string; approved: number; invited: number; freeTickets: n
 
 // Reward ladder — keep in sync with grantReferralRewards in lib/store.ts
 const LADDER = [
-  { at: 2, label: '۲ دعوتِ تاییدشده', reward: '۱ سهمِ رایگان' },
-  { at: 5, label: '۵ دعوتِ تاییدشده', reward: '۲ سهمِ دیگه + نشانِ سفیر' },
+  { at: 3, label: '۳ سهمِ تاییدشده', reward: '۱ سهمِ رایگان' },
+  { at: 6, label: '۶ سهمِ تاییدشده', reward: '۲ سهمِ دیگه (جمعاً ۳) + نشانِ سفیر' },
 ]
 
 export default function InviteClient({ tag, approved, invited, freeTickets, board }: Props) {
@@ -32,7 +32,7 @@ export default function InviteClient({ tag, approved, invited, freeTickets, boar
       <div>
         <div style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>رفیقتو بیار 🎟</div>
         <div style={{ fontSize: 12.5, color: C.tbody, lineHeight: 1.9, marginTop: 6 }}>
-          رفیق‌هات با کدِ تو اکانت بسازن؛ هر وقت ثبت‌نامِ مسابقه‌شون <b style={{ color: C.thi }}>تایید</b> شد، به پاداش نزدیک‌تر می‌شی. کمپین تا شبِ قرعه‌کشی فعاله.
+          رفیق‌هات با کدِ تو اکانت بسازن؛ هر سهمی که بخرن و <b style={{ color: C.thi }}>تایید</b> شه، تو رو به پاداش نزدیک‌تر می‌کنه. کمپین تا شبِ قرعه‌کشی فعاله.
         </div>
       </div>
 
@@ -51,7 +51,7 @@ export default function InviteClient({ tag, approved, invited, freeTickets, boar
       <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 13.5, fontWeight: 800, color: C.thi }}>مسیرِ پاداشِ تو</span>
-          <span style={{ fontSize: 11.5, color: C.tmut }}><span className="gl-num" style={{ color: C.win }}>{faDigits(approved)}</span> تاییدشده از <span className="gl-num">{faDigits(invited)}</span> دعوتی</span>
+          <span style={{ fontSize: 11.5, color: C.tmut }}><span className="gl-num" style={{ color: C.win }}>{faDigits(approved)}</span> سهمِ تاییدشده · <span className="gl-num">{faDigits(invited)}</span> دعوتی</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {LADDER.map(l => {
@@ -72,7 +72,7 @@ export default function InviteClient({ tag, approved, invited, freeTickets, boar
         </div>
         {next && (
           <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 12, lineHeight: 1.8 }}>
-            <span className="gl-num" style={{ color: C.gold, fontWeight: 800 }}>{faDigits(next.at - approved)}</span> دعوتِ تاییدشده‌ی دیگه تا {next.reward}!
+            <span className="gl-num" style={{ color: C.gold, fontWeight: 800 }}>{faDigits(next.at - approved)}</span> سهمِ تاییدشده‌ی دیگه تا {next.reward}!
           </div>
         )}
         {freeTickets > 0 && (
@@ -85,7 +85,7 @@ export default function InviteClient({ tag, approved, invited, freeTickets, boar
       {/* campaign leaderboard */}
       <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16 }}>
         <div style={{ fontSize: 13.5, fontWeight: 800, color: C.thi, marginBottom: 4 }}>لیدربردِ دعوت</div>
-        <div style={{ fontSize: 11, color: C.tmut, marginBottom: 12 }}>نفرِ اول در پایانِ کمپین: سهمِ کامل تا سقفِ ۶ + معرفی تو پیجِ گیم‌لند</div>
+        <div style={{ fontSize: 11, color: C.tmut, marginBottom: 12 }}>نفرِ اول در پایانِ کمپین: ۶ سهمِ کامل + معرفی تو پیجِ گیم‌لند</div>
         {board.length === 0 ? (
           <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '14px 0' }}>هنوز کسی دعوتِ تاییدشده نداره — تو اولین نفر باش!</div>
         ) : (
@@ -95,7 +95,7 @@ export default function InviteClient({ tag, approved, invited, freeTickets, boar
                 <span className="gl-num" style={{ width: 20, textAlign: 'center', fontWeight: 800, fontSize: 15, color: i === 0 ? C.gold : C.tmut }}>{i + 1}</span>
                 <GamerAvatar uid={r.uid} tag={r.tag} hasPhoto={r.hasPhoto} card={null} size={34} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}{r.isMe ? ' · تو' : ''}</span>
-                <span style={{ fontSize: 11, color: C.tmut }}><span className="gl-num" style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>{faDigits(r.count)}</span> دعوت</span>
+                <span style={{ fontSize: 11, color: C.tmut }}><span className="gl-num" style={{ fontSize: 15, fontWeight: 800, color: C.thi }}>{faDigits(r.count)}</span> سهم</span>
               </div>
             ))}
           </div>
