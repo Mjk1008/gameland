@@ -72,7 +72,7 @@ export default async function HomePage() {
 
   // news slides — covers served via /api/news-image (same anti-bloat rule as promos)
   const newsSlides = activeNews().slice(0, 5).map(n => ({
-    id: n.id, title: n.title, body: n.body, tags: n.tags,
+    id: n.id, title: n.title, body: n.body, tags: n.tags, at: n.createdAt,
     cover: n.imageData.startsWith('data:') ? `/api/news-image/${n.id}` : n.imageData,
   }))
 

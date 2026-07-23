@@ -1,8 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, DISP } from '@/components/ui'
+import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
-export interface NewsSlide { id: string; cover: string; title: string; body: string; tags: string[] }
+export interface NewsSlide { id: string; cover: string; title: string; body: string; tags: string[]; at: number }
+
+const jdate = (ms: number) => {
+  const d = new Date(ms)
+  const j = toJalali(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  return `${faDigits(j.jd)} ${J_MONTHS[j.jm - 1]} ${faDigits(j.jy)}`
+}
 
 // Home news rail + detail modal. Cards snap-scroll like the promo slider;
 // tapping opens a full "broadcast" modal: cover hero → title over scrim →
@@ -68,6 +75,7 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
             </div>
 
             <div style={{ padding: '2px 20px 30px' }}>
+              <div style={{ fontSize: 10.5, color: C.tmut, marginBottom: 8 }}>{jdate(open.at)} · گیم‌لند</div>
               <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: C.thi, lineHeight: 1.75 }}>{open.title}</h2>
 
               {open.tags.length > 0 && (
