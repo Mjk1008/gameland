@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { C } from '@/components/ui'
+import { GlassArrow } from './news-slider'
 
 export type Slide = { src: string; href?: string }
 
@@ -25,6 +26,12 @@ export default function PromoSlider({ slides }: { slides: Slide[] }) {
           ? <a key={idx} href={s.href} {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})} style={{ position: 'absolute', inset: 0, display: 'block', pointerEvents: active ? 'auto' : 'none' }} aria-label={`اسلاید ${idx + 1}`}>{img}</a>
           : <div key={idx} style={{ position: 'absolute', inset: 0 }}>{img}</div>
       })}
+      {slides.length > 1 && (
+        <>
+          <GlassArrow dir="right" onClick={() => setI(v => (v - 1 + slides.length) % slides.length)} />
+          <GlassArrow dir="left" onClick={() => setI(v => (v + 1) % slides.length)} />
+        </>
+      )}
       {slides.length > 1 && (
         <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 2 }}>
           {slides.map((_, idx) => (
