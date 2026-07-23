@@ -27,14 +27,24 @@ function compress(file: File): Promise<string> {
   })
 }
 
+// One-box convention: FIRST line = title, #words anywhere = tags (stripped),
+// everything else = body. The admin always pastes one blob; we structure it.
+function parseNews(raw: string): { title: string; body: string; tags: string[] } {
+  const tags = Array.from(raw.matchAll(/#([\u0600-\u06FF\w\u200c]+)/g)).map(m => m[1]).slice(0, 6)
+  const cleaned = raw.replace(/#[\u0600-\u06FF\w\u200c]+/g, '').trim()
+  const lines = cleaned.split('\n').map(l => l.trim())
+  const title = (lines.find(l => l.length > 0) ?? '').slice(0, 120)
+  const body = lines.slice(lines.findIndex(l => l.length > 0) + 1).join('\n').trim()
+  return { title, body, tags }
+}
+
 export default function NewsAdminClient({ initial }: { initial: Item[] }) {
   const router = useRouter()
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [tags, setTags] = useState('')
+  const [raw, setRaw] = useState('')
   const [image, setImage] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const parsed = parseNews(raw)
 
   async function api(payload: any) {
     const res = await fetch('/api/admin/news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -44,12 +54,12 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
 
   async function create() {
     setErr(null)
-    if (!title.trim()) return setErr('تیتر رو بنویس')
+    if (!parsed.title) return setErr('متنِ خبر خالیه — خطِ اول تیتره')
     if (!image) return setErr('کاور رو آپلود کن')
     setBusy(true)
     try {
-      await api({ action: 'create', title, body, tags, imageData: image })
-      setTitle(''); setBody(''); setTags(''); setImage('')
+      await api({ action: 'create', title: parsed.title, body: parsed.body, tags: parsed.tags, imageData: image })
+      setRaw(''); setImage('')
       router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -68,9 +78,19 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
             : <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, color: C.tmut }}>+ کاور خبر (لمس کن)</span>}
         </label>
 
-        <input value={title} onChange={e => setTitle(e.target.value.slice(0, 120))} placeholder="تیتر خبر" style={inp} />
-        <textarea value={body} onChange={e => setBody(e.target.value.slice(0, 4000))} placeholder="متن کامل خبر…" rows={5} style={{ ...inp, resize: 'vertical', lineHeight: 1.9 }} />
-        <input value={tags} onChange={e => setTags(e.target.value)} placeholder="تگ‌ها با ویرگول: FC26، قرعه‌کشی، جایزه" style={inp} />
+        <textarea value={raw} onChange={e => setRaw(e.target.value.slice(0, 4200))} rows={8}
+          placeholder={'کلِ خبر رو همین‌جا پیست کن:\n\nخطِ اول → تیتر\nبقیه → متنِ خبر\nهرجا #تگ بزنی → تگ می‌شه\n\nمثال:\nقرعه‌کشی FC26 پنجشنبه انجام می‌شه\nهمهٔ ثبت‌نامی‌ها ساعت ۲۱ نتیجه رو تو اپ می‌بینن...\n#FC26 #قرعه‌کشی'}
+          style={{ ...inp, resize: 'vertical', lineHeight: 2 }} />
+
+        {/* live parse preview — the admin sees exactly what will publish */}
+        {raw.trim() && (
+          <div style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 10, color: C.tmut }}>این‌طوری منتشر می‌شه:</div>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: C.thi }}>{parsed.title || '—'}</div>
+            {parsed.tags.length > 0 && <div style={{ fontSize: 10.5, color: C.gold }}>{parsed.tags.map(t => `#${t}`).join('  ')}</div>}
+            {parsed.body && <div style={{ fontSize: 11.5, color: C.tbody, lineHeight: 1.9, maxHeight: 72, overflow: 'hidden' }}>{parsed.body}</div>}
+          </div>
+        )}
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 9, borderRadius: 9 }}>{err}</div>}
         <button onClick={create} disabled={busy} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 11, background: C.accent, color: C.ink, fontWeight: 800, fontSize: 14, opacity: busy ? 0.6 : 1 }}>
