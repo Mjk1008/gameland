@@ -94,7 +94,7 @@ export default async function HomePage() {
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
       {/* Header — compact brand lockup, sticky so the shell stays put while content scrolls */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-14px -16px 0', padding: '14px 16px 10px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
+      <div style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-14px -16px 0', padding: '14px 16px 10px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
         <Wordmark size={17} />
         <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE

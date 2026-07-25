@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import {
-  getUserById, whenReady, aiQuota, aiConsume, activityPointsOf,
+  getUserById, whenReady, aiGlobalFull, aiCountGlobal, aiDayStart, AI_DAILY_LIMIT, activityPointsOf,
   registrationsForUser, allEvents, activeNews, allUsers, approvedReferralCount,
   allCompetitions, notifsForUser, remainingTickets, getSetting, AI_KNOWLEDGE_KEY,
 } from '@/lib/store'
@@ -14,7 +14,8 @@ export const maxDuration = 60
 
 const MODEL = 'gpt-4o-mini'
 const MAX_INPUT = 500
-const MAX_HISTORY = 6
+const MAX_HISTORY = 12          // ~6 exchanges of working memory
+const MAX_HISTORY_CHARS = 4500  // hard budget so a long chat can't blow the context
 
 // ── Widget entities ────────────────────────────────────────────────────────
 // The model may reference these by id in action markers; the client renders
@@ -188,17 +189,24 @@ export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}))
   const message = (b.message ?? '').toString().trim().slice(0, MAX_INPUT)
   if (!message) return new Response(JSON.stringify({ error: 'پیام خالیه' }), { status: 400 })
-  const history: { role: 'user' | 'assistant'; content: string }[] = Array.isArray(b.history)
-    ? b.history.slice(-MAX_HISTORY).map((m: any) => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: (m.content ?? '').toString().replace(/\[\[[^\]]+\]\]/g, '').slice(0, 700),
-      }))
-    : []
+  // Context window: keep the most recent turns, newest-first, until the char
+  // budget is spent — then restore chronological order.
+  let history: { role: 'user' | 'assistant'; content: string }[] = []
+  if (Array.isArray(b.history)) {
+    let spent = 0
+    for (const m of b.history.slice(-MAX_HISTORY).reverse()) {
+      const content = (m.content ?? '').toString().replace(/\[\[[^\]]+\]\]/g, '').trim().slice(0, 700)
+      if (!content) continue
+      if (spent + content.length > MAX_HISTORY_CHARS) break
+      spent += content.length
+      history.unshift({ role: m.role === 'assistant' ? 'assistant' : 'user', content })
+    }
+  }
 
-  const q = aiQuota(uid)
-  if (q.globalFull) return new Response(JSON.stringify({ error: 'ظرفیت امروزِ دستیار پر شده — فردا دوباره بیا 🙏' }), { status: 429 })
-  if (q.used >= q.limit) return new Response(JSON.stringify({ error: `سقف ${q.limit} پیام امروزت پر شده — فردا ریست می‌شه ⏳` }), { status: 429 })
-  aiConsume(uid)
+  if (aiGlobalFull()) return new Response(JSON.stringify({ error: 'ظرفیت امروزِ دستیار پر شده — فردا دوباره بیا 🙏' }), { status: 429 })
+  const used = await persist.ai.usedSince(uid, aiDayStart())
+  if (used >= AI_DAILY_LIMIT) return new Response(JSON.stringify({ error: `سقف ${AI_DAILY_LIMIT} پیام امروزت پر شده — فردا ریست می‌شه ⏳` }), { status: 429 })
+  aiCountGlobal()
 
   const ent = buildEntities(uid)
   // Live state goes AFTER history so it always outranks anything said earlier.
@@ -277,6 +285,6 @@ export async function POST(req: Request) {
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Quota-Used': String(q.used + 1), 'X-Quota-Limit': String(q.limit) },
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Quota-Used': String(used + 1), 'X-Quota-Limit': String(AI_DAILY_LIMIT) },
   })
 }

@@ -404,6 +404,17 @@ export const persist = {
       const rows = await d.select().from(schema.aiMessages).where(eq(schema.aiMessages.userId, userId))
       return rows.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-limit)
     },
+    // Authoritative per-user daily usage. In-memory counters reset on every
+    // deploy, which silently handed everyone a fresh quota.
+    async usedSince(userId: string, sinceMs: number) {
+      const d = db(); if (!d) return 0
+      try {
+        const res: any = await d.execute(sql.raw(
+          `SELECT COUNT(*) AS n FROM app_ai_messages WHERE role='user' AND user_id='${userId.replace(/'/g, "''")}' AND created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})`))
+        const rows = (res.rows ?? res) as any[]
+        return Number(rows?.[0]?.n ?? 0)
+      } catch { return 0 }
+    },
     // aggregate stats since a timestamp — one grouped SQL round-trip
     async statsSince(sinceMs: number) {
       const d = db(); if (!d) return []

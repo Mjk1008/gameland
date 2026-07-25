@@ -32,7 +32,7 @@ export default function LeaderboardClient({ initial, meTag, me, cities }: { init
 
   return (
     <div className="animate-fade-up">
-      <div style={{ position: 'sticky', top: 0, zIndex: 5, background: 'rgba(20,17,13,.94)', backdropFilter: 'blur(10px)', padding: '14px 16px 10px', borderBottom: `1px solid ${C.line}` }}>
+      <div style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 5, background: 'rgba(20,17,13,.94)', backdropFilter: 'blur(10px)', padding: '14px 16px 10px', borderBottom: `1px solid ${C.line}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
           <span style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>رنکینگ ملی</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

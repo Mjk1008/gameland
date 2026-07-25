@@ -27,7 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(20,17,13,.95)', backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.line}` }}>
+      <header style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 10, background: 'rgba(20,17,13,.95)', backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.line}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
           <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 16, color: C.accent, letterSpacing: '.1em' }}>GAMELAND · ADMIN</span>
           <Link href="/me" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tmut }}>خروج ›</Link>

@@ -119,7 +119,7 @@ export default function AssistantChat({ firstName, quotaUsed, quotaLimit }: { fi
   const empty = msgs.length === 0
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#14110D' }}>
+    <div style={{ height: '100dvh', boxSizing: 'border-box', paddingTop: 'env(safe-area-inset-top, 0px)', display: 'flex', flexDirection: 'column', background: '#14110D' }}>
       {/* header */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(20,17,13,.96)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
         <Link href="/" aria-label="بازگشت" style={{ all: 'unset', cursor: 'pointer', width: 36, height: 36, borderRadius: 11, background: C.sf1, border: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.tbody }}>

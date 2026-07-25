@@ -69,3 +69,18 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up, .gl-skel { animation: none; }
 }
+
+
+/* Installed PWA renders edge-to-edge (viewportFit: cover), so the OS status bar
+   overlaps the page. Paint an opaque strip behind it and let sticky headers
+   dock below it — otherwise headers collide with the clock/battery. */
+@media (display-mode: standalone) {
+  body::before {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: #14110D;
+    z-index: 60;
+    pointer-events: none;
+  }
+}

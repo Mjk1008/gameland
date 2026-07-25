@@ -1192,7 +1192,7 @@ export { usingDb }
 
 
 // ─── AI assistant usage limiter (in-memory, single-instance by design) ──────
-const AI_DAILY_LIMIT = 10
+export const AI_DAILY_LIMIT = 20
 const AI_GLOBAL_DAILY_LIMIT = 2000
 const aiCounts = new Map<string, number>()   // `${day}|${userId}` → questions today
 let aiGlobal = { day: '', count: 0 }
@@ -1203,18 +1203,25 @@ function aiDayKey(): string {
   return `${t.getUTCFullYear()}-${t.getUTCMonth() + 1}-${t.getUTCDate()}`
 }
 
-export function aiQuota(userId: string): { used: number; limit: number; globalFull: boolean } {
-  const day = aiDayKey()
-  if (aiGlobal.day !== day) { aiGlobal = { day, count: 0 }; aiCounts.clear() }
-  return { used: aiCounts.get(day + '|' + userId) ?? 0, limit: AI_DAILY_LIMIT, globalFull: aiGlobal.count >= AI_GLOBAL_DAILY_LIMIT }
+// Epoch ms of the last Tehran midnight — the window the DB-backed quota counts.
+export function aiDayStart(): number {
+  const shifted = new Date(Date.now() + 3.5 * 3600_000)
+  const midnightShifted = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())
+  return midnightShifted - 3.5 * 3600_000
 }
 
-export function aiConsume(userId: string): boolean {
-  const q = aiQuota(userId)
-  if (q.globalFull || q.used >= q.limit) return false
-  aiCounts.set(aiDayKey() + '|' + userId, q.used + 1)
+// Per-user usage is read from Postgres (see persist.ai.usedSince) so a deploy
+// can't reset it. Only the app-wide brake stays in memory — resetting that on
+// a restart is harmless.
+export function aiGlobalFull(): boolean {
+  const day = aiDayKey()
+  if (aiGlobal.day !== day) { aiGlobal = { day, count: 0 }; aiCounts.clear() }
+  return aiGlobal.count >= AI_GLOBAL_DAILY_LIMIT
+}
+
+export function aiCountGlobal(): void {
+  if (aiGlobal.day !== aiDayKey()) aiGlobal = { day: aiDayKey(), count: 0 }
   aiGlobal.count++
-  return true
 }
 
 

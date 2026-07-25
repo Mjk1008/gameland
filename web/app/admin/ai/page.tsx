@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 // gpt-4o-mini list price (USD per token) — estimate shown to the admin
 const IN_PRICE = 0.15 / 1e6
 const OUT_PRICE = 0.60 / 1e6
-const DAILY_LIMIT = 10
+const DAILY_LIMIT = 20
 
 function money(usd: number) { return usd < 0.01 ? '<$0.01' : `$${usd.toFixed(2)}` }
 
