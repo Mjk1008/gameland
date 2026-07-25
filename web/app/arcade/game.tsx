@@ -2,17 +2,31 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  BUILDS, COLS, ROWS, W, H, TOTAL_WAVES, RES_META,
-  canAfford, demolish, ignitePitch, newGame, place, startWave, step,
-  type BuildKind, type Game, type Res,
+  BUILDS, BUILD_BY_KIND, COLS, ROWS, W, H, TOTAL_WAVES, RES_META, FOES,
+  canAfford, demolish, ignitePitch, newGame, place, repair, startWave, step, wavePreview,
+  type BuildKind, type Game, type Res, type FoeKind,
 } from './engine'
 import { draw } from './render'
 
 const BEST_KEY = 'gl.arcade.crusader.best'
 
-/** Everything the HUD needs, sampled off the sim a few times a second. */
+const INK = '#0B0A08'
+const SF1 = '#1D1913'
+const SF2 = '#252017'
+const LINE = '#2A241C'
+const LINE2 = '#3A332A'
+const THI = '#F2EDE4'
+const TBODY = '#C9BFAF'
+const TMUT = '#8A7F6E'
+const GOLD = '#F5C84B'
+const WIN = '#3ECF8E'
+const LIVE = '#E24B4A'
+
+type Tool = 'build' | 'repair' | 'raze'
+
 interface Hud {
   res: Res
+  income: Partial<Record<keyof Res, number>>
   wave: number
   phase: Game['phase']
   buildLeft: number
@@ -21,37 +35,64 @@ interface Hud {
   foes: number
   fireCd: number
   flash: string | null
+  score: number
+  kills: number
 }
 
 function snapshot(g: Game): Hud {
-  return {
-    res: { ...g.res }, wave: g.wave, phase: g.phase, buildLeft: g.buildLeft,
-    keepHp: g.keepHp, keepMaxHp: g.keepMaxHp, foes: g.foes.length + g.spawnQueue.length,
-    fireCd: g.fireCd, flash: g.flash?.text ?? null,
+  const income: Partial<Record<keyof Res, number>> = {}
+  for (const t of g.tiles) {
+    if (t.kind === 'sand' || t.kind === 'keep') continue
+    const p = BUILD_BY_KIND[t.kind as BuildKind].produces
+    if (p) income[p.res] = (income[p.res] ?? 0) + p.amount
   }
+  return {
+    res: { ...g.res }, income,
+    wave: g.wave, phase: g.phase, buildLeft: g.buildLeft,
+    keepHp: g.keepHp, keepMaxHp: g.keepMaxHp,
+    foes: g.foes.length + g.spawnQueue.length,
+    fireCd: g.fireCd, flash: g.flash?.text ?? null,
+    score: g.score, kills: g.kills,
+  }
+}
+
+const GROUPS: { key: 'defence' | 'economy' | 'trap'; label: string }[] = [
+  { key: 'defence', label: 'دفاع' },
+  { key: 'economy', label: 'اقتصاد' },
+  { key: 'trap', label: 'تله' },
+]
+
+const FOE_GLYPH: Record<FoeKind, string> = {
+  foot: '🗡', bow: '🏹', shield: '🛡', knight: '⚔️', assassin: '🗡', catapult: '🎯',
 }
 
 export default function CrusaderGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const gameRef = useRef<Game>(newGame())
   const selRef = useRef<BuildKind | null>('wall')
+  const toolRef = useRef<Tool>('build')
   const hoverRef = useRef<[number, number] | null>(null)
-  const razeRef = useRef(false)
+  const speedRef = useRef(1)
+  const pausedRef = useRef(false)
 
   const [sel, setSel] = useState<BuildKind | null>('wall')
-  const [raze, setRaze] = useState(false)
+  const [tool, setTool] = useState<Tool>('build')
+  const [speed, setSpeed] = useState(1)
+  const [paused, setPaused] = useState(false)
+  const [group, setGroup] = useState<'defence' | 'economy' | 'trap'>('defence')
   const [hud, setHud] = useState<Hud>(() => snapshot(gameRef.current))
   const [best, setBest] = useState(0)
 
   useEffect(() => { selRef.current = sel }, [sel])
-  useEffect(() => { razeRef.current = raze }, [raze])
+  useEffect(() => { toolRef.current = tool }, [tool])
+  useEffect(() => { speedRef.current = speed }, [speed])
+  useEffect(() => { pausedRef.current = paused }, [paused])
 
   useEffect(() => {
     const raw = window.localStorage.getItem(BEST_KEY)
     if (raw) setBest(parseInt(raw, 10) || 0)
   }, [])
 
-  // Persist the furthest wave reached — local only, nothing hits the server.
   useEffect(() => {
     if (hud.wave > best) {
       setBest(hud.wave)
@@ -80,8 +121,9 @@ export default function CrusaderGame() {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       const g = gameRef.current
-      step(g, dt)
-      draw(ctx, g, selRef.current && !razeRef.current ? selRef.current : null, hoverRef.current)
+      if (!pausedRef.current) step(g, dt * speedRef.current)
+      const showGhost = toolRef.current === 'build' ? selRef.current : null
+      draw(ctx, g, showGhost, hoverRef.current, g.phase === 'build' || toolRef.current !== 'build')
 
       hudAcc += dt
       if (hudAcc >= 0.1) { hudAcc = 0; setHud(snapshot(g)) }
@@ -106,7 +148,8 @@ export default function CrusaderGame() {
     if (!cell) return
     const g = gameRef.current
     if (g.phase === 'won' || g.phase === 'lost') return
-    if (razeRef.current) demolish(g, cell[0], cell[1])
+    if (toolRef.current === 'raze') demolish(g, cell[0], cell[1])
+    else if (toolRef.current === 'repair') repair(g, cell[0], cell[1])
     else if (selRef.current) place(g, cell[0], cell[1], selRef.current)
     setHud(snapshot(g))
   }, [cellFromEvent])
@@ -117,48 +160,81 @@ export default function CrusaderGame() {
 
   const reset = () => {
     gameRef.current = newGame()
-    setSel('wall'); setRaze(false)
+    setSel('wall'); setTool('build'); setPaused(false); setSpeed(1)
     setHud(snapshot(gameRef.current))
   }
 
   const keepPct = Math.max(0, hud.keepHp / hud.keepMaxHp)
   const over = hud.phase === 'won' || hud.phase === 'lost'
+  const nextWave = Math.min(TOTAL_WAVES, hud.wave + 1)
+  const preview = hud.phase === 'build' ? wavePreview(nextWave) : []
+  const palette = BUILDS.filter(b => b.group === group)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
 
-      {/* resources */}
+      {/* ── resources ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
-        {RES_META.map(m => (
-          <div key={m.key} style={{ background: SF2, border: `1px solid ${LINE}`, borderRadius: 10, padding: '7px 4px', textAlign: 'center' }}>
-            <div style={{ fontSize: 13, lineHeight: 1 }}>{m.glyph}</div>
-            <div className="gl-num" style={{ fontSize: 15, fontWeight: 800, color: m.color, marginTop: 3 }}>{Math.floor(hud.res[m.key])}</div>
-            <div style={{ fontSize: 8.5, color: TMUT, marginTop: 1 }}>{m.label}</div>
-          </div>
-        ))}
+        {RES_META.map(m => {
+          const inc = hud.income[m.key] ?? 0
+          return (
+            <div key={m.key} style={{ background: SF2, border: `1px solid ${LINE}`, borderRadius: 11, padding: '7px 4px 6px', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, lineHeight: 1 }}>{m.glyph}</div>
+              <div className="gl-num" style={{ fontSize: 16, fontWeight: 800, color: m.color, marginTop: 3, lineHeight: 1 }}>{Math.floor(hud.res[m.key])}</div>
+              <div style={{ fontSize: 8, color: inc > 0 ? WIN : TMUT, marginTop: 3 }}>
+                {inc > 0 ? <span className="gl-num">+{inc}</span> : m.label}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* wave + keep status */}
-      <div style={{ background: SF1, border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* ── wave + keep ── */}
+      <div style={{ background: SF1, border: `1px solid ${LINE}`, borderRadius: 13, padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 9 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: THI }}>
-            موج <span className="gl-num">{hud.wave}</span> / <span className="gl-num">{TOTAL_WAVES}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: THI }}>
+            موج <span className="gl-num">{hud.wave}</span><span style={{ color: TMUT }}>/</span><span className="gl-num">{TOTAL_WAVES}</span>
           </span>
-          <span style={{ flex: 1 }} />
+          <span style={{ display: 'flex', gap: 3, flex: 1 }}>
+            {Array.from({ length: TOTAL_WAVES }, (_, i) => (
+              <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < hud.wave ? GOLD : i === hud.wave && hud.phase === 'battle' ? LIVE : LINE2 }} />
+            ))}
+          </span>
           {hud.phase === 'build'
-            ? <span style={{ fontSize: 11.5, color: GOLD }}>آماده‌سازی — <span className="gl-num">{Math.ceil(hud.buildLeft)}</span> ثانیه</span>
+            ? <span style={{ fontSize: 11, fontWeight: 700, color: GOLD, whiteSpace: 'nowrap' }}>آماده‌سازی <span className="gl-num">{Math.ceil(hud.buildLeft)}</span>ث</span>
             : hud.phase === 'battle'
-              ? <span style={{ fontSize: 11.5, color: LIVE }}>نبرد — <span className="gl-num">{hud.foes}</span> دشمن</span>
+              ? <span style={{ fontSize: 11, fontWeight: 700, color: LIVE, whiteSpace: 'nowrap' }}><span className="gl-num">{hud.foes}</span> دشمن</span>
               : null}
         </div>
+
         <div style={{ height: 7, borderRadius: 999, background: INK, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${keepPct * 100}%`, background: keepPct > .5 ? WIN : keepPct > .25 ? GOLD : LIVE, borderRadius: 999, transition: 'width .2s' }} />
         </div>
-        <div style={{ fontSize: 10, color: TMUT }}>استحکام دژ · بهترین رکورد: موج <span className="gl-num">{best}</span></div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9.5, color: TMUT }}>
+          <span>استحکام دژ</span>
+          <span style={{ flex: 1 }} />
+          <span>امتیاز <span className="gl-num" style={{ color: GOLD }}>{hud.score}</span></span>
+          <span>کشته <span className="gl-num" style={{ color: TBODY }}>{hud.kills}</span></span>
+          <span>رکورد موج <span className="gl-num" style={{ color: TBODY }}>{best}</span></span>
+        </div>
+
+        {/* next wave intel */}
+        {preview.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderTop: `1px solid ${LINE}`, paddingTop: 8 }}>
+            <span style={{ fontSize: 10, color: TMUT }}>موج بعد:</span>
+            {preview.map(p => (
+              <span key={p.kind} title={FOES[p.kind].name}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, color: TBODY, background: SF2, border: `1px solid ${LINE2}`, borderRadius: 7, padding: '3px 7px' }}>
+                {FOE_GLYPH[p.kind]} {FOES[p.kind].name} <span className="gl-num" style={{ color: GOLD }}>×{p.n}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* board */}
-      <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', border: `1px solid ${LINE}` }}>
+      {/* ── board ── */}
+      <div style={{ position: 'relative', borderRadius: 15, overflow: 'hidden', border: `1px solid ${LINE2}`, boxShadow: '0 10px 30px -14px rgba(0,0,0,.7)' }}>
         <canvas
           ref={canvasRef}
           onPointerDown={onTap}
@@ -167,129 +243,159 @@ export default function CrusaderGame() {
           style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: `${W} / ${H}`, touchAction: 'manipulation', cursor: 'pointer' }}
         />
 
+        {/* live toast */}
         {hud.flash && !over && (
           <div style={{ position: 'absolute', top: 8, insetInline: 8, textAlign: 'center', pointerEvents: 'none' }}>
-            <span style={{ background: 'rgba(10,8,5,.85)', border: `1px solid ${LINE2}`, color: THI, fontSize: 11.5, padding: '5px 12px', borderRadius: 999 }}>{hud.flash}</span>
+            <span style={{ background: 'rgba(10,8,5,.88)', border: `1px solid ${LINE2}`, color: THI, fontSize: 11.5, fontWeight: 700, padding: '6px 13px', borderRadius: 999 }}>{hud.flash}</span>
           </div>
         )}
 
+        {/* speed / pause */}
+        {!over && (
+          <div style={{ position: 'absolute', bottom: 8, insetInlineEnd: 8, display: 'flex', gap: 6 }}>
+            <button onClick={() => setPaused(p => !p)} aria-label={paused ? 'ادامه' : 'مکث'} style={pill(paused)}>
+              {paused ? '▶' : '❚❚'}
+            </button>
+            <button onClick={() => setSpeed(s => (s === 1 ? 2 : 1))} aria-label="سرعت" style={pill(speed === 2)}>
+              <span className="gl-num">{speed}×</span>
+            </button>
+          </div>
+        )}
+
+        {/* result */}
         {over && (
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,8,5,.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20, textAlign: 'center' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: hud.phase === 'won' ? GOLD : LIVE }}>
-              {hud.phase === 'won' ? 'قلعه پابرجا ماند' : 'دژ سقوط کرد'}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,8,5,.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 22, textAlign: 'center' }}>
+            <div style={{ fontSize: 34 }}>{hud.phase === 'won' ? '🏆' : '🏴'}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: hud.phase === 'won' ? GOLD : LIVE }}>
+              {hud.phase === 'won' ? 'قلعه ایستاد' : 'دژ سقوط کرد'}
             </div>
-            <div style={{ fontSize: 13, color: TBODY, lineHeight: 1.9 }}>
+            <div style={{ fontSize: 12.5, color: TBODY, lineHeight: 1.95 }}>
               {hud.phase === 'won'
                 ? `هر ${TOTAL_WAVES} موج صلیبیون را پس زدی.`
                 : `تا موج ${hud.wave} دوام آوردی.`}
             </div>
-            <button onClick={reset} style={btn(GOLD, INK)}>از نو</button>
+            <div style={{ display: 'flex', gap: 16, marginTop: 2 }}>
+              <Stat label="امتیاز" value={hud.score} color={GOLD} />
+              <Stat label="کشته" value={hud.kills} color={THI} />
+              <Stat label="موج" value={hud.wave} color={TBODY} />
+            </div>
+            <button onClick={reset} style={{ all: 'unset', cursor: 'pointer', marginTop: 6, background: GOLD, color: INK, fontWeight: 800, fontSize: 14, padding: '12px 28px', borderRadius: 12 }}>از نو</button>
           </div>
         )}
       </div>
 
-      {/* actions */}
+      {/* ── actions ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <button
-          onClick={() => { ignitePitch(gameRef.current); setHud(snapshot(gameRef.current)) }}
-          disabled={hud.fireCd > 0 || over}
-          style={btn(hud.fireCd > 0 ? LINE : '#FF7A3D', hud.fireCd > 0 ? TMUT : INK, hud.fireCd > 0 || over)}
+          onClick={() => { startWave(gameRef.current); setHud(snapshot(gameRef.current)) }}
+          disabled={hud.phase !== 'build'}
+          style={action(hud.phase === 'build' ? GOLD : LINE2, hud.phase === 'build' ? INK : TMUT, hud.phase === 'build')}
         >
-          🔥 آتش به قیر{hud.fireCd > 0 ? ` (${Math.ceil(hud.fireCd)})` : ''}
+          {hud.phase === 'build' ? `شروع موج ${hud.wave + 1} ⚔` : 'نبرد در جریان'}
         </button>
         <button
-          onClick={() => { startWave(gameRef.current); setHud(snapshot(gameRef.current)) }}
-          disabled={hud.phase !== 'build' || over}
-          style={btn(hud.phase === 'build' && !over ? ACCENT : LINE, hud.phase === 'build' && !over ? '#fff' : TMUT, hud.phase !== 'build' || over)}
+          onClick={() => { ignitePitch(gameRef.current); setHud(snapshot(gameRef.current)) }}
+          disabled={hud.fireCd > 0}
+          style={action(hud.fireCd > 0 ? LINE2 : '#FF9A3C', hud.fireCd > 0 ? TMUT : INK, hud.fireCd === 0)}
         >
-          ⚔ شروع موج
+          {hud.fireCd > 0 ? <>مشعل <span className="gl-num">{Math.ceil(hud.fireCd)}</span>ث</> : 'آتش به قیر 🔥'}
         </button>
       </div>
 
-      {/* build palette */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: THI }}>ساخت‌وساز</span>
-          <span style={{ flex: 1, height: 1, background: LINE }} />
-          <button
-            onClick={() => setRaze(v => !v)}
-            style={{ ...btn(raze ? LIVE : SF2, raze ? '#fff' : TBODY), padding: '5px 12px', fontSize: 11.5 }}
-          >
-            ⛏ تخریب{raze ? ' (روشن)' : ''}
+      {/* ── tools ── */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {([['build', '🧱 ساخت'], ['repair', '🔧 تعمیر'], ['raze', '⛏ تخریب']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTool(k)}
+            style={{ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, fontSize: 12, fontWeight: 700, background: tool === k ? (k === 'raze' ? 'rgba(226,75,74,.16)' : k === 'repair' ? 'rgba(62,207,142,.14)' : 'rgba(245,200,75,.14)') : SF2, color: tool === k ? (k === 'raze' ? LIVE : k === 'repair' ? WIN : GOLD) : TBODY, border: `1px solid ${tool === k ? (k === 'raze' ? LIVE : k === 'repair' ? WIN : GOLD) : LINE}` }}>
+            {label}
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {BUILDS.map(b => {
-            const affordable = canAfford(hud.res, b.cost)
-            const active = sel === b.kind && !raze
-            return (
-              <button
-                key={b.kind}
-                onClick={() => { setRaze(false); setSel(b.kind) }}
-                style={{
-                  all: 'unset', cursor: 'pointer', boxSizing: 'border-box',
-                  background: active ? 'rgba(245,166,35,.12)' : SF2,
-                  border: `1px solid ${active ? GOLD : LINE}`,
-                  borderRadius: 11, padding: '9px 10px',
-                  opacity: affordable ? 1 : 0.5,
-                }}
-              >
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: active ? GOLD : THI }}>{b.name}</div>
-                <div style={{ fontSize: 10, color: TMUT, marginTop: 3, lineHeight: 1.6 }}>{b.desc}</div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-                  {(Object.keys(b.cost) as (keyof Res)[]).map(k => {
-                    const m = RES_META.find(x => x.key === k)!
-                    const short = hud.res[k] < (b.cost[k] ?? 0)
-                    return (
-                      <span key={k} style={{ fontSize: 10.5, color: short ? LIVE : m.color }}>
-                        {m.glyph} <span className="gl-num">{b.cost[k]}</span>
-                      </span>
-                    )
-                  })}
-                </div>
+      {tool === 'repair' && (
+        <div style={{ fontSize: 10.5, color: WIN, background: 'rgba(62,207,142,.08)', border: `1px solid ${WIN}33`, borderRadius: 9, padding: '8px 11px', lineHeight: 1.8 }}>
+          روی هر بنای آسیب‌دیده بزن تا با سنگ ترمیم شود — هزینه به اندازهٔ خرابی است.
+        </div>
+      )}
+      {tool === 'raze' && (
+        <div style={{ fontSize: 10.5, color: LIVE, background: 'rgba(226,75,74,.08)', border: `1px solid ${LIVE}33`, borderRadius: 9, padding: '8px 11px', lineHeight: 1.8 }}>
+          تخریب نیمی از هزینهٔ ساخت را برمی‌گرداند.
+        </div>
+      )}
+
+      {/* ── build palette ── */}
+      {tool === 'build' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {GROUPS.map(gp => (
+              <button key={gp.key} onClick={() => setGroup(gp.key)}
+                style={{ all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, padding: '7px 14px', borderRadius: 999, background: group === gp.key ? 'rgba(245,200,75,.14)' : 'transparent', color: group === gp.key ? GOLD : TMUT, border: `1px solid ${group === gp.key ? GOLD + '66' : LINE}` }}>
+                {gp.label}
               </button>
-            )
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
 
-      {/* how to play */}
-      <div style={{ background: SF1, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: THI, marginBottom: 7 }}>راهنما</div>
-        <ul style={{ margin: 0, paddingInlineStart: 18, fontSize: 11.5, color: TBODY, lineHeight: 2 }}>
-          <li>یک بنا انتخاب کن، بعد روی خانهٔ خالی بزن تا ساخته شود.</li>
-          <li>صلیبیون از نوار قرمز بالا می‌آیند و سراغ دژ می‌روند.</li>
-          <li>دیوار مسیرشان را می‌بندد؛ اگر راه نباشد دیوار را می‌شکنند.</li>
-          <li>گودال قیر بساز، دشمن که رویش رفت دکمهٔ آتش را بزن.</li>
-          <li>منجنیق از دور می‌کوبد — با برج کماندار جوابش را بده.</li>
-          <li>هر کشته ۲ طلا می‌دهد؛ اردوگاه مزدور آدمکش می‌فرستد.</li>
-        </ul>
-      </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {palette.map(b => {
+              const ok = canAfford(hud.res, b.cost)
+              const on = sel === b.kind
+              return (
+                <button key={b.kind} onClick={() => setSel(b.kind)}
+                  style={{
+                    all: 'unset', cursor: 'pointer', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 5,
+                    padding: '10px 11px', borderRadius: 12, opacity: ok ? 1 : 0.45,
+                    background: on ? 'rgba(245,200,75,.12)' : SF1,
+                    border: `1px solid ${on ? GOLD : LINE}`,
+                  }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: on ? GOLD : THI }}>{b.name}</span>
+                    {b.gun && <span style={{ fontSize: 8.5, color: TMUT, background: SF2, borderRadius: 5, padding: '2px 5px' }}>برد {b.gun.range}</span>}
+                  </span>
+                  <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(Object.keys(b.cost) as (keyof Res)[]).map(k => {
+                      const meta = RES_META.find(m => m.key === k)!
+                      const short = hud.res[k] < (b.cost[k] ?? 0)
+                      return (
+                        <span key={k} className="gl-num" style={{ fontSize: 9.5, fontWeight: 700, color: short ? LIVE : meta.color, background: SF2, borderRadius: 5, padding: '2px 6px' }}>
+                          {meta.glyph} {b.cost[k]}
+                        </span>
+                      )
+                    })}
+                  </span>
+                  <span style={{ fontSize: 9.5, color: TMUT, lineHeight: 1.7 }}>{b.desc}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ── local tokens (mirrors components/ui.tsx; kept inline so this feature
-// stays self-contained and deleting it touches nothing shared) ──
-const INK = '#14110D'
-const SF1 = '#1E1A14'
-const SF2 = '#262019'
-const LINE = '#322A1F'
-const LINE2 = '#40362A'
-const THI = '#F6EFE4'
-const TBODY = '#A89A88'
-const TMUT = '#6E6252'
-const GOLD = '#F5A623'
-const ACCENT = '#A855F7'
-const WIN = '#3FBE86'
-const LIVE = '#FF5A4E'
-
-function btn(bg: string, fg: string, disabled = false): React.CSSProperties {
-  return {
-    all: 'unset', boxSizing: 'border-box', display: 'block', textAlign: 'center',
-    background: bg, color: fg, fontSize: 13, fontWeight: 700,
-    padding: '11px 14px', borderRadius: 11,
-    cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.65 : 1,
-  }
+function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <span style={{ textAlign: 'center' }}>
+      <span className="gl-num" style={{ display: 'block', fontSize: 19, fontWeight: 800, color }}>{value}</span>
+      <span style={{ display: 'block', fontSize: 9.5, color: TMUT, marginTop: 1 }}>{label}</span>
+    </span>
+  )
 }
+
+const pill = (on: boolean): React.CSSProperties => ({
+  all: 'unset', cursor: 'pointer', width: 34, height: 30,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  borderRadius: 9, fontSize: 11, fontWeight: 800,
+  background: on ? 'rgba(245,200,75,.22)' : 'rgba(10,8,5,.6)',
+  backdropFilter: 'blur(6px)',
+  border: `1px solid ${on ? GOLD : LINE2}`,
+  color: on ? GOLD : THI,
+})
+
+const action = (bg: string, fg: string, enabled: boolean): React.CSSProperties => ({
+  all: 'unset', cursor: enabled ? 'pointer' : 'default', textAlign: 'center',
+  minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  borderRadius: 12, background: enabled ? bg : SF2, color: fg,
+  border: `1px solid ${enabled ? bg : LINE}`,
+  fontWeight: 800, fontSize: 13,
+})

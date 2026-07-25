@@ -13,7 +13,8 @@ export const H = ROWS * TILE
 // ── tiles ──────────────────────────────────────────────────────────────────
 
 export type BuildKind =
-  | 'wall' | 'tower' | 'palm' | 'quarry' | 'forge' | 'pitchwell' | 'pitch' | 'caravan' | 'merc'
+  | 'wall' | 'tower' | 'ballista' | 'palm' | 'quarry' | 'forge' | 'pitchwell'
+  | 'pitch' | 'spikes' | 'caravan' | 'merc'
 
 export type TileKind = 'sand' | 'keep' | BuildKind
 
@@ -26,26 +27,32 @@ export interface BuildSpec {
   hp: number
   /** units of upkeep-free output added every PRODUCE_MS */
   produces?: { res: keyof Res; amount: number }
+  /** attack profile for defensive structures */
+  gun?: { range: number; dmg: number; cd: number; shot: 'arrow' | 'bolt' }
+  /** category drives palette grouping in the UI */
+  group: 'defence' | 'economy' | 'trap'
   desc: string
 }
 
 export const BUILDS: BuildSpec[] = [
-  { kind: 'wall',      name: 'دیوار',        cost: { stone: 10 },            hp: 220, desc: 'مسیر دشمن را می‌بندد' },
-  { kind: 'tower',     name: 'برج کماندار',  cost: { wood: 15, stone: 20 },  hp: 130, desc: 'از راه دور تیر می‌زند' },
-  { kind: 'palm',      name: 'نخلستان',      cost: { wood: 10 },             hp: 80,  produces: { res: 'wood',  amount: 6 }, desc: 'چوب تولید می‌کند' },
-  { kind: 'quarry',    name: 'معدن سنگ',     cost: { wood: 20 },             hp: 80,  produces: { res: 'stone', amount: 5 }, desc: 'سنگ تولید می‌کند' },
-  { kind: 'forge',     name: 'کورهٔ آهن',    cost: { wood: 25, stone: 15 },  hp: 80,  produces: { res: 'iron',  amount: 3 }, desc: 'آهن تولید می‌کند' },
-  { kind: 'pitchwell', name: 'چاه قیر',      cost: { wood: 20, iron: 10 },   hp: 80,  produces: { res: 'pitch', amount: 3 }, desc: 'قیر تولید می‌کند' },
-  { kind: 'pitch',     name: 'گودال قیر',    cost: { pitch: 10 },            hp: 40,  desc: 'دشمن رویش برود، آتشش بزن' },
-  { kind: 'caravan',   name: 'کاروان‌سرا',   cost: { wood: 30, stone: 20 },  hp: 80,  produces: { res: 'gold',  amount: 5 }, desc: 'طلا تولید می‌کند' },
-  { kind: 'merc',      name: 'اردوگاه مزدور',cost: { gold: 40, wood: 15 },   hp: 90,  desc: 'آدمکش می‌فرستد' },
+  { kind: 'wall',      name: 'دیوار',        cost: { stone: 10 },            hp: 260, group: 'defence', desc: 'مسیر دشمن را می‌بندد' },
+  { kind: 'tower',     name: 'برج کماندار',  cost: { wood: 15, stone: 20 },  hp: 130, group: 'defence', gun: { range: 3.2, dmg: 16, cd: 0.85, shot: 'arrow' }, desc: 'تیرانداز سریع، برد متوسط' },
+  { kind: 'ballista',  name: 'برج بالیستا',  cost: { wood: 30, iron: 20 },   hp: 160, group: 'defence', gun: { range: 4.6, dmg: 52, cd: 2.1,  shot: 'bolt'  }, desc: 'ضربهٔ سنگین، برد بلند' },
+  { kind: 'merc',      name: 'اردوگاه مزدور',cost: { gold: 40, wood: 15 },   hp: 90,  group: 'defence', desc: 'در نبرد، مزدور می‌فرستد' },
+  { kind: 'palm',      name: 'نخلستان',      cost: { wood: 10 },             hp: 80,  group: 'economy', produces: { res: 'wood',  amount: 6 }, desc: 'چوب تولید می‌کند' },
+  { kind: 'quarry',    name: 'معدن سنگ',     cost: { wood: 20 },             hp: 80,  group: 'economy', produces: { res: 'stone', amount: 5 }, desc: 'سنگ تولید می‌کند' },
+  { kind: 'forge',     name: 'کورهٔ آهن',    cost: { wood: 25, stone: 15 },  hp: 80,  group: 'economy', produces: { res: 'iron',  amount: 3 }, desc: 'آهن تولید می‌کند' },
+  { kind: 'pitchwell', name: 'چاه قیر',      cost: { wood: 20, iron: 10 },   hp: 80,  group: 'economy', produces: { res: 'pitch', amount: 3 }, desc: 'قیر تولید می‌کند' },
+  { kind: 'caravan',   name: 'کاروان‌سرا',   cost: { wood: 30, stone: 20 },  hp: 80,  group: 'economy', produces: { res: 'gold',  amount: 5 }, desc: 'طلا تولید می‌کند' },
+  { kind: 'pitch',     name: 'گودال قیر',    cost: { pitch: 10 },            hp: 40,  group: 'trap',    desc: 'دشمن رویش برود، آتشش بزن' },
+  { kind: 'spikes',    name: 'خارِ آهنی',    cost: { iron: 8 },              hp: 60,  group: 'trap',    desc: 'کُند می‌کند و زخم می‌زند' },
 ]
 
 export const BUILD_BY_KIND: Record<BuildKind, BuildSpec> =
   Object.fromEntries(BUILDS.map(b => [b.kind, b])) as Record<BuildKind, BuildSpec>
 
 /** Enemies can walk over these; everything else has to be broken through. */
-const WALKABLE = new Set<TileKind>(['sand', 'pitch'])
+const WALKABLE = new Set<TileKind>(['sand', 'pitch', 'spikes'])
 
 export interface Tile { kind: TileKind; hp: number; maxHp: number; cd: number; burn: number }
 
@@ -63,11 +70,15 @@ export const RES_META: { key: keyof Res; label: string; glyph: string; color: st
 
 // ── units ──────────────────────────────────────────────────────────────────
 
-export type FoeKind = 'foot' | 'bow' | 'knight' | 'catapult'
+export type FoeKind = 'foot' | 'bow' | 'shield' | 'knight' | 'assassin' | 'catapult'
 
 interface FoeSpec {
   name: string
   hp: number
+  /** gold dropped on death */
+  bounty: number
+  /** multiplier applied to incoming tower fire (shields soak arrows) */
+  armour?: number
   /** tiles per second */
   speed: number
   dps: number
@@ -79,10 +90,12 @@ interface FoeSpec {
 }
 
 export const FOES: Record<FoeKind, FoeSpec> = {
-  foot:     { name: 'پیاده‌نظام', hp: 70,  speed: 0.95, dps: 9,  range: 1,   r: 7,  body: '#DED7CB', trim: '#C0392B' },
-  bow:      { name: 'کمانْدار',   hp: 55,  speed: 0.9,  dps: 7,  range: 2.6, r: 7,  body: '#C9B489', trim: '#7A4B2A' },
-  knight:   { name: 'شوالیه',     hp: 180, speed: 1.35, dps: 15, range: 1,   r: 9,  body: '#AEB6BF', trim: '#C0392B' },
-  catapult: { name: 'منجنیق',     hp: 140, speed: 0.45, dps: 34, range: 3.4, r: 11, body: '#6E5231', trim: '#3E2E1C' },
+  foot:     { name: 'پیاده‌نظام', hp: 70,  bounty: 2, speed: 0.95, dps: 9,  range: 1,   r: 7,  body: '#DED7CB', trim: '#C0392B' },
+  bow:      { name: 'کمانْدار',   hp: 55,  bounty: 3, speed: 0.9,  dps: 7,  range: 2.6, r: 7,  body: '#C9B489', trim: '#7A4B2A' },
+  shield:   { name: 'سپردار',     hp: 210, bounty: 5, armour: 0.45, speed: 0.62, dps: 11, range: 1, r: 9, body: '#8FA1AE', trim: '#2E5B7A' },
+  knight:   { name: 'شوالیه',     hp: 180, bounty: 5, speed: 1.35, dps: 15, range: 1,   r: 9,  body: '#AEB6BF', trim: '#C0392B' },
+  assassin: { name: 'آدمکش',      hp: 60,  bounty: 6, speed: 1.9,  dps: 18, range: 1,   r: 6,  body: '#4A4458', trim: '#8E7CC3' },
+  catapult: { name: 'منجنیق',     hp: 140, bounty: 8, speed: 0.45, dps: 34, range: 3.4, r: 11, body: '#6E5231', trim: '#3E2E1C' },
 }
 
 export interface Foe {
@@ -92,6 +105,10 @@ export interface Foe {
   hp: number; maxHp: number
   burn: number             // seconds of remaining fire
   hitFlash: number
+  /** seconds of remaining caltrop slow */
+  slow: number
+  /** last movement heading, so the renderer can face the sprite */
+  dir: number
 }
 
 export interface Ally {
@@ -101,7 +118,17 @@ export interface Ally {
   cd: number
 }
 
-export interface Shot { x: number; y: number; tx: number; ty: number; t: number; life: number; kind: 'arrow' | 'rock' }
+export interface Shot { x: number; y: number; tx: number; ty: number; t: number; life: number; kind: 'arrow' | 'rock' | 'bolt' }
+
+/** Purely cosmetic — the renderer owns how these look. */
+export interface Particle {
+  x: number; y: number; vx: number; vy: number
+  t: number; life: number; size: number
+  kind: 'dust' | 'spark' | 'ember' | 'blood' | 'coin' | 'ring'
+  hue?: string
+}
+
+export interface FloatText { x: number; y: number; t: number; text: string; color: string }
 
 // ── waves ──────────────────────────────────────────────────────────────────
 
@@ -111,11 +138,20 @@ export const TOTAL_WAVES = 10
 export function waveRoster(w: number): FoeKind[] {
   const out: FoeKind[] = []
   const push = (k: FoeKind, n: number) => { for (let i = 0; i < n; i++) out.push(k) }
-  push('foot', 3 + Math.floor(w * 1.6))
+  push('foot', 3 + Math.floor(w * 1.5))
   if (w >= 2) push('bow', Math.floor((w - 1) * 0.9))
+  if (w >= 3) push('shield', Math.floor((w - 2) * 0.7))
   if (w >= 4) push('knight', Math.floor((w - 3) * 0.8) + 1)
+  if (w >= 5) push('assassin', Math.floor((w - 4) * 0.6) + 1)
   if (w >= 6) push('catapult', Math.floor((w - 5) / 2) + 1)
   return out
+}
+
+/** Head-count per foe kind — drives the "next wave" preview in the HUD. */
+export function wavePreview(w: number): { kind: FoeKind; n: number }[] {
+  const tally = new Map<FoeKind, number>()
+  for (const k of waveRoster(w)) tally.set(k, (tally.get(k) ?? 0) + 1)
+  return (Object.keys(FOES) as FoeKind[]).filter(k => tally.has(k)).map(k => ({ kind: k, n: tally.get(k)! }))
 }
 
 // ── state ──────────────────────────────────────────────────────────────────
@@ -142,6 +178,12 @@ export interface Game {
   nextId: number
   /** transient log line for the HUD */
   flash: { text: string; t: number } | null
+  parts: Particle[]
+  floats: FloatText[]
+  /** camera kick when the keep takes a hit */
+  shake: number
+  score: number
+  kills: number
 }
 
 export const BUILD_SECONDS = 25
@@ -175,6 +217,9 @@ export function newGame(): Game {
     produceAcc: 0,
     nextId: 1,
     flash: null,
+    parts: [], floats: [],
+    shake: 0,
+    score: 0, kills: 0,
   }
 }
 
@@ -211,15 +256,66 @@ export function place(g: Game, c: number, r: number, kind: BuildKind): boolean {
   return true
 }
 
+/** Tearing something down hands back half of what it cost. */
 export function demolish(g: Game, c: number, r: number): boolean {
   if (!inBounds(c, r)) return false
   const t = g.tiles[idx(c, r)]
   if (t.kind === 'sand' || t.kind === 'keep') return false
+  const spec = BUILD_BY_KIND[t.kind as BuildKind]
+  const back: string[] = []
+  for (const k of Object.keys(spec.cost) as (keyof Res)[]) {
+    const amount = Math.floor((spec.cost[k] ?? 0) / 2)
+    if (amount > 0) { g.res[k] += amount; back.push(`${amount} ${RES_META.find(m => m.key === k)!.label}`) }
+  }
   g.tiles[idx(c, r)] = { kind: 'sand', hp: 0, maxHp: 0, cd: 0, burn: 0 }
+  puff(g, cx(c), cy(r), 'dust', 10)
+  if (back.length) flash(g, `${back.join(' و ')} برگشت`)
+  return true
+}
+
+export const REPAIR_STONE_PER_HP = 0.06
+
+/** Patch a damaged structure back to full for stone. */
+export function repair(g: Game, c: number, r: number): boolean {
+  if (!inBounds(c, r)) return false
+  const t = g.tiles[idx(c, r)]
+  if (t.kind === 'sand' || t.kind === 'keep') return false
+  const missing = t.maxHp - t.hp
+  if (missing <= 1) { flash(g, 'این سالم است'); return false }
+  const price = Math.max(1, Math.ceil(missing * REPAIR_STONE_PER_HP))
+  if (g.res.stone < price) { flash(g, `${price} سنگ لازم است`); return false }
+  g.res.stone -= price
+  t.hp = t.maxHp
+  puff(g, cx(c), cy(r), 'spark', 8, '#9FE1CB')
+  float(g, cx(c), cy(r), 'تعمیر شد', '#3ECF8E')
   return true
 }
 
 export function flash(g: Game, text: string) { g.flash = { text, t: 2.2 } }
+
+export function puff(g: Game, x: number, y: number, kind: Particle['kind'], n = 6, hue?: string) {
+  if (g.parts.length > 260) return   // cheap cap so a big wave can't stutter
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2
+    const sp = 12 + Math.random() * 46
+    g.parts.push({
+      x, y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (kind === 'ember' ? 26 : 0),
+      t: 0, life: 0.35 + Math.random() * 0.5,
+      size: kind === 'dust' ? 2 + Math.random() * 3 : 1.5 + Math.random() * 2,
+      kind, hue,
+    })
+  }
+}
+
+export function ring(g: Game, x: number, y: number, hue: string) {
+  g.parts.push({ x, y, vx: 0, vy: 0, t: 0, life: 0.45, size: 6, kind: 'ring', hue })
+}
+
+export function float(g: Game, x: number, y: number, text: string, color: string) {
+  if (g.floats.length > 24) return
+  g.floats.push({ x, y, t: 0, text, color })
+}
 
 // ── pathing ────────────────────────────────────────────────────────────────
 //
@@ -275,12 +371,17 @@ function hurtTile(g: Game, c: number, r: number, dmg: number) {
   if (t.kind === 'sand') return
   if (t.kind === 'keep') {
     g.keepHp = Math.max(0, g.keepHp - dmg)
+    g.shake = Math.min(7, g.shake + dmg * 0.05)
     for (const [kc, kr] of KEEP_CELLS) g.tiles[idx(kc, kr)].hp = g.keepHp
     if (g.keepHp <= 0) g.phase = 'lost'
     return
   }
   t.hp -= dmg
-  if (t.hp <= 0) g.tiles[idx(c, r)] = { kind: 'sand', hp: 0, maxHp: 0, cd: 0, burn: 0 }
+  if (t.hp <= 0) {
+    puff(g, cx(c), cy(r), 'dust', 14)
+    ring(g, cx(c), cy(r), 'rgba(192,57,43,.55)')
+    g.tiles[idx(c, r)] = { kind: 'sand', hp: 0, maxHp: 0, cd: 0, burn: 0 }
+  }
 }
 
 function nearestFoe(g: Game, x: number, y: number, maxPx: number): Foe | null {
@@ -332,7 +433,7 @@ function spawnFoe(g: Game, kind: FoeKind) {
   g.foes.push({
     id: g.nextId++, kind,
     x: cx(lane), y: -TILE * 0.3,
-    hp: spec.hp, maxHp: spec.hp, burn: 0, hitFlash: 0,
+    hp: spec.hp, maxHp: spec.hp, burn: 0, hitFlash: 0, slow: 0, dir: Math.PI / 2,
   })
 }
 
@@ -387,25 +488,46 @@ export function step(g: Game, dt: number) {
     if (t.burn <= 0 && t.kind === 'pitch') g.tiles[idx(c, r)] = { kind: 'sand', hp: 0, maxHp: 0, cd: 0, burn: 0 }
   }
 
-  // towers
+  // defensive structures fire from their own gun profile
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const t = g.tiles[idx(c, r)]
-    if (t.kind !== 'tower') continue
+    if (t.kind === 'sand' || t.kind === 'keep') continue
+    const gun = BUILD_BY_KIND[t.kind as BuildKind].gun
+    if (!gun) continue
     t.cd -= dt
     if (t.cd > 0) continue
-    const target = nearestFoe(g, cx(c), cy(r), TILE * 3.2)
+    const target = nearestFoe(g, cx(c), cy(r), TILE * gun.range)
     if (!target) continue
-    t.cd = 0.85
-    target.hp -= 16
+    t.cd = gun.cd
+    const armour = FOES[target.kind].armour ?? 1
+    target.hp -= gun.dmg * armour
     target.hitFlash = 0.12
-    g.shots.push({ x: cx(c), y: cy(r), tx: target.x, ty: target.y, t: 0, life: 0.16, kind: 'arrow' })
+    puff(g, target.x, target.y, 'spark', armour < 1 ? 3 : 5, armour < 1 ? '#8FA1AE' : undefined)
+    g.shots.push({ x: cx(c), y: cy(r), tx: target.x, ty: target.y, t: 0, life: gun.shot === 'bolt' ? 0.13 : 0.16, kind: gun.shot })
+  }
+
+  // caltrops bite whatever walks over them
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const t = g.tiles[idx(c, r)]
+    if (t.kind !== 'spikes') continue
+    for (const f of g.foes) {
+      if (((f.x / TILE) | 0) !== c || ((f.y / TILE) | 0) !== r) continue
+      f.hp -= 26 * dt
+      f.slow = 0.35
+      t.hp -= 9 * dt
+      if (Math.random() < dt * 3) puff(g, f.x, f.y, 'blood', 2)
+    }
+    if (t.hp <= 0) g.tiles[idx(c, r)] = { kind: 'sand', hp: 0, maxHp: 0, cd: 0, burn: 0 }
   }
 
   // foes
   for (const f of g.foes) {
     const spec = FOES[f.kind]
     if (f.hitFlash > 0) f.hitFlash -= dt
-    if (f.burn > 0) { f.burn -= dt; f.hp -= 38 * dt }
+    if (f.burn > 0) {
+      f.burn -= dt; f.hp -= 38 * dt
+      if (Math.random() < dt * 9) puff(g, f.x, f.y, 'ember', 1)
+    }
 
     const c = Math.min(COLS - 1, Math.max(0, (f.x / TILE) | 0))
     const r = Math.min(ROWS - 1, Math.max(0, (f.y / TILE) | 0))
@@ -430,9 +552,12 @@ export function step(g: Game, dt: number) {
     const tx = cx(nc), ty = cy(nr)
     const dx = tx - f.x, dy = ty - f.y
     const len = Math.hypot(dx, dy) || 1
-    const move = spec.speed * TILE * dt
+    if (f.slow > 0) f.slow -= dt
+    const move = spec.speed * (f.slow > 0 ? 0.45 : 1) * TILE * dt
     f.x += (dx / len) * move
     f.y += (dy / len) * move
+    f.dir = Math.atan2(dy, dx)
+    if (Math.random() < dt * 2.2) puff(g, f.x, f.y + spec.r * 0.7, 'dust', 1)
   }
 
   // allies
@@ -457,11 +582,33 @@ export function step(g: Game, dt: number) {
   for (const s of g.shots) s.t += dt
   g.shots = g.shots.filter(s => s.t < s.life)
 
+  // cosmetics
+  if (g.shake > 0) g.shake = Math.max(0, g.shake - dt * 14)
+  for (const pt of g.parts) {
+    pt.t += dt
+    pt.x += pt.vx * dt
+    pt.y += pt.vy * dt
+    if (pt.kind !== 'ring') pt.vy += (pt.kind === 'ember' ? -34 : 96) * dt
+    pt.vx *= 0.965
+  }
+  g.parts = g.parts.filter(pt => pt.t < pt.life)
+  for (const ft of g.floats) { ft.t += dt; ft.y -= 22 * dt }
+  g.floats = g.floats.filter(ft => ft.t < 1)
+
   // deaths + payout
-  const before = g.foes.length
-  g.foes = g.foes.filter(f => f.hp > 0)
-  const killed = before - g.foes.length
-  if (killed > 0) g.res.gold += killed * 2
+  const dead = g.foes.filter(f => f.hp <= 0)
+  if (dead.length) {
+    g.foes = g.foes.filter(f => f.hp > 0)
+    for (const f of dead) {
+      const spec = FOES[f.kind]
+      g.res.gold += spec.bounty
+      g.score += spec.bounty * 10
+      g.kills++
+      puff(g, f.x, f.y, 'blood', 8)
+      puff(g, f.x, f.y, 'coin', 3)
+      float(g, f.x, f.y, `+${spec.bounty}`, '#F5A623')
+    }
+  }
 
   // wave resolution
   if (g.phase === 'battle' && g.spawnQueue.length === 0 && g.foes.length === 0) {
@@ -469,8 +616,10 @@ export function step(g: Game, dt: number) {
     g.phase = 'build'
     g.buildLeft = BUILD_SECONDS
     g.allies = []
-    g.res.gold += 25
-    flash(g, `موج ${g.wave} دفع شد — ۲۵ طلا غنیمت`)
+    const bonus = 20 + g.wave * 5
+    g.res.gold += bonus
+    g.score += 250
+    flash(g, `موج ${g.wave} دفع شد — ${bonus} طلا غنیمت`)
   }
 }
 
