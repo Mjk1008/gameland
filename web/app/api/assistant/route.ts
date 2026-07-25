@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import {
   getUserById, whenReady, aiQuota, aiConsume, activityPointsOf,
   registrationsForUser, allEvents, activeNews, allUsers, approvedReferralCount,
-  allCompetitions, notifsForUser, remainingTickets,
+  allCompetitions, notifsForUser, remainingTickets, getSetting, AI_KNOWLEDGE_KEY,
 } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { DISC } from '@/lib/mock-data'
@@ -79,6 +79,7 @@ function buildEntities(uid: string): Entities {
 // user or these events must come from here.
 function contextBlock(uid: string, ent: Entities): string {
   const u = getUserById(uid)!
+  const knowledge = getSetting(AI_KNOWLEDGE_KEY).trim().slice(0, 3000)
   const gamers = allUsers().filter(x => x.role === 'gamer')
   const pts = new Map(gamers.map(g => [g.id, (g.bonusPoints ?? 0) + activityPointsOf(g)]))
   const rank = [...gamers].sort((a, b) => (pts.get(b.id) ?? 0) - (pts.get(a.id) ?? 0)).findIndex(g => g.id === uid) + 1
@@ -126,7 +127,10 @@ ${notifLines}
 مسابقات:
 ${evLines}
 
-اخبار منتشرشده: ${ent.news.length ? ent.news.map(n => `«${n.title}»`).join('، ') : 'خبری نیست'}`
+اخبار منتشرشده: ${ent.news.length ? ent.news.map(n => `«${n.title}»`).join('، ') : 'خبری نیست'}${knowledge ? `
+
+### دانستنی‌های رسمیِ گیم‌لند (نوشتهٔ ادمین — معتبر و قابل استناد)
+${knowledge}` : ''}`
 }
 
 const SYSTEM = `تو «دستیار گیم‌لند» هستی — دستیار داخلِ اپ گیم‌لند، پلتفرم مسابقات ایسپورت و رنکینگ ملی گیمرهای ایران.

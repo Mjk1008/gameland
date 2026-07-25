@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { getUserById } from '@/lib/store'
+import { getUserById, getSetting, AI_KNOWLEDGE_KEY } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { C, BackHeader } from '@/components/ui'
 import { faDigits } from '@/lib/jalali'
+import KnowledgeEditor from './knowledge'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +63,9 @@ export default async function AiMonitorPage() {
           <span style={{ flex: 1 }} />
           <span style={{ fontSize: 10.5, color: C.tmut }}>gpt-4o-mini · سقف {faDigits(DAILY_LIMIT)}/روز</span>
         </div>
+
+        {/* what the assistant is allowed to state as fact */}
+        <KnowledgeEditor initial={getSetting(AI_KNOWLEDGE_KEY)} />
 
         {/* usage tiles */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>

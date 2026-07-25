@@ -89,6 +89,7 @@ function ensureHydrated() {
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
     loadNews:      (n: NewsRow) => { newsRows.set(n.id, n) },
+    loadSetting:   (k: string, v: string) => { appSettings.set(k, v) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
   }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
@@ -1210,3 +1211,13 @@ export function aiConsume(userId: string): boolean {
   aiGlobal.count++
   return true
 }
+
+
+// ─── App settings (key/value) — assistant knowledge base lives here ─────────
+const appSettings = new Map<string, string>()
+export function getSetting(key: string): string { return appSettings.get(key) ?? '' }
+export function setSetting(key: string, value: string): void {
+  appSettings.set(key, value)
+  persist.setting?.set(key, value)
+}
+export const AI_KNOWLEDGE_KEY = 'ai_knowledge'

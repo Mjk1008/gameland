@@ -28,6 +28,7 @@ export function startHydration(loaders: {
   loadCompetition?: (c: any) => void
   loadPromo?:    (p: any) => void
   loadNews?:     (n: any) => void
+  loadSetting?:  (k: string, v: string) => void
   loadAvatarId?: (userId: string) => void
   loadReceiptId?: (regId: string) => void
 }): Promise<void> {
@@ -51,6 +52,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referral_milestone INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS free_attempts INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS reject_reason TEXT`,
+        `CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_ai_messages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, prompt_tokens INTEGER NOT NULL DEFAULT 0, completion_tokens INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -150,6 +152,11 @@ export function startHydration(loaders: {
           sort: n.sort, active: n.active, createdAt: ms(n.createdAt),
         })
       } catch (e) { console.error('[db] load news:', e) }
+
+      try {
+        const st = await d.select().from(schema.settings)
+        for (const row of st) loaders.loadSetting?.(row.key, row.value)
+      } catch (e) { console.error('[db] load settings:', e) }
       } catch (e) { console.error('[db] load promos:', e) }
 
       try {
@@ -373,6 +380,13 @@ export const persist = {
       fire(d.insert(schema.placements).values({
         id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
       }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
+    },
+  },
+  setting: {
+    set(key: string, value: string) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.settings).values({ key, value })
+        .onConflictDoUpdate({ target: schema.settings.key, set: { value, updatedAt: new Date() } }))
     },
   },
   ai: {

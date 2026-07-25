@@ -205,6 +205,13 @@ export const receipts = pgTable('app_receipts', {
 })
 
 // ─── Promo slides (home carousel, admin-managed) ─────────────
+// ─── Key/value app settings (assistant knowledge base, flags) ──────────────
+export const settings = pgTable('app_settings', {
+  key:       text('key').primaryKey(),
+  value:     text('value').notNull().default(''),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── AI assistant chat log (admin monitoring; NEVER hydrated into memory) ──
 export const aiMessages = pgTable('app_ai_messages', {
   id:               text('id').primaryKey(),
