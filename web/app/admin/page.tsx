@@ -14,6 +14,7 @@ export default function AdminHome() {
 
   const tools: { href: string; label: string; sub: string; icon: JSX.Element; badge?: number }[] = [
     { href: '/admin/analytics',   label: 'آنالیتیکس',  sub: 'مانیتورینگ و نمودارها',      icon: <IconChart /> },
+    { href: '/admin/ai',          label: 'مانیتورینگ AI', sub: 'هزینه، مصرف، مکالمات',   icon: <IconBot /> },
     { href: '/admin/competitions/new', label: 'رویداد چندرشته‌ای', sub: 'مسابقهٔ مادر + رشته‌ها', icon: <IconTrophy /> },
     { href: '/admin/events',      label: 'مسابقات',    sub: `${events.length} مسابقه`,   icon: <IconGrid /> },
     { href: '/admin/promos',      label: 'اسلایدر',    sub: `${slideCount} اسلاید`,      icon: <IconImage /> },
@@ -125,3 +126,4 @@ const IconBell   = () => svg(<><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-
 const IconPlus   = () => svg(<><path d="M12 5v14M5 12h14" /></>)
 const IconChart  = () => svg(<><path d="M3 3v18h18M8 15v3M13 9v9M18 5v13" /></>)
 const IconNews   = () => svg(<><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 8h3v9a2 2 0 0 1-2 2M7 9h7M7 13h7M7 17h4" /></>)
+const IconBot    = () => svg(<><rect x="5" y="8" width="14" height="11" rx="3" /><path d="M12 8V4M8 4h8" /><circle cx="9.5" cy="13" r="1" /><circle cx="14.5" cy="13" r="1" /><path d="M9 16.5h6" /></>)

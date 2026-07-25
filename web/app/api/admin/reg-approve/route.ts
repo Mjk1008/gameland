@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const rsn = (reason ?? '').toString().trim().slice(0, 240)   // optional admin reason/note
   const status = action === 'approve' ? 'approved' : 'rejected'
   if (prev === status) return NextResponse.json({ ok: true, status })   // no-op, no duplicate notif
-  setRegistrationStatus(regId, status)
+  setRegistrationStatus(regId, status, action === 'reject' ? rsn || undefined : undefined)
   if (status === 'approved') grantReferralRewards(r.userId)   // referral milestones count only approved regs
 
   const c = getEvent(r.compId)

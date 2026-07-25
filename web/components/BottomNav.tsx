@@ -53,7 +53,7 @@ export default function BottomNav() {
     return () => { cancelled = true; clearInterval(id) }
   }, [status, path])
 
-  if (path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/welcome') || path?.startsWith('/admin')) return null
+  if (path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/welcome') || path?.startsWith('/admin') || path?.startsWith('/assistant')) return null
 
   const active = (href: string) => (href === '/' ? path === '/' : path?.startsWith(href))
 

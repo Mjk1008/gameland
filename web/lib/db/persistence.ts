@@ -50,6 +50,8 @@ export function startHydration(loaders: {
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS free_tickets INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referral_milestone INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS free_attempts INTEGER`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS reject_reason TEXT`,
+        `CREATE TABLE IF NOT EXISTS app_ai_messages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, prompt_tokens INTEGER NOT NULL DEFAULT 0, completion_tokens INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -105,6 +107,7 @@ export function startHydration(loaders: {
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: (r as any).status ?? 'approved',
         freeAttempts: (r as any).freeAttempts ?? undefined,
+        rejectReason: (r as any).rejectReason ?? undefined,
         seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
         createdAt: ms(r.createdAt),
       })
@@ -321,6 +324,7 @@ export const persist = {
       if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
       if (patch.attempts !== undefined)         set.attempts = patch.attempts
       if ((patch as any).freeAttempts !== undefined) set.freeAttempts = (patch as any).freeAttempts
+      if ((patch as any).rejectReason !== undefined) set.rejectReason = (patch as any).rejectReason
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
@@ -369,6 +373,27 @@ export const persist = {
       fire(d.insert(schema.placements).values({
         id: pl.id, userId: pl.userId, compId: pl.compId, disc: pl.disc, rank: pl.rank,
       }).onConflictDoUpdate({ target: [schema.placements.userId, schema.placements.compId], set: { rank: pl.rank } }))
+    },
+  },
+  ai: {
+    // chat rows go straight to Postgres and are read back only by the admin
+    // monitor — the running app never holds conversations in memory.
+    insert(m: { id: string; userId: string; role: string; content: string; promptTokens: number; completionTokens: number }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.aiMessages).values(m).onConflictDoNothing())
+    },
+    async forUser(userId: string, limit = 200) {
+      const d = db(); if (!d) return []
+      const rows = await d.select().from(schema.aiMessages).where(eq(schema.aiMessages.userId, userId))
+      return rows.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).slice(-limit)
+    },
+    // aggregate stats since a timestamp — one grouped SQL round-trip
+    async statsSince(sinceMs: number) {
+      const d = db(); if (!d) return []
+      const res: any = await d.execute(sql.raw(
+        `SELECT user_id, COUNT(*) FILTER (WHERE role='user') AS questions, SUM(prompt_tokens) AS pt, SUM(completion_tokens) AS ct, MAX(created_at) AS last_at
+         FROM app_ai_messages WHERE created_at >= to_timestamp(${Math.floor(sinceMs / 1000)}) GROUP BY user_id`))
+      return (res.rows ?? res) as { user_id: string; questions: string; pt: string; ct: string; last_at: string }[]
     },
   },
   news: {

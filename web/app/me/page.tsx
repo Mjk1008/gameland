@@ -66,6 +66,16 @@ export default async function MePage() {
         </Link>
       )}
 
+      {/* AI assistant entry */}
+      <Link href="/assistant" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 16 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 11, background: C.goldSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>🎮</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: C.thi }}>دستیار گیم‌لند</span>
+          <span style={{ display: 'block', fontSize: 11, color: C.tmut, marginTop: 2 }}>وضعیتِ ثبت‌نامت، قوانین، تریکِ بازی‌ها — بپرس</span>
+        </span>
+        <span style={{ color: C.gold, fontSize: 14 }}>‹</span>
+      </Link>
+
       {/* shareable gamer card — identity worth showing off */}
       {u.role === 'gamer' && (
         <div style={{ marginBottom: 16 }}>

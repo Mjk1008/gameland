@@ -104,6 +104,7 @@ export const registrations = pgTable('app_registrations', {
   compId:           text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   attempts:         integer('attempts').notNull(),
   freeAttempts:     integer('free_attempts'),   // referral-reward tickets applied to this reg
+  rejectReason:     text('reject_reason'),        // admin's last rejection reason
   status:           text('status').notNull().default('pending'),  // pending | approved | rejected
   seedsEarned:      integer('seeds_earned').notNull().default(0),
   prelimsCompleted: integer('prelims_completed').notNull().default(0),
@@ -204,6 +205,17 @@ export const receipts = pgTable('app_receipts', {
 })
 
 // ─── Promo slides (home carousel, admin-managed) ─────────────
+// ─── AI assistant chat log (admin monitoring; NEVER hydrated into memory) ──
+export const aiMessages = pgTable('app_ai_messages', {
+  id:               text('id').primaryKey(),
+  userId:           text('user_id').notNull(),
+  role:             text('role').notNull(),              // 'user' | 'assistant'
+  content:          text('content').notNull(),
+  promptTokens:     integer('prompt_tokens').notNull().default(0),
+  completionTokens: integer('completion_tokens').notNull().default(0),
+  createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── News (home news slider + modal, admin-managed) ─────────────
 export const news = pgTable('app_news', {
   id:        text('id').primaryKey(),

@@ -603,6 +603,7 @@ export interface Registration {
   compId: string
   attempts: number          // 1-6
   freeAttempts?: number     // of attempts, how many were referral-reward tickets (unpaid)
+  rejectReason?: string     // admin's last rejection reason (assistant + UI read this)
   status: RegStatus         // pending payment/approval → approved by admin
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
@@ -659,11 +660,13 @@ export function remainingTickets(userId: string, compId: string): number {
   return Math.max(0, 6 - r.attempts)
 }
 
-export function setRegistrationStatus(regId: string, status: RegStatus): Registration {
+export function setRegistrationStatus(regId: string, status: RegStatus, rejectReason?: string): Registration {
   const r = getRegistrationById(regId)
   if (!r) throw new Error('REG_NOT_FOUND')
   r.status = status
-  persist.reg.update(r.id, { status } as any)
+  if (status === 'rejected') r.rejectReason = rejectReason || r.rejectReason
+  else r.rejectReason = undefined
+  persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null } as any)
   return r
 }
 
@@ -1180,3 +1183,30 @@ export function prelimGroupKeys(compId: string): string[] {
 
 // usingDb is exported for callers that want to know the persistence mode
 export { usingDb }
+
+
+// ─── AI assistant usage limiter (in-memory, single-instance by design) ──────
+const AI_DAILY_LIMIT = 10
+const AI_GLOBAL_DAILY_LIMIT = 2000
+const aiCounts = new Map<string, number>()   // `${day}|${userId}` → questions today
+let aiGlobal = { day: '', count: 0 }
+
+function aiDayKey(): string {
+  // Tehran-midnight reset (UTC+3:30)
+  const t = new Date(Date.now() + 3.5 * 3600_000)
+  return `${t.getUTCFullYear()}-${t.getUTCMonth() + 1}-${t.getUTCDate()}`
+}
+
+export function aiQuota(userId: string): { used: number; limit: number; globalFull: boolean } {
+  const day = aiDayKey()
+  if (aiGlobal.day !== day) { aiGlobal = { day, count: 0 }; aiCounts.clear() }
+  return { used: aiCounts.get(day + '|' + userId) ?? 0, limit: AI_DAILY_LIMIT, globalFull: aiGlobal.count >= AI_GLOBAL_DAILY_LIMIT }
+}
+
+export function aiConsume(userId: string): boolean {
+  const q = aiQuota(userId)
+  if (q.globalFull || q.used >= q.limit) return false
+  aiCounts.set(aiDayKey() + '|' + userId, q.used + 1)
+  aiGlobal.count++
+  return true
+}
