@@ -11,6 +11,7 @@ import PromoSlider from './promo-slider'
 import NewsSlider from './news-slider'
 import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
+import HonorPoster from '@/components/HonorPoster'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,6 +101,10 @@ export default async function HomePage() {
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
         </span>
       </div>
+
+      {/* Honorary arcade poster — server-rendered null for everyone whose phone
+          isn't in HONOR_USER_PHONE, so nobody else even receives the markup */}
+      <HonorPoster />
 
       {/* Promo slider — admin-managed posters, each optionally linking to a competition or URL */}
       <PromoSlider slides={slides} />
