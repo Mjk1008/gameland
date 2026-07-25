@@ -605,6 +605,7 @@ export interface Registration {
   attempts: number          // 1-6
   freeAttempts?: number     // of attempts, how many were referral-reward tickets (unpaid)
   rejectReason?: string     // admin's last rejection reason (assistant + UI read this)
+  paidAttempts?: number     // tickets already settled (approved). Top-ups bill only the difference.
   status: RegStatus         // pending payment/approval → approved by admin
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
@@ -639,7 +640,8 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.seedsEarned = 0
     existing.prelimsCompleted = 0
     existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
-    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0 } as any)
+    existing.paidAttempts = 0   // nothing settled on a rejected row
+    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0 } as any)
     return existing
   }
   const r: Registration = {
@@ -667,7 +669,10 @@ export function setRegistrationStatus(regId: string, status: RegStatus, rejectRe
   r.status = status
   if (status === 'rejected') r.rejectReason = rejectReason || r.rejectReason
   else r.rejectReason = undefined
-  persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null } as any)
+  // Approving settles every ticket on the row, so a later top-up is billed
+  // only for the newly added سهم.
+  if (status === 'approved') r.paidAttempts = r.attempts
+  persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null, paidAttempts: r.paidAttempts ?? null } as any)
   return r
 }
 
@@ -1221,3 +1226,10 @@ export function setSetting(key: string, value: string): void {
   persist.setting?.set(key, value)
 }
 export const AI_KNOWLEDGE_KEY = 'ai_knowledge'
+
+
+// Tickets on a registration that still need paying (top-ups bill the delta;
+// referral-reward tickets and already-approved tickets are free/settled).
+export function unpaidAttempts(r: Registration): number {
+  return Math.max(0, r.attempts - (r.paidAttempts ?? 0) - (r.freeAttempts ?? 0))
+}

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, roadmapStages } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, remainingTickets, matchesForComp } from '@/lib/store'
 import { C, DISP, Num, StatusChip, BackHeader, Button, DISC_DOT } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +24,13 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
   if (!uid || !getUserById(uid)) redirect(`/login?callbackUrl=/competitions/${params.id}/me`)
   const r = getRegistration(uid, params.id)
   if (!r) redirect(`/competitions/${params.id}/register`)
+  // buying more سهم stays open until the draw (cap 6 per discipline)
+  const canTopUp = matchesForComp(params.id).length === 0 ? remainingTickets(uid, params.id) : 0
+  const topUpBtn = canTopUp > 0 ? (
+    <Link href={`/competitions/${params.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, background: C.goldSoft, border: `1px solid ${C.gold}66`, borderRadius: 12, color: C.gold, fontWeight: 800, fontSize: 13.5 }}>
+      + خرید سهمِ بیشتر <span className="gl-num" style={{ opacity: .8 }}>({canTopUp} تا مونده)</span>
+    </Link>
+  ) : null
 
   // Not yet approved → payment/approval gate, not the bracket roadmap.
   if (r.status !== 'approved') {
@@ -50,6 +57,7 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
             </div>
           </div>
           {!rejected && <Button href={`/competitions/${c.id}/pay`}>پرداخت و ارسال رسید ›</Button>}
+          {!rejected && topUpBtn}
         </div>
       </div>
     )
@@ -121,6 +129,7 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
           </div>
         </div>
 
+        {topUpBtn}
         <Button href={`/competitions/${c.id}/bracket`} kind="secondary">مشاهدهٔ کامل براکت ›</Button>
       </div>
     </div>

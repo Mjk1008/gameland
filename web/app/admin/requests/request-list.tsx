@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 
-interface Row { regId: string; attempts: number; freeAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
+interface Row { regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
 
 const REJECT_REASONS = [
   'فیش پرداخت ارسال نشده',
@@ -110,6 +110,11 @@ export default function RequestList({ rows }: { rows: Row[] }) {
 
             <div style={{ fontSize: 12.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 13px' }}>{sel.event}</div>
 
+            {!!sel.paidAttempts && sel.paidAttempts < sel.attempts && (
+              <div style={{ marginTop: 9, fontSize: 11.5, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}44`, borderRadius: 9, padding: '8px 11px' }}>
+                ↑ خریدِ مجدد — <span className="gl-num">{sel.paidAttempts}</span> سهم قبلاً تایید شده، الان <span className="gl-num">{sel.attempts - sel.paidAttempts}</span> سهمِ جدید اضافه کرده
+              </div>
+            )}
             {(!!sel.freeAttempts || sel.referrerTag) && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
                 {!!sel.freeAttempts && <span style={{ fontSize: 10.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 7, padding: '3px 9px' }}>🎟 {sel.freeAttempts} سهمِ جایزهٔ دعوت (بدون فیش)</span>}

@@ -104,6 +104,7 @@ export const registrations = pgTable('app_registrations', {
   compId:           text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
   attempts:         integer('attempts').notNull(),
   freeAttempts:     integer('free_attempts'),   // referral-reward tickets applied to this reg
+  paidAttempts:     integer('paid_attempts'),   // tickets already paid for & approved (top-ups bill the difference)
   rejectReason:     text('reject_reason'),        // admin's last rejection reason
   status:           text('status').notNull().default('pending'),  // pending | approved | rejected
   seedsEarned:      integer('seeds_earned').notNull().default(0),

@@ -52,6 +52,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referral_milestone INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS free_attempts INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS reject_reason TEXT`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS paid_attempts INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_ai_messages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, prompt_tokens INTEGER NOT NULL DEFAULT 0, completion_tokens INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -110,6 +111,7 @@ export function startHydration(loaders: {
         attempts: r.attempts, status: (r as any).status ?? 'approved',
         freeAttempts: (r as any).freeAttempts ?? undefined,
         rejectReason: (r as any).rejectReason ?? undefined,
+        paidAttempts: (r as any).paidAttempts ?? undefined,
         seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
         createdAt: ms(r.createdAt),
       })
@@ -312,7 +314,7 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts,
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -321,8 +323,8 @@ export const persist = {
       const d = db(); if (!d) return
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts } })
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -332,6 +334,7 @@ export const persist = {
       if (patch.attempts !== undefined)         set.attempts = patch.attempts
       if ((patch as any).freeAttempts !== undefined) set.freeAttempts = (patch as any).freeAttempts
       if ((patch as any).rejectReason !== undefined) set.rejectReason = (patch as any).rejectReason
+      if ((patch as any).paidAttempts !== undefined) set.paidAttempts = (patch as any).paidAttempts
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
