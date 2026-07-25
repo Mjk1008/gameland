@@ -120,15 +120,6 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* AI assistant — floating glassy entry above the bottom nav */}
-      {signedIn && (
-        <Link href="/assistant" aria-label="دستیار گیم‌لند"
-          style={{ all: 'unset', cursor: 'pointer', position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', insetInlineStart: 14, zIndex: 45, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(20,17,13,.6)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${C.gold}66`, borderRadius: 999, padding: '10px 15px', boxShadow: '0 8px 26px rgba(0,0,0,.45)' }}>
-          <span style={{ fontSize: 16 }}>🎮</span>
-          <span style={{ fontSize: 12, fontWeight: 800, color: C.gold }}>دستیار</span>
-        </Link>
-      )}
-
       {/* Signed-in gamer's own overview card */}
       {signedIn && me && me.role === 'gamer' && (
         <Link href="/me" style={{ all: 'unset', cursor: 'pointer', display: 'block', position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: '16px 18px' }} className="animate-fade-up">

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import SwRegister from './sw-register'
 import BottomNav from '@/components/BottomNav'
 import AddToHome from '@/components/AddToHome'
+import AssistantFab from '@/components/AssistantFab'
 import Providers from './providers'
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <BottomNav />
+        <AssistantFab />
         <AddToHome />
         </Providers>
         <SwRegister />
