@@ -4,6 +4,7 @@ import { getCompetition, eventsForCompetition, approvedRegistrationsForComp } fr
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import AddDisciplineForm from './add-discipline'
+import EditCompetition from './edit-competition'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,11 +19,14 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
       <Link href="/admin" style={{ fontSize: 12, color: C.tmut, textDecoration: 'none' }}>‹ داشبورد</Link>
 
       {/* competition header */}
-      <div>
-        <div style={{ fontSize: 21, fontWeight: 800, color: C.thi }}>{comp.title}</div>
-        <div style={{ fontSize: 12.5, color: C.tmut, marginTop: 5 }}>
-          {[comp.location, comp.date].filter(Boolean).join(' · ') || 'رویدادِ چندرشته‌ای'}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: C.thi }}>{comp.title}</div>
+          <div style={{ fontSize: 12.5, color: comp.location ? C.tmut : C.gold, marginTop: 5 }}>
+            {[comp.location, comp.date].filter(Boolean).join(' · ') || '⚠ محل و تاریخ ثبت نشده — دستیار و کارت‌ها چیزی برای نشون‌دادن ندارن'}
+          </div>
         </div>
+        <EditCompetition id={comp.id} title={comp.title} location={comp.location} date={comp.date} childCount={discEvents.length} />
       </div>
 
       {/* disciplines in this competition */}
