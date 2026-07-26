@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getUserById, getSetting, AI_KNOWLEDGE_KEY } from '@/lib/store'
+import { AI_MODEL } from '@/lib/ai-config'
 import { persist } from '@/lib/db/persistence'
 import { C, BackHeader } from '@/components/ui'
 import { faDigits } from '@/lib/jalali'
@@ -7,7 +8,7 @@ import KnowledgeEditor from './knowledge'
 
 export const dynamic = 'force-dynamic'
 
-// gpt-4o-mini list price (USD per token) — estimate shown to the admin
+// Rough list-price estimate shown to the admin — the real invoice is Metis's.
 const IN_PRICE = 0.15 / 1e6
 const OUT_PRICE = 0.60 / 1e6
 const DAILY_LIMIT = 20
@@ -61,7 +62,7 @@ export default async function AiMonitorPage() {
           <span style={{ width: 8, height: 8, borderRadius: 999, background: enabled ? C.win : C.live }} />
           <span style={{ fontSize: 12.5, fontWeight: 700, color: enabled ? C.win : C.live }}>{enabled ? 'دستیار فعاله' : 'دستیار خاموشه (env را چک کن)'}</span>
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 10.5, color: C.tmut }}>gpt-4o-mini · سقف {faDigits(DAILY_LIMIT)}/روز</span>
+          <span style={{ fontSize: 10.5, color: C.tmut }}>{AI_MODEL} · سقف {faDigits(DAILY_LIMIT)}/روز</span>
         </div>
 
         {/* what the assistant is allowed to state as fact */}
@@ -83,7 +84,7 @@ export default async function AiMonitorPage() {
         </div>
 
         <div style={{ fontSize: 10.5, color: C.tmut, textAlign: 'center' }}>
-          هزینه تخمینیه (نرخِ لیستِ gpt-4o-mini) · توکن ۳۰ روز: <span dir="ltr" className="gl-num">{(m.pt + m.ct).toLocaleString('en-US')}</span>
+          هزینه تخمینیه · توکن ۳۰ روز: <span dir="ltr" className="gl-num">{(m.pt + m.ct).toLocaleString('en-US')}</span>
         </div>
 
         {/* top users + anomalies */}

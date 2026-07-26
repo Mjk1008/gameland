@@ -8,11 +8,12 @@ import {
 import { persist } from '@/lib/db/persistence'
 import { DISC } from '@/lib/mock-data'
 import { TICKET, toman } from '@/lib/payment'
+import { AI_MODEL } from '@/lib/ai-config'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const MODEL = 'gpt-4o-mini'
+
 const MAX_INPUT = 500
 const MAX_HISTORY = 12          // ~6 exchanges of working memory
 const MAX_HISTORY_CHARS = 4500  // hard budget so a long chat can't blow the context
@@ -220,7 +221,7 @@ export async function POST(req: Request) {
   const upstream = await fetch('https://api.metisai.ir/openai/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, messages, max_tokens: 320, temperature: 0.4, stream: true, stream_options: { include_usage: true } }),
+    body: JSON.stringify({ model: AI_MODEL, messages, max_tokens: 320, temperature: 0.4, stream: true, stream_options: { include_usage: true } }),
     signal: AbortSignal.timeout(50_000),
   }).catch(() => null)
 
