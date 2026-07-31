@@ -32,14 +32,22 @@ interface Bucket { label: string; sub?: string; approved: number; pending: numbe
 
 export interface ReferralSnap { invited: number; freeGranted: number; top: { uid: string; name: string; tag: string; count: number }[] }
 
-export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, referral }: {
-  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; referral?: ReferralSnap
+const VIEWS = [
+  { key: 'comp',  label: 'مسابقه' },
+  { key: 'city',  label: 'شهر' },
+  { key: 'disc',  label: 'رشته' },
+  { key: 'trend', label: 'روند' },
+] as const
+
+export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, referral, showHeader = true }: {
+  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; referral?: ReferralSnap; showHeader?: boolean
 }) {
   const [now] = useState(() => Date.now())
   const [time, setTime] = useState<(typeof TIMES)[number]['key']>('all')
   const [disc, setDisc] = useState<Disc | 'all'>('all')
   const [city, setCity] = useState<string | 'all'>('all')
   const [table, setTable] = useState(false)
+  const [view, setView] = useState<(typeof VIEWS)[number]['key']>('comp')
 
   const cutoff = useMemo(() => { const t = TIMES.find(x => x.key === time)!; return t.days ? now - t.days * 86400000 : 0 }, [time, now])
 
@@ -86,9 +94,9 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="آنالیتیکس" href="/admin" />
+      {showHeader && <BackHeader title="آنالیتیکس" href="/admin" />}
 
-      <div style={{ padding: '14px 16px 30px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: showHeader ? '14px 16px 30px' : '0 16px 30px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* ── Filters (one strip) ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <ChipRow>
@@ -136,24 +144,38 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
           ))}
         </div>
 
+        {/* ── View-by dimension selector — pick ONE breakdown, no scrolling past the others ── */}
+        <ChipRow>
+          <span style={{ fontSize: 11, color: C.tmut, alignSelf: 'center', paddingInlineEnd: 2, flexShrink: 0 }}>نمایش بر اساس:</span>
+          {VIEWS.map(v => <Chip key={v.key} on={view === v.key} onClick={() => setView(v.key)}>{v.label}</Chip>)}
+        </ChipRow>
+
         {fReg.length === 0 ? (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '30px 20px', textAlign: 'center', color: C.tmut, fontSize: 13 }}>
             برای این فیلترها داده‌ای نیست.
           </div>
         ) : (
           <>
-            <Section title="سهم به‌ازای هر مسابقه">
-              {table ? <BTable rows={byComp} /> : byComp.map(b => <StackRow key={b.label} b={b} max={byComp[0].total} />)}
-            </Section>
-            <Section title="سهم و گیمر به‌ازای هر شهر">
-              {table ? <BTable rows={byCity} extra="گیمر" extraOf={b => b.sub?.replace(' گیمر', '') ?? '۰'} /> : byCity.map(b => <StackRow key={b.label} b={b} max={byCity[0].total} />)}
-            </Section>
-            <Section title="سهم به‌ازای هر رشته">
-              {table ? <BTable rows={byDisc} /> : byDisc.map(b => <StackRow key={b.label} b={b} max={byDisc[0].total} />)}
-            </Section>
-            <Section title="روند فروش سهم">
-              <DailyBars data={daily} />
-            </Section>
+            {view === 'comp' && (
+              <Section title="سهم به‌ازای هر مسابقه">
+                {table ? <BTable rows={byComp} /> : byComp.map(b => <StackRow key={b.label} b={b} max={byComp[0].total} />)}
+              </Section>
+            )}
+            {view === 'city' && (
+              <Section title="سهم و گیمر به‌ازای هر شهر">
+                {table ? <BTable rows={byCity} extra="گیمر" extraOf={b => b.sub?.replace(' گیمر', '') ?? '۰'} /> : byCity.map(b => <StackRow key={b.label} b={b} max={byCity[0].total} />)}
+              </Section>
+            )}
+            {view === 'disc' && (
+              <Section title="سهم به‌ازای هر رشته">
+                {table ? <BTable rows={byDisc} /> : byDisc.map(b => <StackRow key={b.label} b={b} max={byDisc[0].total} />)}
+              </Section>
+            )}
+            {view === 'trend' && (
+              <Section title="روند فروش سهم">
+                <DailyBars data={daily} />
+              </Section>
+            )}
           </>
         )}
 

@@ -59,6 +59,9 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_news (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_track_events (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT NOT NULL, name TEXT NOT NULL, path TEXT NOT NULL DEFAULT '', props TEXT NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS app_track_events_name_idx ON app_track_events (name, created_at)`,
+        `CREATE INDEX IF NOT EXISTS app_track_events_session_idx ON app_track_events (session_id, created_at)`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -478,6 +481,64 @@ export const persist = {
       const d = db(); if (!d) return null
       const rows = await d.select({ dataUrl: schema.receipts.dataUrl }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
       return rows[0]?.dataUrl ?? null
+    },
+  },
+  // Behavioral events — write-only from the running app, read back only by
+  // /admin/behavior. Never hydrated into memory (see schema.ts comment).
+  track: {
+    insertMany(rows: { id: string; userId?: string; sessionId: string; name: string; path: string; props: string }[]) {
+      const d = db(); if (!d || !rows.length) return
+      fire(d.insert(schema.trackEvents).values(rows))
+    },
+    // Unique actors (user, falling back to session pre-auth) per named step —
+    // the right denominator for step-to-step conversion %, not raw event count.
+    async funnelCounts(names: string[], sinceMs: number) {
+      const d = db(); if (!d) return []
+      const list = names.map(n => `'${n.replace(/'/g, "''")}'`).join(',')
+      const res: any = await d.execute(sql.raw(
+        `SELECT name, COUNT(DISTINCT COALESCE(user_id, session_id)) AS n
+         FROM app_track_events WHERE name IN (${list}) AND created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})
+         GROUP BY name`))
+      return (res.rows ?? res) as { name: string; n: string }[]
+    },
+    async topPaths(sinceMs: number, limit = 10) {
+      const d = db(); if (!d) return []
+      const res: any = await d.execute(sql.raw(
+        `SELECT path, COUNT(*) AS n FROM app_track_events
+         WHERE name='pageview' AND created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})
+         GROUP BY path ORDER BY n DESC LIMIT ${Math.floor(limit)}`))
+      return (res.rows ?? res) as { path: string; n: string }[]
+    },
+    async dau(days: number) {
+      const d = db(); if (!d) return []
+      const res: any = await d.execute(sql.raw(
+        `SELECT date_trunc('day', created_at) AS day, COUNT(DISTINCT COALESCE(user_id, session_id)) AS n
+         FROM app_track_events WHERE created_at >= now() - interval '${Math.floor(days)} days'
+         GROUP BY day ORDER BY day`))
+      return (res.rows ?? res) as { day: string; n: string }[]
+    },
+    // Does talking to the assistant correlate with clearing the funnel? Rates
+    // are computed against the signed-up population (not raw event counts) so
+    // "chatters convert more" isn't just an artifact of chatters being a
+    // smaller, more-engaged group.
+    async chatCorrelation(sinceMs: number) {
+      const d = db(); if (!d) return null
+      const t = Math.floor(sinceMs / 1000)
+      const res: any = await d.execute(sql.raw(`
+        WITH signed AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='signup_complete' AND user_id IS NOT NULL AND created_at >= to_timestamp(${t})),
+        chatters AS (SELECT DISTINCT user_id FROM app_ai_messages WHERE created_at >= to_timestamp(${t})),
+        approved AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='reg_approved' AND user_id IS NOT NULL AND created_at >= to_timestamp(${t})),
+        reached  AS (SELECT DISTINCT user_id FROM app_track_events WHERE name IN ('ticket_select','pay_page_view') AND user_id IS NOT NULL AND created_at >= to_timestamp(${t}))
+        SELECT
+          (SELECT COUNT(*) FROM signed WHERE user_id IN (SELECT user_id FROM chatters)) AS chatters_signed,
+          (SELECT COUNT(*) FROM signed WHERE user_id NOT IN (SELECT user_id FROM chatters)) AS nonchatters_signed,
+          (SELECT COUNT(*) FROM reached WHERE user_id IN (SELECT user_id FROM chatters)) AS chatters_reached,
+          (SELECT COUNT(*) FROM approved WHERE user_id IN (SELECT user_id FROM chatters)) AS chatters_approved,
+          (SELECT COUNT(*) FROM reached WHERE user_id NOT IN (SELECT user_id FROM chatters)) AS nonchatters_reached,
+          (SELECT COUNT(*) FROM approved WHERE user_id NOT IN (SELECT user_id FROM chatters)) AS nonchatters_approved
+      `))
+      const rows = (res.rows ?? res) as any[]
+      return rows[0] ?? null
     },
   },
 }

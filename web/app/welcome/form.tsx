@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DISC } from '@/lib/mock-data'
 import { IRAN_GEO, citiesOf } from '@/lib/iran-geo'
 import { C, DISP, Wordmark, Button, GameBadge } from '@/components/ui'
+import { track } from '@/lib/track'
 
 type Messenger = 'whatsapp' | 'telegram' | 'both'
 type Disc = keyof typeof DISC
@@ -58,6 +59,7 @@ export default function WelcomeForm({ init }: { init: ProfileInit }) {
         else setFe({ form: msg })
         setBusy(false); return
       }
+      track('profile_complete')
       window.location.href = '/me'
     } catch (e: any) { setFe({ form: e.message }); setBusy(false) }
   }

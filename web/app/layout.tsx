@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import SwRegister from './sw-register'
+import TrackPageview from './track-pageview'
 import BottomNav from '@/components/BottomNav'
 import AddToHome from '@/components/AddToHome'
 import AssistantFab from '@/components/AssistantFab'
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AddToHome />
         </Providers>
         <SwRegister />
+        <TrackPageview />
       </body>
     </html>
   )

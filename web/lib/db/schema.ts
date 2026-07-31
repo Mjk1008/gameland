@@ -246,3 +246,15 @@ export const promos = pgTable('app_promos', {
   active:    boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ─── Behavioral analytics (pageviews, taps, funnel steps) — write-only from
+// the app's side, read back only by /admin/behavior; NEVER hydrated into memory.
+export const trackEvents = pgTable('app_track_events', {
+  id:        text('id').primaryKey(),
+  userId:    text('user_id'),                       // null pre-auth (landing, signup_start)
+  sessionId: text('session_id').notNull(),
+  name:      text('name').notNull(),                // e.g. 'pageview' | 'ticket_select' | 'tap'
+  path:      text('path').notNull().default(''),
+  props:     text('props').notNull().default('{}'), // JSON.stringify — no free-form user text (see lib/track.ts allow-list)
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})

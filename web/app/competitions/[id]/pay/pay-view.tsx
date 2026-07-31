@@ -1,8 +1,9 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, BackHeader, Button } from '@/components/ui'
 import { PAYMENT, paymentLinks, TICKET, toman } from '@/lib/payment'
+import { track } from '@/lib/track'
 
 // downscale a receipt photo to a compact JPEG before upload
 function fileToDataUrl(file: File): Promise<string> {
@@ -36,6 +37,8 @@ export default function PayView({ compId, title, attempts, payable, alreadyPaid 
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  useEffect(() => { track('pay_page_view', { compId, status }) }, [])
+
   function copyCard() {
     navigator.clipboard?.writeText(PAYMENT.card).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
   }
@@ -48,6 +51,7 @@ export default function PayView({ compId, title, attempts, payable, alreadyPaid 
       const res = await fetch('/api/register/receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, imageData }) })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j.error || 'آپلود نشد، دوباره امتحان کن')
+      track('receipt_submit', { compId })
       setUploaded(true); router.refresh()
     } catch (e: any) { setErr(e.message) }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = '' }

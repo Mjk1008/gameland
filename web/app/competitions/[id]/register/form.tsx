@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { TICKET, ticketOffPercent, toman } from '@/lib/payment'
+import { track } from '@/lib/track'
 
 interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; freeTickets?: number }
 
@@ -34,6 +35,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت‌نام انجام نشد، دوباره امتحان کن')
+      track('ticket_select', { compId: comp.id, disc: comp.disc, tickets: attempts })
       router.push(`/competitions/${comp.id}/pay`); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }

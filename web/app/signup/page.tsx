@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { C, DISP, Wordmark, Button } from '@/components/ui'
+import { track } from '@/lib/track'
 
 export default function SignupPage() {
   const [phone, setPhone] = useState('')
@@ -20,6 +21,7 @@ export default function SignupPage() {
     if (password.length < 8) errs.password = 'گذرواژه دست‌کم ۸ کاراکتر باشه'
     setFe(errs)
     if (Object.keys(errs).length) return
+    track('signup_start')
     setBusy(true)
     try {
       const res = await fetch('/api/signup', {
@@ -34,6 +36,7 @@ export default function SignupPage() {
         else setFe({ form: msg })
         setBusy(false); return
       }
+      track('signup_complete')
       // redirect:true → NextAuth navigates only after the session cookie is
       // set, avoiding a race where /me loads before auth and bounces to /login.
       await signIn('credentials', { phone, password, redirect: true, callbackUrl: '/me' })

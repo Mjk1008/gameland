@@ -2,6 +2,7 @@
 // Source of truth: docs/23-design-direction.md + design handoff.
 import React from 'react'
 import Link from 'next/link'
+import { track } from '@/lib/track'
 
 // ── tokens ──
 export const C = {
@@ -156,8 +157,17 @@ export function Button({ children, kind = 'primary', href, onClick, type, disabl
     borderRadius: 11, fontSize: 14, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
     fontFamily: 'var(--font-fa)', ...BTN[kind], ...style,
   }
+  // href buttons are pure navigation — no onClick ever existed here, and the
+  // destination's own pageview event already covers "user went there"; adding
+  // one would also cross the Server→Client prop boundary when Button is
+  // rendered from a Server Component (e.g. not-found.tsx), which Next.js
+  // rejects. Tap tracking only applies to the interactive <button> branch
+  // below, which by construction only ever runs from a Client Component
+  // (a Server Component can't hand Button a real onClick in the first place).
   if (href && !disabled) return <Link href={href} style={{ ...s, display: 'block' }}>{children}</Link>
-  return <button type={type ?? 'button'} onClick={onClick} disabled={disabled} style={s}>{children}</button>
+  const label = typeof children === 'string' ? children : undefined
+  const tap = () => track('tap', { kind, label })
+  return <button type={type ?? 'button'} onClick={() => { tap(); onClick?.() }} disabled={disabled} style={s}>{children}</button>
 }
 
 // ── glassmorphism surface — translucent + blur, for cards/panels over imagery.
