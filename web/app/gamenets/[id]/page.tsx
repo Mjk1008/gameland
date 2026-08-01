@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
-import { getGamenet } from '@/lib/store'
+import { getGamenet, hasGamenetPhoto } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
+import { GAMENET_FEATURES, CONSOLE_KINDS } from '@/lib/gamenet-features'
+import { GAMENET_GAMES } from '@/lib/gamenet-games'
 import { C, DISP, DiscChip, BackHeader } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -8,6 +10,7 @@ export const dynamic = 'force-dynamic'
 export default function GamenetPage({ params }: { params: { id: string } }) {
   const g = getGamenet(params.id)
   if (!g) return notFound()
+  const photo = hasGamenetPhoto(g.id)
 
   return (
     <div className="animate-fade-up">
@@ -16,23 +19,27 @@ export default function GamenetPage({ params }: { params: { id: string } }) {
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 6 }}>
+          {photo ? (
+            <img src={`/api/gamenet-photo/${g.id}`} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 16, border: `1px solid ${C.line}` }} />
+          ) : (
           <div style={{ width: 84, height: 84, borderRadius: 22, background: C.accentSoft, border: `1.5px solid ${C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="6" width="16" height="11" rx="2"/><path d="M9 17v3M15 17v3M7 20h10"/>
             </svg>
           </div>
+          )}
           <div style={{ textAlign: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
               <span style={{ fontWeight: 800, fontSize: 19, color: C.thi }}>{g.name}</span>
               {g.verified && <span style={{ fontSize: 11, fontWeight: 700, color: C.win, background: C.winSoft, padding: '2px 6px', borderRadius: 5 }}>✓ تأییدشده</span>}
             </div>
-            <div style={{ fontSize: 12.5, color: C.tbody, marginTop: 4 }}>{g.city}</div>
+            <div style={{ fontSize: 12.5, color: C.tbody, marginTop: 4 }}>{g.province ? `${g.province}، ` : ''}{g.city}</div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Tile label="ایستگاه" value={g.stations} color={C.accent}/>
-          <Tile label="بازی‌ها" value={g.disciplines.length} color={C.gold}/>
+          <Tile label="دستگاه" value={g.stations} color={C.accent}/>
+          <Tile label="رشتهٔ مسابقاتی" value={g.disciplines.length} color={C.gold}/>
         </div>
 
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 13, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -44,17 +51,60 @@ export default function GamenetPage({ params }: { params: { id: string } }) {
             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L7.8 9.8a16 16 0 0 0 6 6l1.4-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2Z"/></svg>}
             label="تلفن" value={g.phone} dir="ltr"
           />}
+          {g.instagramUrl && <Row
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.5"/><circle cx="17.2" cy="6.8" r="1"/></svg>}
+            label="پیج" value={g.instagramUrl} dir="ltr"
+          />}
         </div>
+
+        {g.consoles.length > 0 && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 8 }}>دستگاه‌ها</div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {g.consoles.map(c => (
+                <span key={c.kind} style={{ fontSize: 11.5, fontWeight: 700, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: '6px 11px' }}>
+                  {CONSOLE_KINDS.find(k => k.id === c.kind)?.name ?? c.kind} <span className="gl-num">×{c.count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {g.features.length > 0 && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 8 }}>امکانات</div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {g.features.map(f => (
+                <span key={f} style={{ fontSize: 11.5, fontWeight: 600, color: C.tbody, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: '6px 11px' }}>
+                  {GAMENET_FEATURES.find(x => x.id === f)?.name ?? f}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {g.disciplines.length > 0 && (
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 8 }}>بازی‌های پشتیبانی‌شده</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 8 }}>رشته‌های مسابقاتیِ گیم‌لند</div>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
               {g.disciplines.map(did => {
                 const d = DISC[did as keyof typeof DISC]
                 if (!d) return null
                 return <DiscChip key={did} disc={did} name={d.name} />
               })}
+            </div>
+          </div>
+        )}
+
+        {g.games.length > 0 && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 8 }}>بقیهٔ بازی‌ها</div>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+              {g.games.map(x => (
+                <span key={x} style={{ fontSize: 11.5, fontWeight: 600, color: C.tbody, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: '6px 11px' }}>
+                  {GAMENET_GAMES.find(gg => gg.id === x)?.name ?? x}
+                </span>
+              ))}
             </div>
           </div>
         )}

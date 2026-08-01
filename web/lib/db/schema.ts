@@ -176,19 +176,31 @@ export const coinTxns = pgTable('app_coin_txns', {
 
 // ─── Gamenets ────────────────────────────────────────────────
 export const gamenets = pgTable('app_gamenets', {
-  id:          text('id').primaryKey(),
-  ownerId:     text('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  name:        text('name').notNull(),
-  city:        text('city').notNull(),
-  address:     text('address').notNull(),
-  phone:       text('phone'),
-  stations:    integer('stations').notNull().default(0),
-  disciplines: text('disciplines').notNull().default(''),
-  verified:    boolean('verified').notNull().default(false),
-  createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  id:            text('id').primaryKey(),
+  ownerId:       text('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name:          text('name').notNull(),
+  province:      text('province'),
+  city:          text('city').notNull(),
+  address:       text('address').notNull(),
+  phone:         text('phone'),
+  instagramUrl:  text('instagram_url'),
+  stations:      integer('stations').notNull().default(0),
+  consoles:      text('consoles').notNull().default('[]'),   // JSON: {kind,count}[]
+  disciplines:   text('disciplines').notNull().default(''),  // tournament-relevant — load-bearing
+  games:         text('games').notNull().default(''),        // broader catalog — cosmetic only
+  features:      text('features').notNull().default(''),     // amenity ids, CSV
+  verified:      boolean('verified').notNull().default(false),
+  createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   byCity: index('gn_city_idx').on(t.city),
 }))
+
+// Venue photo, out of the in-memory store like avatars — served on demand.
+export const gamenetPhotos = pgTable('app_gamenet_photos', {
+  gamenetId: text('gamenet_id').primaryKey(),
+  dataUrl:   text('data_url').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
 
 // ─── Avatars (profile photos, base64) — stored OUT of the in-memory store and
 // served on demand, so 10k photos never bloat RAM or the hydration path ──────

@@ -31,6 +31,8 @@ export function startHydration(loaders: {
   loadSetting?:  (k: string, v: string) => void
   loadAvatarId?: (userId: string) => void
   loadReceiptId?: (regId: string) => void
+  loadGamenet?:  (g: any) => void
+  loadGamenetPhotoId?: (gamenetId: string) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -62,6 +64,14 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_track_events (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT NOT NULL, name TEXT NOT NULL, path TEXT NOT NULL DEFAULT '', props TEXT NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS app_track_events_name_idx ON app_track_events (name, created_at)`,
         `CREATE INDEX IF NOT EXISTS app_track_events_session_idx ON app_track_events (session_id, created_at)`,
+        `CREATE TABLE IF NOT EXISTS app_gamenets (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, name TEXT NOT NULL, city TEXT NOT NULL, address TEXT NOT NULL, phone TEXT, stations INTEGER NOT NULL DEFAULT 0, disciplines TEXT NOT NULL DEFAULT '', verified BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS gn_city_idx ON app_gamenets (city)`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS province TEXT`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS instagram_url TEXT`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS consoles TEXT NOT NULL DEFAULT '[]'`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS games TEXT NOT NULL DEFAULT ''`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS features TEXT NOT NULL DEFAULT ''`,
+        `CREATE TABLE IF NOT EXISTS app_gamenet_photos (gamenet_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -174,6 +184,27 @@ export function startHydration(loaders: {
         const rc = await d.execute(sql.raw('SELECT reg_id FROM app_receipts'))
         for (const row of (rc as any as { reg_id: string }[])) loaders.loadReceiptId?.(row.reg_id)
       } catch (e) { console.error('[db] load receipt ids:', e) }
+
+      try {
+        const gn = await d.select().from(schema.gamenets)
+        for (const g of gn) loaders.loadGamenet?.({
+          id: g.id, ownerId: g.ownerId, name: g.name,
+          province: (g as any).province ?? undefined, city: g.city, address: g.address,
+          phone: g.phone ?? undefined, instagramUrl: (g as any).instagramUrl ?? undefined,
+          stations: g.stations,
+          consoles: (() => { try { return JSON.parse((g as any).consoles ?? '[]') } catch { return [] } })(),
+          disciplines: g.disciplines ? g.disciplines.split(',').filter(Boolean) : [],
+          games: (g as any).games ? (g as any).games.split(',').filter(Boolean) : [],
+          features: (g as any).features ? (g as any).features.split(',').filter(Boolean) : [],
+          verified: g.verified, createdAt: ms(g.createdAt),
+        })
+      } catch (e) { console.error('[db] load gamenets:', e) }
+
+      try {
+        // Ids only — the photo bytes stay in Postgres, served on demand.
+        const gp = await d.execute(sql.raw('SELECT gamenet_id FROM app_gamenet_photos'))
+        for (const row of (gp as any as { gamenet_id: string }[])) loaders.loadGamenetPhotoId?.(row.gamenet_id)
+      } catch (e) { console.error('[db] load gamenet photo ids:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -539,6 +570,34 @@ export const persist = {
       `))
       const rows = (res.rows ?? res) as any[]
       return rows[0] ?? null
+    },
+  },
+  gamenet: {
+    insert(g: { id: string; ownerId: string; name: string; province?: string; city: string; address: string; phone?: string; instagramUrl?: string; stations: number; consoles: { kind: string; count: number }[]; disciplines: string[]; games: string[]; features: string[]; verified: boolean }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.gamenets).values({
+        id: g.id, ownerId: g.ownerId, name: g.name, province: g.province, city: g.city, address: g.address,
+        phone: g.phone, instagramUrl: g.instagramUrl, stations: g.stations, consoles: JSON.stringify(g.consoles),
+        disciplines: g.disciplines.join(','), games: g.games.join(','), features: g.features.join(','), verified: g.verified,
+      }).onConflictDoNothing())
+    },
+    setVerified(id: string, verified: boolean) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.gamenets).set({ verified }).where(eq(schema.gamenets.id, id)))
+    },
+  },
+  gamenetPhoto: {
+    // Venue photo bytes live only in Postgres, served on demand — same
+    // pattern as avatars/receipts (never hydrated into the in-memory store).
+    async upsertAsync(gamenetId: string, dataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.gamenetPhotos).values({ gamenetId, dataUrl })
+        .onConflictDoUpdate({ target: schema.gamenetPhotos.gamenetId, set: { dataUrl } })
+    },
+    async read(gamenetId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.gamenetPhotos.dataUrl }).from(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.gamenetId, gamenetId)).limit(1)
+      return rows[0]?.dataUrl ?? null
     },
   },
 }

@@ -92,6 +92,8 @@ function ensureHydrated() {
     loadSetting:   (k: string, v: string) => { appSettings.set(k, v) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
+    loadGamenet:   (g: Gamenet) => { gamenets.set(g.id, g) },
+    loadGamenetPhotoId: (gamenetId: string) => { gamenetPhotoIds.add(gamenetId) },
   }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
 }
 
@@ -834,25 +836,34 @@ export function applyCoinTxn(userId: string, delta: number, reason: CoinTxn['rea
 
 // ─── Gamenets ───────────────────────────────────────────────────────────────
 
+export interface GamenetConsole { kind: string; count: number }
+
 export interface Gamenet {
   id: string
   ownerId: string
   name: string
+  province?: string
   city: string
   address: string
   phone?: string
-  stations: number
-  disciplines: string[] // disc ids
+  instagramUrl?: string
+  stations: number               // derived = sum(consoles[].count), kept for back-compat reads
+  consoles: GamenetConsole[]
+  disciplines: string[]           // tournament-relevant disc ids — load-bearing, keep clean
+  games: string[]                 // broader catalog ids (lib/gamenet-games.ts) — cosmetic only
+  features: string[]              // amenity ids (lib/gamenet-features.ts)
   verified: boolean
   createdAt: number
 }
 
 const gamenets = new Map<string, Gamenet>()
 
-export function createGamenet(input: Omit<Gamenet, 'id' | 'createdAt' | 'verified'>): Gamenet {
+export function createGamenet(input: Omit<Gamenet, 'id' | 'createdAt' | 'verified' | 'stations'>): Gamenet {
   const id = 'gn_' + Math.random().toString(36).slice(2, 10)
-  const g: Gamenet = { ...input, id, verified: false, createdAt: Date.now() }
+  const stations = input.consoles.reduce((a, c) => a + (c.count || 0), 0)
+  const g: Gamenet = { ...input, id, stations, verified: false, createdAt: Date.now() }
   gamenets.set(id, g)
+  persist.gamenet.insert(g)
   return g
 }
 
@@ -874,18 +885,16 @@ export function gamenetsByCity(city: string): Gamenet[] {
 
 export function verifyGamenet(id: string, verified: boolean) {
   const g = gamenets.get(id)
-  if (g) g.verified = verified
+  if (!g) return
+  g.verified = verified
+  persist.gamenet.setVerified(id, verified)
 }
 
-// Seed a couple of demo gamenets
-;(function seedGamenets() {
-  if (gamenets.size > 0) return
-  createGamenet({ ownerId: 'u_admin', name: 'گیم‌نت پارادایس', city: 'تهران', address: 'سعادت‌آباد، خ کاج', phone: '02122334455', stations: 24, disciplines: ['valorant', 'cs2'] })
-  createGamenet({ ownerId: 'u_admin', name: 'استدیو وی پلی',  city: 'مشهد',  address: 'سجاد، نبش امام رضا', phone: '05133445566', stations: 18, disciplines: ['valorant', 'fc'] })
-  // Mark first as verified
-  const first = Array.from(gamenets.values())[0]
-  if (first) first.verified = true
-})()
+// Which gamenets have an uploaded venue photo — ids only (bytes stay in
+// Postgres, served on demand), same pattern as avatars/receipts.
+const gamenetPhotoIds = new Set<string>()
+export function hasGamenetPhoto(gamenetId: string): boolean { return gamenetPhotoIds.has(gamenetId) }
+export function markGamenetPhoto(gamenetId: string): void { gamenetPhotoIds.add(gamenetId) }
 
 // ─── Disciplines (admin-managed) ───────────────────────────────────────────
 // Currently mirrors DISC in mock-data.ts; admin can add more.

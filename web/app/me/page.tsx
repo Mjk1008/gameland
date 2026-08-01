@@ -147,6 +147,10 @@ export default async function MePage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Link href="/gamenet" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>
+          <span style={{ fontSize: 13, color: C.thi }}>گیم‌نتی داری؟ ثبتش کن</span>
+          <span style={{ color: C.tmut }}>›</span>
+        </Link>
         <Link href="/me/settings" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>
           <span style={{ fontSize: 13, color: C.thi }}>تنظیمات</span>
           <span style={{ color: C.tmut }}>›</span>
