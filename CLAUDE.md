@@ -144,6 +144,10 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
 
 ## 7. Gated features
 
+- **Play Arena («میدون»)** — `/arena` replaces the bottom-nav «دعوت» tab. Nationwide 1v1 play
+  requests (discipline, best-of, book at verified gamenet, dual confirm → capped ranking points).
+  PRD: [`docs/27-challenge-ladder-prd.md`](docs/27-challenge-ladder-prd.md). Referral campaign
+  demoted to `/me` → `/invite`; backend (`?ref=`, rewards) unchanged.
 - **Honorary arcade** — `/arcade` + `components/HonorPoster.tsx` + `lib/honor.ts`. Server-gated on
   `HONOR_USER_PHONE` (comma-separated). Non-honorary sessions get a plain 404 and the home poster
   renders `null`, so nothing leaks. Fully isolated: it must not touch anything else in the app.

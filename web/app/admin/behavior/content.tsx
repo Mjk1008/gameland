@@ -13,6 +13,17 @@ const FUNNEL_STEPS = [
   { name: 'reg_approved',     label: 'تایید نهایی' },
 ] as const
 
+const ARENA_FUNNEL_STEPS = [
+  { name: 'arena_tab_open',         label: 'باز کردن میدون' },
+  { name: 'arena_feed_view',        label: 'دیدن فید' },
+  { name: 'arena_request_create',   label: 'درخواست جدید' },
+  { name: 'arena_request_accept',   label: 'قبول درخواست' },
+  { name: 'arena_pair_confirm',     label: 'تأیید دوطرفه' },
+  { name: 'arena_book_complete',    label: 'بوک کامل' },
+  { name: 'arena_result_confirm',   label: 'ثبت نتیجه' },
+  { name: 'arena_points_awarded',   label: 'امتیاز داده شد' },
+] as const
+
 const fa = (n: number | string) => faDigits(n)
 const dayShort = (isoOrDate: string) => {
   const d = new Date(isoOrDate)
@@ -23,8 +34,9 @@ const dayShort = (isoOrDate: string) => {
 // Guts of the behavior dashboard, no BackHeader — reused standalone
 // (app/admin/behavior/page.tsx) and embedded as a tab inside /admin/analytics.
 export default async function BehaviorContent() {
-  const [funnelRows, topPathRows, dauRows, chat] = await Promise.all([
+  const [funnelRows, arenaFunnelRows, topPathRows, dauRows, chat] = await Promise.all([
     persist.track.funnelCounts(FUNNEL_STEPS.map(s => s.name), 0),
+    persist.track.funnelCounts(ARENA_FUNNEL_STEPS.map(s => s.name), 0),
     persist.track.topPaths(0, 10),
     persist.track.dau(14),
     persist.track.chatCorrelation(0),
@@ -32,8 +44,11 @@ export default async function BehaviorContent() {
 
   const counts = new Map(funnelRows.map(r => [r.name, Number(r.n)]))
   const funnel = FUNNEL_STEPS.map(s => ({ ...s, n: counts.get(s.name) ?? 0 }))
+  const arenaCounts = new Map(arenaFunnelRows.map(r => [r.name, Number(r.n)]))
+  const arenaFunnel = ARENA_FUNNEL_STEPS.map(s => ({ ...s, n: arenaCounts.get(s.name) ?? 0 }))
+  const arenaFirst = arenaFunnel[0]?.n ?? 0
   const first = funnel[0]?.n ?? 0
-  const hasData = funnel.some(f => f.n > 0) || topPathRows.length > 0 || dauRows.length > 0
+  const hasData = funnel.some(f => f.n > 0) || arenaFunnel.some(f => f.n > 0) || topPathRows.length > 0 || dauRows.length > 0
 
   const rate = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : null)
   const chatterRate = chat ? rate(Number(chat.chatters_approved), Number(chat.chatters_signed)) : null
@@ -72,6 +87,32 @@ export default async function BehaviorContent() {
               })}
             </div>
             {first === 0 && <div style={{ fontSize: 11, color: C.tmut, marginTop: 10 }}>هنوز کسی وارد ثبت‌نام نشده.</div>}
+          </Section>
+
+          {/* ── Arena funnel ── */}
+          <Section title="قیفِ میدون">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {arenaFunnel.map((s, i) => {
+                const pctOfFirst = arenaFirst > 0 ? (s.n / arenaFirst) * 100 : 0
+                const prev = i > 0 ? arenaFunnel[i - 1].n : null
+                const pctOfPrev = prev ? rate(s.n, prev) : null
+                return (
+                  <div key={s.name}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: C.thi }}>{s.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        {pctOfPrev !== null && <span className="gl-num" style={{ fontSize: 10.5, color: pctOfPrev < 50 ? C.live : C.tmut }}>٪{fa(pctOfPrev)} از قبلی</span>}
+                        <span className="gl-num" style={{ fontFamily: DISP, fontSize: 14, fontWeight: 800, color: C.thi }}>{fa(s.n)}</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 14, borderRadius: 7, background: C.sf2, overflow: 'hidden' }}>
+                      <div style={{ width: `${pctOfFirst}%`, height: '100%', background: C.gold, borderRadius: 7 }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {arenaFirst === 0 && <div style={{ fontSize: 11, color: C.tmut, marginTop: 10 }}>هنوز فعالیتی در میدون ثبت نشده.</div>}
           </Section>
 
           {/* ── Chat correlation ── */}

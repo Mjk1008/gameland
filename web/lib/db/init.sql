@@ -235,6 +235,45 @@ CREATE OR REPLACE VIEW leaderboard AS
     AND u.deleted_at IS NULL
   GROUP BY p.user_id, e.disc;
 
+-- ─── Play Arena («میدون») ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS app_play_requests (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  disc        TEXT NOT NULL,
+  best_of     INTEGER NOT NULL DEFAULT 1 CHECK (best_of IN (1, 3, 5)),
+  city        TEXT NOT NULL,
+  province    TEXT NOT NULL,
+  note        TEXT NOT NULL DEFAULT '',
+  status      TEXT NOT NULL DEFAULT 'open',
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS play_req_feed_idx ON app_play_requests (city, disc, created_at DESC)
+  WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS play_req_user_idx ON app_play_requests (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS app_play_matches (
+  id                     TEXT PRIMARY KEY,
+  request_id             TEXT NOT NULL REFERENCES app_play_requests(id) ON DELETE CASCADE,
+  requester_id           TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  acceptor_id            TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  status                 TEXT NOT NULL DEFAULT 'pending_confirm',
+  requester_confirmed_at TIMESTAMPTZ,
+  acceptor_confirmed_at  TIMESTAMPTZ,
+  book_initiator_id      TEXT,
+  gamenet_id             TEXT REFERENCES app_gamenets(id) ON DELETE SET NULL,
+  scheduled_at           TIMESTAMPTZ,
+  confirm_deadline       TIMESTAMPTZ,
+  requester_result       TEXT,
+  acceptor_result        TEXT,
+  winner_user_id         TEXT,
+  confirmed_at           TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (requester_id <> acceptor_id)
+);
+CREATE INDEX IF NOT EXISTS play_match_req_idx ON app_play_matches (requester_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS play_match_acc_idx ON app_play_matches (acceptor_id, created_at DESC);
+
 -- =============================================================
 -- Seed defaults (idempotent). Disciplines first (FK targets),
 -- then staff/demo users.

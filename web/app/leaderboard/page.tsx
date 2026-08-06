@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { allUsers, allEvents, allPlacements, getUserById, hasAvatar, activityPointsOf } from '@/lib/store'
+import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -28,7 +29,7 @@ export default async function LeaderboardPage() {
 
   // admin-set base points + live activity points (profile/photo/tickets) so
   // every gamer holds a real rank from their first action
-  for (const u of users) pointsAcc.set(u.id, (u.bonusPoints ?? 0) + activityPointsOf(u))
+  for (const u of users) pointsAcc.set(u.id, (u.bonusPoints ?? 0) + activityPointsOf(u) + challengePointsOf(u.id))
 
   for (const pl of placements) {
     const event = eventMap.get(pl.compId)

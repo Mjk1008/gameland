@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar, activityPointsOf } from '@/lib/store'
+import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -21,7 +22,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   const eventMap = new Map(events.map(e => [e.id, e]))
   const pointsAcc = new Map<string, number>()
   // admin-set base + live activity points — same formula as home/leaderboard
-  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
+  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
   for (const pl of allPlacements()) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue
@@ -31,6 +32,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
   const rank = sorted.findIndex(x => x.id === u.id) + 1
   const myPlacements = placementsForUser(u.id)
   const points = pointsAcc.get(u.id) ?? 0
+  const arenaPts = challengePointsOf(u.id)
   const top3 = rank >= 1 && rank <= 3
   const card = playerCard(u.tag)
 
@@ -76,6 +78,9 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
             <Num size={46} color={top3 ? C.gold : C.accent}>{rank || '—'}</Num>
           </span>
         </div>
+        {arenaPts > 0 && (
+          <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center' }}>امتیاز میدون: <span style={{ color: C.accent, fontWeight: 700 }}>{arenaPts}</span></div>
+        )}
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>

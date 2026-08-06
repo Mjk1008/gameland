@@ -35,6 +35,9 @@ export function issueCode(phone: string): string {
 }
 
 export function verifyCode(phone: string, input: string): boolean {
+  const code = (input || '').trim()
+  // Local dev: accept stub code even if in-memory OTP was lost (hot reload / slow boot).
+  if (!process.env.KAVENEGAR_API_KEY && code === '123456' && /^09\d{9}$/.test(phone)) return true
   const r = codes.get(phone)
   if (!r) return false
   if (Date.now() > r.exp || r.tries >= MAX_TRIES) { codes.delete(phone); return false }

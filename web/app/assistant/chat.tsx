@@ -355,7 +355,7 @@ function Widget({ marker, ent, onStory, onAsk }: { marker: string; ent?: Entitie
   }
   if (marker.startsWith('go:')) {
     const [href, label] = marker.slice(3).split('|')
-    const allowed = ['/competitions', '/leaderboard', '/invite', '/me', '/me/competitions', '/rules', '/support']
+    const allowed = ['/competitions', '/leaderboard', '/arena', '/invite', '/me', '/me/competitions', '/rules', '/support']
     if (!allowed.some(a => href.startsWith(a))) return null
     return <CtaRow href={href} label={label || 'برو'} />
   }

@@ -17,7 +17,8 @@
     "env:prod": "liara env ls --app gameland",
     "db:init": "psql \"$DATABASE_URL\" -f lib/db/init.sql",
     "ranking:demo": "npx tsx scripts/demo-ranking.ts",
-    "icons": "node scripts/gen-icons.mjs"
+    "icons": "node scripts/gen-icons.mjs",
+    "arena:seed": "curl -s -X POST http://localhost:3000/api/arena/seed"
   },
   "engines": {
     "node": ">=20"

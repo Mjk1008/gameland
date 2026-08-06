@@ -141,6 +141,12 @@ function LoginInner() {
             <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut, lineHeight: 1.7 }}>
               حساب نداری؟ با همین کد پیامکی، حسابت خودکار ساخته می‌شه.
             </div>
+            {process.env.NODE_ENV === 'development' && (
+              <div style={{ fontSize: 11, color: C.info, background: C.infoSoft, border: `1px solid ${C.accent}33`, borderRadius: 10, padding: '8px 10px', lineHeight: 1.8, textAlign: 'center' }}>
+                لوکال: اول «ارسال کد» → بعد <span dir="ltr" style={{ fontFamily: DISP }}>123456</span>
+                <br />اگه گیر کردی، کوکی‌های localhost رو پاک کن و refresh.
+              </div>
+            )}
           </form>
         ) : (
           <form onSubmit={passwordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

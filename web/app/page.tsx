@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
+import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
@@ -27,7 +28,7 @@ export default async function HomePage() {
 
   const pointsAcc = new Map<string, number>()
   // admin-set base + live activity points — same formula as the leaderboard
-  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
+  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
   for (const pl of placements) {
     const ev = eventMap.get(pl.compId)
     if (!ev) continue

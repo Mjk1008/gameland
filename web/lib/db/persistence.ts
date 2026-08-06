@@ -16,6 +16,14 @@ import type { User, Event, Registration, Notification } from '../store'
 
 let hydrating: Promise<void> | null = null
 let hydrated = false
+let authReady: Promise<void> | null = null
+let authReadyDone = false
+
+/** Resolves once users are in memory — enough for login/signup. */
+export function whenAuthReady(): Promise<void> {
+  if (authReadyDone || hydrated) return Promise.resolve()
+  return authReady ?? hydrating ?? Promise.resolve()
+}
 
 export function startHydration(loaders: {
   loadUser:      (u: any) => void
@@ -35,10 +43,14 @@ export function startHydration(loaders: {
   loadReceiptId?: (regId: string) => void
   loadGamenet?:  (g: any) => void
   loadGamenetPhotoId?: (gamenetId: string, photoId: string) => void
+  loadPlayRequest?: (r: any) => void
+  loadPlayMatch?: (m: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
-  if (!d) { hydrated = true; return Promise.resolve() }
+  if (!d) { hydrated = true; authReadyDone = true; return Promise.resolve() }
+  let resolveAuth!: () => void
+  authReady = new Promise<void>(r => { resolveAuth = r })
   hydrating = (async () => {
     try {
       const ms = (v: any) => (v instanceof Date ? v.getTime() : Date.now())
@@ -91,6 +103,27 @@ export function startHydration(loaders: {
           END IF;
         END $$`,
         `CREATE INDEX IF NOT EXISTS gn_photo_gamenet_idx ON app_gamenet_photos (gamenet_id)`,
+        `CREATE TABLE IF NOT EXISTS app_play_requests (
+          id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          disc TEXT NOT NULL, best_of INTEGER NOT NULL DEFAULT 1 CHECK (best_of IN (1,3,5)),
+          city TEXT NOT NULL, province TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'open', expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS play_req_feed_idx ON app_play_requests (city, disc, created_at DESC) WHERE status = 'open'`,
+        `CREATE INDEX IF NOT EXISTS play_req_user_idx ON app_play_requests (user_id, created_at DESC)`,
+        `CREATE TABLE IF NOT EXISTS app_play_matches (
+          id TEXT PRIMARY KEY, request_id TEXT NOT NULL REFERENCES app_play_requests(id) ON DELETE CASCADE,
+          requester_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          acceptor_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          status TEXT NOT NULL DEFAULT 'pending_confirm',
+          requester_confirmed_at TIMESTAMPTZ, acceptor_confirmed_at TIMESTAMPTZ,
+          book_initiator_id TEXT, gamenet_id TEXT REFERENCES app_gamenets(id) ON DELETE SET NULL,
+          scheduled_at TIMESTAMPTZ, confirm_deadline TIMESTAMPTZ,
+          requester_result TEXT, acceptor_result TEXT, winner_user_id TEXT,
+          confirmed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          CHECK (requester_id <> acceptor_id))`,
+        `CREATE INDEX IF NOT EXISTS play_match_req_idx ON app_play_matches (requester_id, created_at DESC)`,
+        `CREATE INDEX IF NOT EXISTS play_match_acc_idx ON app_play_matches (acceptor_id, created_at DESC)`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p1_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p2_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS winner_team_id TEXT`,
@@ -128,6 +161,9 @@ export function startHydration(loaders: {
         freeTickets: (u as any).freeTickets ?? undefined,
         referralMilestone: (u as any).referralMilestone ?? undefined,
       })
+
+      authReadyDone = true
+      resolveAuth()
 
       const ev = await d.select().from(schema.events)
       for (const e of ev) loaders.loadEvent({
@@ -255,10 +291,37 @@ export function startHydration(loaders: {
         }
       } catch (e) { console.error('[db] load gamenet photo ids:', e) }
 
+      try {
+        const prq = await d.select().from(schema.playRequests)
+        for (const r of prq) loaders.loadPlayRequest?.({
+          id: r.id, userId: r.userId, disc: r.disc, bestOf: r.bestOf,
+          city: r.city, province: r.province, note: r.note ?? '',
+          status: r.status, expiresAt: r.expiresAt, createdAt: r.createdAt,
+        })
+      } catch (e) { console.error('[db] load play requests:', e) }
+
+      try {
+        const pms = await d.select().from(schema.playMatches)
+        for (const m of pms) loaders.loadPlayMatch?.({
+          id: m.id, requestId: m.requestId, requesterId: m.requesterId, acceptorId: m.acceptorId,
+          status: m.status,
+          requesterConfirmedAt: m.requesterConfirmedAt, acceptorConfirmedAt: m.acceptorConfirmedAt,
+          bookInitiatorId: m.bookInitiatorId ?? undefined, gamenetId: m.gamenetId ?? undefined,
+          scheduledAt: m.scheduledAt, confirmDeadline: m.confirmDeadline,
+          requesterResult: m.requesterResult ?? undefined, acceptorResult: m.acceptorResult ?? undefined,
+          winnerUserId: m.winnerUserId ?? undefined, confirmedAt: m.confirmedAt,
+          createdAt: m.createdAt,
+        })
+      } catch (e) { console.error('[db] load play matches:', e) }
+
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
       console.error('[db] hydration failed; continuing in-memory:', err)
     } finally {
+      if (!authReadyDone) {
+        authReadyDone = true
+        try { resolveAuth() } catch { /* already resolved */ }
+      }
       hydrated = true
       hydrating = null
     }
@@ -643,7 +706,12 @@ export const persist = {
   track: {
     insertMany(rows: { id: string; userId?: string; sessionId: string; name: string; path: string; props: string }[]) {
       const d = db(); if (!d || !rows.length) return
-      fire(d.insert(schema.trackEvents).values(rows))
+      fire(d.insert(schema.trackEvents).values(rows).onConflictDoNothing())
+    },
+    deleteByIdPrefix(prefix: string) {
+      const d = db(); if (!d) return
+      const safe = prefix.replace(/'/g, "''")
+      fire(d.execute(sql.raw(`DELETE FROM app_track_events WHERE id LIKE '${safe}%'`)))
     },
     // Unique actors (user, falling back to session pre-auth) per named step —
     // the right denominator for step-to-step conversion %, not raw event count.
@@ -761,6 +829,61 @@ export const persist = {
       const d = db(); if (!d) return false
       await d.delete(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.id, photoId))
       return true
+    },
+  },
+  playRequest: {
+    upsert(r: {
+      id: string; userId: string; disc: string; bestOf: number; city: string; province: string
+      note: string; status: string; expiresAt: Date; createdAt: Date
+    }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.playRequests).values({
+        id: r.id, userId: r.userId, disc: r.disc, bestOf: r.bestOf, city: r.city, province: r.province,
+        note: r.note, status: r.status, expiresAt: r.expiresAt, createdAt: r.createdAt,
+      }).onConflictDoUpdate({
+        target: schema.playRequests.id,
+        set: {
+          status: r.status, note: r.note, expiresAt: r.expiresAt,
+        },
+      }))
+    },
+  },
+  playMatch: {
+    upsert(m: {
+      id: string; requestId: string; requesterId: string; acceptorId: string; status: string
+      requesterConfirmedAt: Date | null; acceptorConfirmedAt: Date | null
+      bookInitiatorId: string | null; gamenetId: string | null
+      scheduledAt: Date | null; confirmDeadline: Date | null
+      requesterResult: string | null; acceptorResult: string | null
+      winnerUserId: string | null; confirmedAt: Date | null; createdAt: Date
+    }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.playMatches).values({
+        id: m.id, requestId: m.requestId, requesterId: m.requesterId, acceptorId: m.acceptorId,
+        status: m.status,
+        requesterConfirmedAt: m.requesterConfirmedAt, acceptorConfirmedAt: m.acceptorConfirmedAt,
+        bookInitiatorId: m.bookInitiatorId, gamenetId: m.gamenetId,
+        scheduledAt: m.scheduledAt, confirmDeadline: m.confirmDeadline,
+        requesterResult: m.requesterResult, acceptorResult: m.acceptorResult,
+        winnerUserId: m.winnerUserId, confirmedAt: m.confirmedAt, createdAt: m.createdAt,
+      }).onConflictDoUpdate({
+        target: schema.playMatches.id,
+        set: {
+          status: m.status,
+          requesterConfirmedAt: m.requesterConfirmedAt, acceptorConfirmedAt: m.acceptorConfirmedAt,
+          bookInitiatorId: m.bookInitiatorId, gamenetId: m.gamenetId,
+          scheduledAt: m.scheduledAt, confirmDeadline: m.confirmDeadline,
+          requesterResult: m.requesterResult, acceptorResult: m.acceptorResult,
+          winnerUserId: m.winnerUserId, confirmedAt: m.confirmedAt,
+        },
+      }))
+    },
+  },
+  playArena: {
+    async deleteDemo() {
+      const d = db(); if (!d) return
+      await d.execute(sql.raw(`DELETE FROM app_play_matches WHERE id LIKE 'demo_pm_%'`))
+      await d.execute(sql.raw(`DELETE FROM app_play_requests WHERE id LIKE 'demo_pr_%'`))
     },
   },
 }

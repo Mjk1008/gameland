@@ -312,3 +312,36 @@ export const trackEvents = pgTable('app_track_events', {
   props:     text('props').notNull().default('{}'), // JSON.stringify — no free-form user text (see lib/track.ts allow-list)
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// ─── Play Arena («میدون») — casual 1v1 requests between tournaments ───────────
+export const playRequests = pgTable('app_play_requests', {
+  id:        text('id').primaryKey(),
+  userId:    text('user_id').notNull(),
+  disc:      text('disc').notNull(),
+  bestOf:    integer('best_of').notNull().default(1),
+  city:      text('city').notNull(),
+  province:  text('province').notNull(),
+  note:      text('note').notNull().default(''),
+  status:    text('status').notNull().default('open'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const playMatches = pgTable('app_play_matches', {
+  id:                   text('id').primaryKey(),
+  requestId:            text('request_id').notNull(),
+  requesterId:          text('requester_id').notNull(),
+  acceptorId:           text('acceptor_id').notNull(),
+  status:               text('status').notNull().default('pending_confirm'),
+  requesterConfirmedAt: timestamp('requester_confirmed_at', { withTimezone: true }),
+  acceptorConfirmedAt:  timestamp('acceptor_confirmed_at', { withTimezone: true }),
+  bookInitiatorId:      text('book_initiator_id'),
+  gamenetId:            text('gamenet_id'),
+  scheduledAt:          timestamp('scheduled_at', { withTimezone: true }),
+  confirmDeadline:      timestamp('confirm_deadline', { withTimezone: true }),
+  requesterResult:      text('requester_result'),
+  acceptorResult:       text('acceptor_result'),
+  winnerUserId:         text('winner_user_id'),
+  confirmedAt:          timestamp('confirmed_at', { withTimezone: true }),
+  createdAt:            timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})

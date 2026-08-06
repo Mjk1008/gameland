@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
+import { challengePointsOf } from '@/lib/arena'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
@@ -37,7 +38,7 @@ export default async function MePage() {
   const gamers = allUsers().filter(g => g.role === 'gamer')
   const evMap = new Map(allEvents().map(e => [e.id, e]))
   const pts = new Map<string, number>()
-  for (const g of gamers) pts.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g))
+  for (const g of gamers) pts.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
   for (const pl of allPlacements()) {
     const ev = evMap.get(pl.compId); if (!ev) continue
     pts.set(pl.userId, (pts.get(pl.userId) ?? 0) + pointsForPlacement(pl.rank, (ev.tier ?? 'A') as EventTier))
@@ -46,6 +47,7 @@ export default async function MePage() {
   const myIdx = ordered.findIndex(g => g.id === uid)
   const myRank = myIdx >= 0 && (pts.get(uid) ?? 0) > 0 ? myIdx + 1 : null
   const myPoints = pts.get(uid) ?? 0
+  const myArenaPoints = challengePointsOf(uid)
 
   return (
     <div style={{ padding: '16px 16px 28px' }} className="animate-fade-up">
@@ -76,6 +78,16 @@ export default async function MePage() {
           <div style={{ fontSize: 11.5, color: C.gold, fontWeight: 700, marginTop: 8 }}>تکمیل پروفایل ›</div>
         </Link>
       )}
+
+      {/* AI assistant entry */}
+      <Link href="/me/arena" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.accent}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 10 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 11, background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>⚔</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: C.thi }}>صندوق میدون</span>
+          <span style={{ display: 'block', fontSize: 11, color: C.tmut, marginTop: 2 }}>{myArenaPoints > 0 ? `${myArenaPoints} امتیاز میدون` : 'بازی‌های ۱به۱ و درخواست‌ها'}</span>
+        </span>
+        <span style={{ color: C.accent, fontSize: 14 }}>‹</span>
+      </Link>
 
       {/* AI assistant entry */}
       <Link href="/assistant" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 16 }}>
@@ -168,6 +180,12 @@ export default async function MePage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {u.role === 'gamer' && (
+          <Link href="/invite" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 11 }}>
+            <span style={{ fontSize: 13, color: C.thi }}>دعوت رفیق — سهم رایگان</span>
+            <span style={{ color: C.gold, fontSize: 11.5, fontWeight: 700 }}>REF ›</span>
+          </Link>
+        )}
         <Link href="/gamenet" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>
           <span style={{ fontSize: 13, color: C.thi }}>گیم‌نت داری؟ ثبتش کن</span>
           <span style={{ color: C.tmut }}>›</span>

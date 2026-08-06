@@ -7,7 +7,7 @@
 // → restart. Data persists across restarts automatically.
 
 import { Disc } from './mock-data'
-import { persist, startHydration } from './db/persistence'
+import { persist, startHydration, whenAuthReady as persistAuthReady } from './db/persistence'
 import { usingDb } from './db/client'
 
 // ─── Users ──────────────────────────────────────────────────────────────────
@@ -62,6 +62,7 @@ ensureHydrated()
 // Await this before serving auth/signup/register so requests never race the
 // initial DB→memory load (which would create duplicate accounts / drop rows).
 export function whenReady(): Promise<void> { return _ready ?? Promise.resolve() }
+export function whenAuthReady(): Promise<void> { return persistAuthReady() }
 
 // Keep the slider clean: de-duplicate slides (earlier random-id re-seeds created
 // duplicates) and, on a truly empty slider, seed the bundled posters ONCE with
@@ -100,7 +101,16 @@ function ensureHydrated() {
       if (!list.includes(photoId)) list.push(photoId)
       gamenetPhotoIds.set(gamenetId, list)
     },
-  }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
+    loadPlayRequest: (r: unknown) => { require('./arena').hydratePlayRequest(r as any) },
+    loadPlayMatch: (m: unknown) => { require('./arena').hydratePlayMatch(m as any) },
+  }).then(() => {
+    reconcileDefaultPromos()
+    seedRankingIfEmpty()
+    // Heavy arena demo seed must not block auth (whenReady) — runs after boot.
+    setImmediate(() => {
+      try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
+    })
+  })
 }
 
 // Which users have a profile photo — ids only (the image bytes stay in Postgres
@@ -255,7 +265,9 @@ function seedAdmin() {
     name: 'مدیر گیم‌لند',
     tag: 'admin',
     city: 'تهران',
-    primaryDisc: null,
+    province: 'تهران',
+    primaryDisc: 'fc26',
+    discs: ['fc26', 'efootball'],
     role: 'admin',
     coinBalance: 0,
     createdAt: Date.now(),

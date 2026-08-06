@@ -21,6 +21,7 @@ export default function AdminHome() {
     { href: '/admin/requests',    label: 'درخواست‌ها', sub: pending ? `${pending} منتظر` : 'همه رسیدگی‌شده', icon: <IconInbox />, badge: pending },
     { href: '/admin/gamers',      label: 'گیمرها',     sub: `${userCount} کاربر`,        icon: <IconUsers /> },
     { href: '/admin/gamenets',    label: 'گیم‌نت‌ها',  sub: 'تأیید و مدیریت',            icon: <IconPin /> },
+    { href: '/admin/arena',       label: 'میدون',      sub: 'نسبت درخواست/تأیید',        icon: <IconPin /> },
     { href: '/admin/notify',      label: 'اعلان',      sub: 'ارسال پیام همگانی',         icon: <IconBell /> },
   ]
 
