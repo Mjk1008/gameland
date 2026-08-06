@@ -3,9 +3,11 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown } from '@/lib/mock-data'
-import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets } from '@/lib/store'
+import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, teamMemberOf } from '@/lib/store'
+import { prelimVenueForUser } from '@/lib/prelim-venue'
 import { rulesForDisc } from '@/lib/discipline-rules'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
+import TeamInviteBanner from './team-invite-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +19,14 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const uid = (session as any)?.uid as string | undefined
   const reg = uid ? getRegistration(uid, params.id) : undefined
   const remainingLeft = uid ? remainingTickets(uid, params.id) : 0
+  const myTeam = uid ? teamForUser(uid, params.id) : undefined
+  const myTeamMember = myTeam && uid ? teamMemberOf(uid, myTeam.id) : undefined
+  const pendingInvite = myTeam && myTeamMember?.status === 'invited' ? myTeam : undefined
+  const captain = pendingInvite ? getUserById(pendingInvite.captainId) : undefined
+
+  const cfg = getEventConfig(params.id)
+  const me = uid ? getUserById(uid) : undefined
+  const myVenue = me ? prelimVenueForUser(cfg.prelimVenues, me.city, me.province, cfg.groupMode) : null
 
   const allMatches = matchesForComp(params.id)
   const drawn = allMatches.length > 0
@@ -28,7 +38,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const myGroupLabel = myMatch && myMatch.stage === 'prelim' ? (myMatch.groupKey.split(':')[1] || myMatch.groupKey) : undefined
 
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }
-  const customSplit = getEventConfig(params.id).prizeSplit ?? []
+  const customSplit = cfg.prizeSplit ?? []
   const prizeRows = customSplit.length
     ? customSplit.map((amt, i) => ({ place: (i + 1).toLocaleString('fa-IR'), amount: amt.toLocaleString('fa-IR') + ' ت' }))
     : prizeBreakdown(c.prize).map(b => ({ place: b.place, amount: b.amount }))
@@ -60,7 +70,27 @@ export default async function CompetitionPage({ params }: { params: { id: string
               <span style={{ fontSize: 13, color: C.tbody }}>{c.date}</span>
             </div>
           )}
-          {c.status !== 'done' && (
+          {pendingInvite && (
+            <TeamInviteBanner teamId={pendingInvite.id} teamName={pendingInvite.name} captainTag={captain?.tag} />
+          )}
+
+          {myVenue && (
+            <div style={{ background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: '14px 16px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6 }}>محل برگزاری مقدماتیِ تو</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.thi }}>{myVenue.name}</div>
+              {myVenue.address && <div style={{ fontSize: 12, color: C.tbody, marginTop: 4, lineHeight: 1.7 }}>{myVenue.address}</div>}
+              {(myVenue.fromDate || myVenue.scheduleNote) && (
+                <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 6 }}>
+                  {[myVenue.fromDate, myVenue.toDate && myVenue.fromDate ? `تا ${myVenue.toDate}` : myVenue.toDate, myVenue.scheduleNote].filter(Boolean).join(' · ')}
+                </div>
+              )}
+              {myVenue.mapUrl && (
+                <a href={myVenue.mapUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, fontWeight: 700, color: C.accent }}>نقشه ›</a>
+              )}
+            </div>
+          )}
+
+          {c.status !== 'done' && !pendingInvite && (
             reg && reg.status !== 'rejected'
               ? <>
                   <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>

@@ -1,9 +1,12 @@
 // Ticket pricing (Tomans). Launch discount → strike-through original for FOMO.
+// This is the platform DEFAULT — do not read it directly outside this file.
+// NOTE: this file must stay safe to import from client components (no store.ts
+// import here — that pulls in the Postgres client). Per-event price resolution
+// (ticketPriceFor) lives in lib/ticket-price.ts, a server-only module.
 export const TICKET = {
   price: 500_000,     // فعلی (با تخفیف)
   original: 798_000,  // قیمت اصلی
 }
-export const ticketOffPercent = Math.round((1 - TICKET.price / TICKET.original) * 100)
 export const toman = (n: number) => n.toLocaleString('en-US')
 
 // Manual card-to-card payment + receipt channels (MVP — no coins/gateway).

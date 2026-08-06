@@ -19,7 +19,7 @@ export default function GamenetsPage() {
       </div>
 
       {list.length === 0 ? (
-        <EmptyState text="هنوز گیم‌نتی ثبت نشده — گیم‌نتت رو تو اضافه کن." />
+        <EmptyState text="هنوز گیم‌نت ثبت نشده — گیم‌نتت رو تو اضافه کن." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {list.map(g => (
@@ -32,7 +32,7 @@ export default function GamenetsPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{g.name}</span>
-                  {g.verified && <span style={{ fontSize: 11, fontWeight: 700, color: C.win, background: C.winSoft, padding: '2px 6px', borderRadius: 5 }}>✓ تأییدشده</span>}
+                  {g.status === 'verified' && <span style={{ fontSize: 11, fontWeight: 700, color: C.win, background: C.winSoft, padding: '2px 6px', borderRadius: 5 }}>✓ تأییدشده</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4, fontSize: 11.5, color: C.tmut }}>
                   <span>{g.city}</span>

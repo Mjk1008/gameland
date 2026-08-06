@@ -7,8 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "setup": "node scripts/setup-dev.mjs",
+    "local:prod:sync": "node scripts/local-prod.mjs",
+    "local:prod:sync:sms": "node scripts/local-prod.mjs --with-sms",
+    "local:prod": "npm run build && next start -p 3000",
+    "local:prod:dev": "npm run local:prod:sync && npm run dev",
+    "deploy": "liara deploy --app gameland --detach",
+    "deploy:logs": "liara deploy --app gameland",
+    "env:prod": "liara env ls --app gameland",
+    "db:init": "psql \"$DATABASE_URL\" -f lib/db/init.sql",
     "ranking:demo": "npx tsx scripts/demo-ranking.ts",
     "icons": "node scripts/gen-icons.mjs"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "bcryptjs": "2.4.3",

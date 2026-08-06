@@ -85,6 +85,8 @@ function ensureHydrated() {
     loadNotif:     (n: Notification) => { notifs.push(n) },
     loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
     loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
+    loadTeam:      (t: Team) => { teams.set(t.id, t) },
+    loadTeamMember: (m: TeamMember) => { teamMembers.push(m) },
     loadEventConfig: (compId: string, json: string) => { try { eventConfigs.set(compId, JSON.parse(json)) } catch {} },
     loadCompetition: (c: Competition) => { competitions.set(c.id, c) },
     loadPromo:     (p: PromoRow) => { promos.set(p.id, p) },
@@ -93,7 +95,11 @@ function ensureHydrated() {
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
     loadGamenet:   (g: Gamenet) => { gamenets.set(g.id, g) },
-    loadGamenetPhotoId: (gamenetId: string) => { gamenetPhotoIds.add(gamenetId) },
+    loadGamenetPhotoId: (gamenetId: string, photoId: string) => {
+      const list = gamenetPhotoIds.get(gamenetId) ?? []
+      if (!list.includes(photoId)) list.push(photoId)
+      gamenetPhotoIds.set(gamenetId, list)
+    },
   }).then(() => { reconcileDefaultPromos(); seedRankingIfEmpty() })
 }
 
@@ -611,6 +617,7 @@ export interface Registration {
   status: RegStatus         // pending payment/approval → approved by admin
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
+  teamId?: string           // 2v2 events only — set for both members' rows, same team
   createdAt: number
 }
 
@@ -620,7 +627,7 @@ const regs = new Map<string, Registration>()
 // more tops up the SAME registration (never a duplicate) up to that cap; the
 // top-up goes back to 'pending' for admin re-approval with the new receipt.
 // `attempts` = how many tickets to buy now. Locked once the bracket is drawn.
-export function createRegistration(userId: string, compId: string, attempts: number): Registration {
+export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string): Registration {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
   const key = userId + '|' + compId
@@ -643,7 +650,8 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.prelimsCompleted = 0
     existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
     existing.paidAttempts = 0   // nothing settled on a rejected row
-    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0 } as any)
+    if (teamId !== undefined) existing.teamId = teamId
+    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId } as any)
     return existing
   }
   const r: Registration = {
@@ -651,6 +659,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     userId, compId, attempts,
     status: 'pending',
     seedsEarned: 0, prelimsCompleted: 0,
+    teamId,
     createdAt: Date.now(),
   }
   regs.set(key, r)
@@ -733,6 +742,189 @@ export function recordPrelimOutcome(regId: string, outcome: 'advance' | 'elimina
   r.prelimsCompleted += 1
   persist.reg.update(r.id, { seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted })
   return r
+}
+
+// ─── Teams (2v2 events) ──────────────────────────────────────────────────────
+// A team is just captain + partner linked via Registration.teamId — payment,
+// approval, and the whole admin queue stay per-individual and untouched
+// (docs/27 §2.4/§3.2). Registering the captain creates their Registration
+// immediately, so the captain is never blocked on the partner's action.
+
+export type TeamStatus = 'forming' | 'complete' | 'disbanded'
+export interface Team {
+  id: string
+  compId: string
+  name: string
+  captainId: string
+  status: TeamStatus
+  attempts: number
+  createdAt: number
+}
+export type TeamMemberStatus = 'invited' | 'accepted' | 'declined'
+export interface TeamMember {
+  teamId: string
+  userId: string
+  slot: number   // 0 = captain, 1 = partner
+  status: TeamMemberStatus
+}
+
+const teams = new Map<string, Team>()
+// Append-only log, not a per-(team,slot) map: partner replacement pushes a new
+// row instead of mutating the old one, so the old (rejected/declined) row and
+// its own Registration stay intact for audit — see currentTeamMembers below,
+// which takes the LAST row per slot as the active one.
+const teamMembers: TeamMember[] = []
+
+export function getTeam(id: string): Team | undefined { return teams.get(id) }
+
+export function teamsForComp(compId: string): Team[] {
+  return Array.from(teams.values()).filter(t => t.compId === compId)
+}
+
+// The active (non-superseded) member for each slot — exactly what "is this
+// team complete" and "who are the current two members" must read, since a
+// replaced partner leaves their old row behind in teamMembers.
+export function currentTeamMembers(teamId: string): TeamMember[] {
+  const bySlot = new Map<number, TeamMember>()
+  for (const m of teamMembers) if (m.teamId === teamId) bySlot.set(m.slot, m)
+  return Array.from(bySlot.values()).sort((a, b) => a.slot - b.slot)
+}
+
+// The team a user currently belongs to for one event (any invite status) —
+// used by the invite banner and the /me team card.
+export function teamForUser(userId: string, compId: string): Team | undefined {
+  for (const t of teamsForComp(compId)) {
+    if (currentTeamMembers(t.id).some(m => m.userId === userId)) return t
+  }
+  return undefined
+}
+// Every team this user currently belongs to, across all events — for the
+// /me team-status card (one user is rarely on more than one active team,
+// but this stays correct across events without a per-event lookup).
+export function teamsForUser(userId: string): Team[] {
+  return Array.from(teams.values()).filter(t => currentTeamMembers(t.id).some(m => m.userId === userId))
+}
+export function teamMemberOf(userId: string, teamId: string): TeamMember | undefined {
+  return currentTeamMembers(teamId).find(m => m.userId === userId)
+}
+
+// Async — the team row must be committed before its member rows insert, or
+// the FK on app_team_members.team_id can race a fire-and-forget team insert
+// and fail (same class of bug as the clearMatchesForComp fix earlier: two
+// independent fire-and-forget writes have no ordering guarantee against each
+// other).
+export async function createTeam(compId: string, captainId: string, name: string, partnerTag: string, attempts: number): Promise<{ team: Team; registration: Registration }> {
+  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
+  if (getRegistration(captainId, compId)) throw new Error('ALREADY_REGISTERED')
+  const partner = getUserByTag(partnerTag.trim().replace(/^@/, ''))
+  if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')   // must exist, no self-pairing
+  if (getRegistration(partner.id, compId)) throw new Error('PARTNER_ALREADY_REGISTERED')
+
+  const t: Team = {
+    id: 't_' + Math.random().toString(36).slice(2, 10),
+    compId, name: (name || '').trim().slice(0, 40) || 'تیمِ بی‌نام', captainId,
+    status: 'forming', attempts, createdAt: Date.now(),
+  }
+  teams.set(t.id, t)
+  await persist.team.insertAsync(t)
+
+  const captainMember: TeamMember = { teamId: t.id, userId: captainId, slot: 0, status: 'accepted' }
+  const partnerMember: TeamMember = { teamId: t.id, userId: partner.id, slot: 1, status: 'invited' }
+  teamMembers.push(captainMember, partnerMember)
+  persist.teamMember.insert(captainMember)
+  persist.teamMember.insert(partnerMember)
+
+  const reg = createRegistration(captainId, compId, attempts, t.id)
+  const captain = users.get(captainId)
+  pushNotif(partner.id, 'announcement', 'دعوتِ تیمی',
+    `@${captain?.tag ?? ''} تو رو برای تیمِ «${t.name}» تو یه مسابقهٔ دو به دو دعوت کرده — از صفحهٔ مسابقه قبول کن.`)
+  return { team: t, registration: reg }
+}
+
+export function acceptTeamInvite(userId: string, teamId: string): Registration {
+  const t = teams.get(teamId)
+  if (!t) throw new Error('TEAM_NOT_FOUND')
+  if (matchesForComp(t.compId).length > 0) throw new Error('REG_LOCKED')
+  const mem = teamMemberOf(userId, teamId)
+  if (!mem || mem.status !== 'invited') throw new Error('NOT_INVITED')
+  mem.status = 'accepted'
+  persist.teamMember.update(teamId, userId, { status: 'accepted' })
+  const reg = createRegistration(userId, t.compId, t.attempts, teamId)
+  if (currentTeamMembers(teamId).every(m => m.status === 'accepted')) {
+    t.status = 'complete'
+    persist.team.update(t.id, { status: 'complete' })
+  }
+  return reg
+}
+
+export function declineTeamInvite(userId: string, teamId: string): void {
+  const mem = teamMemberOf(userId, teamId)
+  if (!mem || mem.status !== 'invited') throw new Error('NOT_INVITED')
+  mem.status = 'declined'
+  persist.teamMember.update(teamId, userId, { status: 'declined' })
+  const t = teams.get(teamId)
+  const captainMember = t ? currentTeamMembers(teamId).find(m => m.slot === 0) : undefined
+  if (t && captainMember) {
+    pushNotif(captainMember.userId, 'announcement', 'هم‌تیمی رد کرد',
+      `دعوتِ تیمِ «${t.name}» رد شد — از صفحهٔ مسابقه یه هم‌تیمیِ جدید دعوت کن.`)
+  }
+}
+
+// Pre-draw only (same lock idiom as setRegistrationAttempts). Adds a new
+// invite row for the partner slot — never touches the old member's own
+// Registration (docs/27 §3.3: "no cascade-delete of a paid row").
+export function replaceTeamPartner(captainId: string, teamId: string, newPartnerTag: string): TeamMember {
+  const t = teams.get(teamId)
+  if (!t) throw new Error('TEAM_NOT_FOUND')
+  if (t.captainId !== captainId) throw new Error('NOT_CAPTAIN')
+  if (matchesForComp(t.compId).length > 0) throw new Error('REG_LOCKED')
+  const partner = getUserByTag(newPartnerTag.trim().replace(/^@/, ''))
+  if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')
+  if (getRegistration(partner.id, t.compId)) throw new Error('PARTNER_ALREADY_REGISTERED')
+  // A user who already has ANY row on this team (even a declined one) can't be
+  // re-invited: reusing that row would need reordering the "last row per slot
+  // wins" history (currentTeamMembers) in a way that can't survive a restart,
+  // since DB createdAt wouldn't move with an in-place status update. Pick
+  // someone else instead — a narrow, acceptable restriction for a rare edge case.
+  if (teamMembers.some(m => m.teamId === teamId && m.userId === partner.id)) throw new Error('INVALID_PARTNER')
+  const mem: TeamMember = { teamId, userId: partner.id, slot: 1, status: 'invited' }
+  teamMembers.push(mem)
+  persist.teamMember.insert(mem)
+  t.status = 'forming'
+  persist.team.update(t.id, { status: 'forming' })
+  pushNotif(partner.id, 'announcement', 'دعوتِ تیمی',
+    `@${users.get(captainId)?.tag ?? ''} تو رو برای تیمِ «${t.name}» تو یه مسابقهٔ دو به دو دعوت کرده — از صفحهٔ مسابقه قبول کن.`)
+  return mem
+}
+
+// Every team not yet seatable: either a slot isn't 'accepted', or an accepted
+// member's own Registration isn't 'approved' yet. Shown to the admin above
+// the draw controls — non-negotiable (docs/27 §3.3): without it, rejecting
+// one person silently kills a paying team with no signal anywhere.
+export function incompleteTeamsForComp(compId: string): { team: Team; members: { user?: User; member: TeamMember; registration?: Registration }[] }[] {
+  return teamsForComp(compId)
+    .map(t => ({
+      team: t,
+      members: currentTeamMembers(t.id).map(m => ({
+        user: users.get(m.userId),
+        member: m,
+        registration: getRegistration(m.userId, compId),
+      })),
+    }))
+    .filter(({ members }) =>
+      members.length < 2 ||
+      !members.every(m => m.member.status === 'accepted' && m.registration?.status === 'approved'))
+}
+
+// The exact inverse of incompleteTeamsForComp — teams the draw is allowed to
+// seat. Both current members 'accepted' and both hold an 'approved'
+// Registration (docs/27 §3.3's seatability rule).
+export function seatableTeamsForComp(compId: string): Team[] {
+  return teamsForComp(compId).filter(t => {
+    const members = currentTeamMembers(t.id)
+    return members.length === 2 && members.every(m => m.status === 'accepted' && getRegistration(m.userId, compId)?.status === 'approved')
+  })
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────────
@@ -838,6 +1030,8 @@ export function applyCoinTxn(userId: string, delta: number, reason: CoinTxn['rea
 
 export interface GamenetConsole { kind: string; count: number }
 
+export type GamenetStatus = 'pending' | 'verified' | 'rejected'
+
 export interface Gamenet {
   id: string
   ownerId: string
@@ -847,28 +1041,32 @@ export interface Gamenet {
   address: string
   phone?: string
   instagramUrl?: string
+  mapUrl?: string
+  openHours?: string
   stations: number               // derived = sum(consoles[].count), kept for back-compat reads
   consoles: GamenetConsole[]
   disciplines: string[]           // tournament-relevant disc ids — load-bearing, keep clean
   games: string[]                 // broader catalog ids (lib/gamenet-games.ts) — cosmetic only
   features: string[]              // amenity ids (lib/gamenet-features.ts)
-  verified: boolean
+  status: GamenetStatus
+  rejectReason?: string
+  verified: boolean               // derived = (status === 'verified'), kept for back-compat reads
   createdAt: number
 }
 
 const gamenets = new Map<string, Gamenet>()
 
-export function createGamenet(input: Omit<Gamenet, 'id' | 'createdAt' | 'verified' | 'stations'>): Gamenet {
+export function createGamenet(input: Omit<Gamenet, 'id' | 'createdAt' | 'verified' | 'stations' | 'status'>): Gamenet {
   const id = 'gn_' + Math.random().toString(36).slice(2, 10)
   const stations = input.consoles.reduce((a, c) => a + (c.count || 0), 0)
-  const g: Gamenet = { ...input, id, stations, verified: false, createdAt: Date.now() }
+  const g: Gamenet = { ...input, id, stations, status: 'pending', verified: false, createdAt: Date.now() }
   gamenets.set(id, g)
   persist.gamenet.insert(g)
   return g
 }
 
 export function allGamenets(): Gamenet[] {
-  return Array.from(gamenets.values()).sort((a, b) => Number(b.verified) - Number(a.verified) || b.createdAt - a.createdAt)
+  return Array.from(gamenets.values()).sort((a, b) => Number(b.status === 'verified') - Number(a.status === 'verified') || b.createdAt - a.createdAt)
 }
 
 export function getGamenet(id: string): Gamenet | undefined {
@@ -883,18 +1081,71 @@ export function gamenetsByCity(city: string): Gamenet[] {
   return Array.from(gamenets.values()).filter(g => g.city.includes(city))
 }
 
-export function verifyGamenet(id: string, verified: boolean) {
-  const g = gamenets.get(id)
-  if (!g) return
-  g.verified = verified
-  persist.gamenet.setVerified(id, verified)
+export function pendingGamenets(): Gamenet[] {
+  return Array.from(gamenets.values()).filter(g => g.status === 'pending').sort((a, b) => b.createdAt - a.createdAt)
 }
 
-// Which gamenets have an uploaded venue photo — ids only (bytes stay in
-// Postgres, served on demand), same pattern as avatars/receipts.
-const gamenetPhotoIds = new Set<string>()
-export function hasGamenetPhoto(gamenetId: string): boolean { return gamenetPhotoIds.has(gamenetId) }
-export function markGamenetPhoto(gamenetId: string): void { gamenetPhotoIds.add(gamenetId) }
+export function setGamenetStatus(id: string, status: GamenetStatus, rejectReason?: string) {
+  const g = gamenets.get(id)
+  if (!g) return
+  g.status = status
+  g.verified = status === 'verified'
+  g.rejectReason = status === 'rejected' ? (rejectReason?.trim() || undefined) : undefined
+  persist.gamenet.setStatus(id, status, g.rejectReason)
+}
+
+export function verifyGamenet(id: string, verified: boolean) {
+  setGamenetStatus(id, verified ? 'verified' : 'pending')
+}
+
+const GAMENET_REVIEW_FIELDS = ['name', 'province', 'city', 'address'] as const
+
+export function updateGamenet(id: string, patch: Partial<Omit<Gamenet, 'id' | 'ownerId' | 'createdAt'>>): Gamenet | undefined {
+  const g = gamenets.get(id)
+  if (!g) return undefined
+  const needsReview = GAMENET_REVIEW_FIELDS.some(k => patch[k] !== undefined && patch[k] !== (g as any)[k])
+  Object.assign(g, patch)
+  if (patch.consoles) g.stations = g.consoles.reduce((a, c) => a + (c.count || 0), 0)
+  if ((needsReview && g.status === 'verified') || g.status === 'rejected') {
+    g.status = 'pending'
+    g.verified = false
+    g.rejectReason = undefined
+  }
+  persist.gamenet.update(g)
+  return g
+}
+
+export function deleteGamenet(id: string): boolean {
+  if (!gamenets.has(id)) return false
+  gamenets.delete(id)
+  gamenetPhotoIds.delete(id)
+  persist.gamenet.delete(id)
+  return true
+}
+
+// gamenetId → ordered photo ids (bytes stay in Postgres, served on demand).
+const gamenetPhotoIds = new Map<string, string[]>()
+export const GAMENET_PHOTO_MAX = 6
+
+export function gamenetPhotoIdsFor(gamenetId: string): string[] {
+  return gamenetPhotoIds.get(gamenetId) ?? []
+}
+export function hasGamenetPhoto(gamenetId: string): boolean {
+  return (gamenetPhotoIds.get(gamenetId)?.length ?? 0) > 0
+}
+export function gamenetPhotoCount(gamenetId: string): number {
+  return gamenetPhotoIds.get(gamenetId)?.length ?? 0
+}
+export function addGamenetPhotoId(gamenetId: string, photoId: string): void {
+  const list = gamenetPhotoIds.get(gamenetId) ?? []
+  if (!list.includes(photoId)) list.push(photoId)
+  gamenetPhotoIds.set(gamenetId, list)
+}
+export function removeGamenetPhotoId(gamenetId: string, photoId: string): void {
+  const next = (gamenetPhotoIds.get(gamenetId) ?? []).filter(id => id !== photoId)
+  if (next.length) gamenetPhotoIds.set(gamenetId, next)
+  else gamenetPhotoIds.delete(gamenetId)
+}
 
 // ─── Disciplines (admin-managed) ───────────────────────────────────────────
 // Currently mirrors DISC in mock-data.ts; admin can add more.
@@ -1118,6 +1369,14 @@ export interface Match {
   p1UserId?: string
   p2UserId?: string
   winnerUserId?: string
+  // Team-format (2v2) sides — mutually exclusive with the user fields above:
+  // a match is either a solo match (p1UserId/p2UserId set) or a team match
+  // (p1TeamId/p2TeamId set), never both. No FK to app_teams (team rows don't
+  // exist until Phase 3) — read/display code must branch on which pair is
+  // populated, never on EventConfig.teamSize (see docs/27 §1.5).
+  p1TeamId?: string
+  p2TeamId?: string
+  winnerTeamId?: string
   score?: string
   status: 'pending' | 'ready' | 'done'
   createdAt: number
@@ -1127,6 +1386,18 @@ export interface Match {
 // an optional manual final-seeding override. Kept in memory + persisted as JSON
 // on the event row (config column).
 export type GroupMode = 'city' | 'province'
+
+export interface PrelimVenue {
+  gamenetId?: string
+  venueName?: string
+  venueAddress?: string
+  mapUrl?: string
+  fromDate?: string
+  toDate?: string
+  scheduleNote?: string
+  contactPhone?: string
+}
+
 export interface EventConfig {
   groupMode: GroupMode
   // qualifyCount keyed by `${groupKey}#${bracketIndex}` → how many advance to final
@@ -1136,6 +1407,19 @@ export interface EventConfig {
   // admin-defined prize split — amount (تومان) per finishing place, index 0 = 1st.
   // when set, overrides the default percentage breakdown.
   prizeSplit?: number[]
+  // per-event ticket price override (تومان) — undefined means "use the global
+  // default" (TICKET.price in lib/payment.ts). Read ONLY through
+  // ticketPriceFor(compId) in lib/payment.ts, never TICKET.price directly.
+  ticketPrice?: number
+  ticketOriginal?: number
+  // Format of this event: 1 (default, solo) or 2 (2v2 teams). Frozen once
+  // registrationsForComp(compId).length > 0 — enforced in the edit route, not
+  // here — so a live event's format can never flip under existing data
+  // (docs/27 §1.5). undefined means 1 (solo), same "absent = default" idiom
+  // as ticketPrice.
+  teamSize?: number
+  // Pre-draw venue announcement per city/province group — label only, no bracket impact.
+  prelimVenues?: Record<string, PrelimVenue>
 }
 const eventConfigs = new Map<string, EventConfig>()
 
@@ -1157,18 +1441,23 @@ export function matchesForComp(compId: string): Match[] {
   return matches.filter(m => m.compId === compId).sort((a, b) => a.bracket - b.bracket || a.round - b.round || a.slot - b.slot)
 }
 
-export function clearMatchesForComp(compId: string) {
+// Awaited by callers (generatePrelims) — the matches created right after a
+// clear must not race the delete in Postgres. A fire-and-forget clear here
+// let a fresh set of matches sometimes get wiped by their own now-delayed
+// clear call, since neither had an ordering guarantee against the other.
+export async function clearMatchesForComp(compId: string) {
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId) matches.splice(i, 1)
-  persist.match.clearForComp(compId)
+  await persist.match.clearForComp(compId)
 }
 
 // Clear only one stage's matches (e.g. re-assemble the final without touching
-// completed prelims). Falls back to full clear + re-persist for the DB.
-export function clearMatchesByStage(compId: string, stage: 'prelim' | 'final') {
+// completed prelims). Scoped in both memory and DB — never touches the other
+// stage's rows. (A prior version wiped ALL of the comp's matches in Postgres
+// via an unscoped clearForComp + fire-and-forget re-insert, which could
+// silently drop completed prelim matches on re-assembly.)
+export async function clearMatchesByStage(compId: string, stage: 'prelim' | 'final') {
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId && matches[i].stage === stage) matches.splice(i, 1)
-  // DB: wipe all comp matches then re-persist survivors (simple + consistent)
-  persist.match.clearForComp(compId)
-  for (const m of matches) if (m.compId === compId) persist.match.insert(m)
+  await persist.match.clearByStage(compId, stage)
 }
 
 export function pushMatch(m: Match) {

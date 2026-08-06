@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, profileCompletion, whenReady } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 
 export async function POST(req: Request) {
@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد بلیط باید ۱ تا ۶ باشد' }, { status: 400 })
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+  const isTeamEvent = getEventConfig(compId).teamSize === 2
 
   // Referral attribution happens at purchase (product decision): the buyer
   // enters/confirms the code here; set once, immutable, self-referral blocked.
@@ -33,6 +34,36 @@ export async function POST(req: Request) {
       : c.status === 'live' ? 'ثبت‌نام بسته شده — مسابقه در حال برگزاری است'
       : 'ثبت‌نام این مسابقه هنوز باز نشده'
     return NextResponse.json({ error: why }, { status: 400 })
+  }
+
+  const errorMap: Record<string, string> = {
+    MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',
+    EXCEEDS_MAX: 'بیشتر از سهمیهٔ باقی‌مونده انتخاب کردی',
+    REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
+    ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
+    INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
+    ALREADY_REGISTERED: 'قبلاً برای این مسابقه ثبت‌نام کردی',
+    INVALID_PARTNER: 'تگِ هم‌تیمی درست نیست — یا پیدا نشد یا خودتی',
+    PARTNER_ALREADY_REGISTERED: 'هم‌تیمی‌ای که انتخاب کردی قبلاً تو این مسابقه ثبت‌نام کرده',
+  }
+
+  if (isTeamEvent) {
+    const teamName = (body.teamName ?? '').toString().trim()
+    const partnerTag = (body.partnerTag ?? '').toString().trim()
+    if (!partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
+    try {
+      const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
+      const free = Math.min(u.freeTickets ?? 0, attempts)
+      if (free > 0) consumeFreeTickets(uid, r.id, free)
+      await persist.user.insertAsync(u)
+      await persist.reg.insertAsync(r)
+      const paid = attempts - free
+      pushNotif(uid, 'registration', 'تیم ساخته شد',
+        `تیمت برای «${c.title}» ساخته شد — ${attempts} بلیط برای خودت (${free} رایگان + ${paid} پرداختی). هم‌تیمیت باید دعوت رو قبول کنه و سهمِ خودش رو جدا پرداخت کنه.`)
+      return NextResponse.json({ ok: true, registration: r, freeUsed: free })
+    } catch (e: any) {
+      return NextResponse.json({ error: errorMap[e.message] || e.message }, { status: 400 })
+    }
   }
 
   try {
@@ -51,13 +82,6 @@ export async function POST(req: Request) {
         : `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
     return NextResponse.json({ ok: true, registration: r, freeUsed: free })
   } catch (e: any) {
-    const map: Record<string, string> = {
-      MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',
-      EXCEEDS_MAX: 'بیشتر از سهمیهٔ باقی‌مونده انتخاب کردی',
-      REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
-      ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
-      INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
-    }
-    return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })
+    return NextResponse.json({ error: errorMap[e.message] || e.message }, { status: 400 })
   }
 }

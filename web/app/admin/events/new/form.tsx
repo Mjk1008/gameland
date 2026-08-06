@@ -18,6 +18,9 @@ export default function NewEventForm() {
   const [date, setDate] = useState('')
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>('A')
   const [status, setStatus] = useState<'open' | 'soon' | 'live'>('open')
+  const [teamSize, setTeamSize] = useState<1 | 2>(1)
+  const [ticketPrice, setTicketPrice] = useState('')
+  const [ticketOriginal, setTicketOriginal] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -26,7 +29,7 @@ export default function NewEventForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true)
     try {
-      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status] }) })
+      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ساخته نشد، دوباره امتحان کن')
       router.push('/admin/events'); router.refresh()
@@ -73,6 +76,20 @@ export default function NewEventForm() {
       </Field>
 
       <Field label="فرمت (متن نمایشی)"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="مقدماتی (شهری) + فینال" /></Field>
+
+      <Field label="فرمت بازی" hint="براکت‌ها تیم‌به‌تیم چیده می‌شن. هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
+            const on = teamSize === k
+            return <button key={k} type="button" onClick={() => setTeamSize(k)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
+          })}
+        </div>
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
+      </div>
 
       <Field label="سایزِ براکتِ فینال" hint="FIFA معمولاً ۱۲۸ · بقیهٔ رشته‌ها ۳۲">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>

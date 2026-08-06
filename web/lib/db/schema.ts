@@ -2,7 +2,7 @@
 // Runs on Liara Postgres or any standard PG. Text PKs (app-generated).
 // Enum columns are declared as pgEnum so Drizzle emits/validates the right type.
 
-import { pgTable, pgEnum, text, integer, boolean, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, pgEnum, text, integer, boolean, timestamp, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core'
 
 // ─── Competitions (رویداد — parent that groups discipline Events) ───
 export const competitions = pgTable('app_competitions', {
@@ -109,11 +109,40 @@ export const registrations = pgTable('app_registrations', {
   status:           text('status').notNull().default('pending'),  // pending | approved | rejected
   seedsEarned:      integer('seeds_earned').notNull().default(0),
   prelimsCompleted: integer('prelims_completed').notNull().default(0),
+  teamId:           text('team_id'),   // 2v2 events only — → app_teams(id). No FK yet (mirrors app_matches team columns).
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniqByUserComp: uniqueIndex('reg_user_comp_idx').on(t.userId, t.compId),
   byComp: index('reg_comp_idx').on(t.compId),
   byUser: index('reg_user_idx').on(t.userId),
+}))
+
+// ─── Teams (2v2 events) ────────────────────────────────────────
+export const teams = pgTable('app_teams', {
+  id:         text('id').primaryKey(),
+  compId:     text('comp_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  name:       text('name').notNull(),
+  captainId:  text('captain_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status:     text('status').notNull().default('forming'),  // forming | complete | disbanded
+  attempts:   integer('attempts').notNull().default(1),
+  createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  byComp: index('team_comp_idx').on(t.compId),
+}))
+
+export const teamMembers = pgTable('app_team_members', {
+  teamId:    text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  userId:    text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  slot:      integer('slot').notNull(),        // 0 = captain
+  status:    text('status').notNull(),         // invited | accepted | declined
+  // Ordering source of truth: after a partner replacement, the LAST row per
+  // (team, slot) is the active one (store.ts currentTeamMembers) — the
+  // in-memory array preserves insertion order live, but hydration must
+  // re-derive that order explicitly (SELECT ... ORDER BY created_at), so a
+  // restart can't silently pick the stale, replaced partner as "current".
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.teamId, t.userId] }),
 }))
 
 // ─── Matches ─────────────────────────────────────────────────
@@ -128,6 +157,11 @@ export const matches = pgTable('app_matches', {
   p1UserId:    text('p1_user_id').references(() => users.id, { onDelete: 'set null' }),
   p2UserId:    text('p2_user_id').references(() => users.id, { onDelete: 'set null' }),
   winnerUserId:text('winner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  // Team-format (2v2) sides — no FK (app_teams doesn't exist yet; lands in a
+  // later phase). Mutually exclusive with the user columns above per match.
+  p1TeamId:    text('p1_team_id'),
+  p2TeamId:    text('p2_team_id'),
+  winnerTeamId:text('winner_team_id'),
   score:       text('score'),
   status:      matchStatusEnum('status').notNull().default('pending'),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -189,18 +223,26 @@ export const gamenets = pgTable('app_gamenets', {
   disciplines:   text('disciplines').notNull().default(''),  // tournament-relevant — load-bearing
   games:         text('games').notNull().default(''),        // broader catalog — cosmetic only
   features:      text('features').notNull().default(''),     // amenity ids, CSV
+  status:        text('status').notNull().default('pending'),
+  rejectReason:  text('reject_reason'),
+  mapUrl:        text('map_url'),
+  openHours:     text('open_hours'),
   verified:      boolean('verified').notNull().default(false),
   createdAt:     timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   byCity: index('gn_city_idx').on(t.city),
 }))
 
-// Venue photo, out of the in-memory store like avatars — served on demand.
+// Venue photos — ids only in RAM; bytes served on demand (up to 6 per gamenet).
 export const gamenetPhotos = pgTable('app_gamenet_photos', {
-  gamenetId: text('gamenet_id').primaryKey(),
+  id:        text('id').primaryKey(),
+  gamenetId: text('gamenet_id').notNull(),
   dataUrl:   text('data_url').notNull(),
+  sort:      integer('sort').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-})
+}, (t) => ({
+  byGamenet: index('gn_photo_gamenet_idx').on(t.gamenetId),
+}))
 
 // ─── Avatars (profile photos, base64) — stored OUT of the in-memory store and
 // served on demand, so 10k photos never bloat RAM or the hydration path ──────

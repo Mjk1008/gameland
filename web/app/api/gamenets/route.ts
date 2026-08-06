@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createGamenet, getUserById, markGamenetPhoto } from '@/lib/store'
+import { createGamenet, getUserById, addGamenetPhotoId, GAMENET_PHOTO_MAX } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
-
-const MAX_PHOTO_CHARS = 2_000_000 // ~1.5MB decoded, client already compresses to a light JPEG
+import { isValidPhotoDataUrl } from '@/lib/gamenet-photos'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -16,9 +15,16 @@ export async function POST(req: Request) {
   if (!b.name || !b.province || !b.city || !b.address) return NextResponse.json({ error: 'نام، استان، شهر و آدرس الزامی' }, { status: 400 })
   const phone = (b.phone ?? '').toString().replace(/\D/g, '')
   if (!/^0\d{9,10}$/.test(phone)) return NextResponse.json({ error: 'شمارهٔ تماسِ کسب‌وکار رو درست وارد کن' }, { status: 400 })
-  const photoData: string = (b.photoData ?? '').toString()
-  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(photoData)) return NextResponse.json({ error: 'عکسِ محل الزامیه' }, { status: 400 })
-  if (photoData.length > MAX_PHOTO_CHARS) return NextResponse.json({ error: 'حجم عکس زیاده — یه عکس سبک‌تر انتخاب کن' }, { status: 413 })
+
+  const rawPhotos: string[] = Array.isArray(b.photos)
+    ? b.photos.map((p: unknown) => String(p ?? ''))
+    : b.photoData ? [String(b.photoData)] : []
+  if (rawPhotos.length === 0) return NextResponse.json({ error: 'حداقل یک عکسِ محل الزامیه' }, { status: 400 })
+  if (rawPhotos.length > GAMENET_PHOTO_MAX) return NextResponse.json({ error: `حداکثر ${GAMENET_PHOTO_MAX} عکس می‌تونی بفرستی` }, { status: 400 })
+  for (const p of rawPhotos) {
+    if (!isValidPhotoDataUrl(p)) return NextResponse.json({ error: 'یکی از عکس‌ها نامعتبره — دوباره انتخاب کن' }, { status: 400 })
+  }
+
   const instagramUrl = (b.instagramUrl ?? '').toString().trim().slice(0, 200) || undefined
   const consoles = Array.isArray(b.consoles)
     ? b.consoles.map((c: any) => ({ kind: (c?.kind ?? '').toString(), count: Math.max(0, Number(c?.count) || 0) })).filter((c: any) => c.kind && c.count > 0)
@@ -31,7 +37,9 @@ export async function POST(req: Request) {
     games: Array.isArray(b.games) ? b.games : [],
     features: Array.isArray(b.features) ? b.features : [],
   })
-  await persist.gamenetPhoto.upsertAsync(g.id, photoData)
-  markGamenetPhoto(g.id)
+  for (let i = 0; i < rawPhotos.length; i++) {
+    const photoId = await persist.gamenetPhoto.insertAsync(g.id, rawPhotos[i], i)
+    if (photoId) addGamenetPhotoId(g.id, photoId)
+  }
   return NextResponse.json({ ok: true, gamenet: g })
 }

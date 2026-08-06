@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
+import { toman } from '@/lib/payment'
 
-interface Row { regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean }
+interface Row { regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean; price: number }
 
 const REJECT_REASONS = [
   'فیش پرداخت ارسال نشده',
@@ -130,6 +131,15 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                 <Num size={20} color={C.accent}>{tickets}</Num>
                 <button onClick={() => setAttempts(tickets + 1)} disabled={tickets >= 6} style={stepBtn}>+</button>
               </div>
+            </div>
+
+            {/* expected payment — per-event price, never assume a global constant */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 13px' }}>
+              <span style={{ fontSize: 12, color: C.tbody }}>مبلغِ موردِ انتظار <span className="gl-num" style={{ fontSize: 10.5, color: C.tmut }}>({Math.max(0, tickets - (sel.paidAttempts ?? 0))} × {toman(sel.price)})</span></span>
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <Num size={16} color={C.thi}>{toman(Math.max(0, tickets - (sel.paidAttempts ?? 0)) * sel.price)}</Num>
+                <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
+              </span>
             </div>
 
             {/* receipt */}

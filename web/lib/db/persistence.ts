@@ -24,6 +24,8 @@ export function startHydration(loaders: {
   loadNotif:     (n: any) => void
   loadPlacement: (pl: any) => void
   loadMatch:     (m: any) => void
+  loadTeam?:     (t: any) => void
+  loadTeamMember?: (m: any) => void
   loadEventConfig?: (compId: string, json: string) => void
   loadCompetition?: (c: any) => void
   loadPromo?:    (p: any) => void
@@ -32,7 +34,7 @@ export function startHydration(loaders: {
   loadAvatarId?: (userId: string) => void
   loadReceiptId?: (regId: string) => void
   loadGamenet?:  (g: any) => void
-  loadGamenetPhotoId?: (gamenetId: string) => void
+  loadGamenetPhotoId?: (gamenetId: string, photoId: string) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -71,7 +73,31 @@ export function startHydration(loaders: {
         `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS consoles TEXT NOT NULL DEFAULT '[]'`,
         `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS games TEXT NOT NULL DEFAULT ''`,
         `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS features TEXT NOT NULL DEFAULT ''`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS reject_reason TEXT`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS map_url TEXT`,
+        `ALTER TABLE app_gamenets ADD COLUMN IF NOT EXISTS open_hours TEXT`,
+        `UPDATE app_gamenets SET status = 'verified' WHERE verified = true AND (status IS NULL OR status = 'pending')`,
         `CREATE TABLE IF NOT EXISTS app_gamenet_photos (gamenet_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `DO $$ BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'app_gamenet_photos' AND column_name = 'gamenet_id')
+             AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'app_gamenet_photos' AND column_name = 'id')
+          THEN
+            CREATE TABLE app_gamenet_photos_v2 (id TEXT PRIMARY KEY, gamenet_id TEXT NOT NULL, data_url TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+            INSERT INTO app_gamenet_photos_v2 (id, gamenet_id, data_url, sort, created_at)
+              SELECT 'gpn_' || gamenet_id, gamenet_id, data_url, 0, created_at FROM app_gamenet_photos;
+            DROP TABLE app_gamenet_photos;
+            ALTER TABLE app_gamenet_photos_v2 RENAME TO app_gamenet_photos;
+          END IF;
+        END $$`,
+        `CREATE INDEX IF NOT EXISTS gn_photo_gamenet_idx ON app_gamenet_photos (gamenet_id)`,
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p1_team_id TEXT`,
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p2_team_id TEXT`,
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS winner_team_id TEXT`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS team_id TEXT`,
+        `CREATE TABLE IF NOT EXISTS app_teams (id TEXT PRIMARY KEY, comp_id TEXT NOT NULL REFERENCES app_events(id) ON DELETE CASCADE, name TEXT NOT NULL, captain_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'forming', attempts INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS team_comp_idx ON app_teams (comp_id)`,
+        `CREATE TABLE IF NOT EXISTS app_team_members (team_id TEXT NOT NULL REFERENCES app_teams(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, slot INTEGER NOT NULL, status TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (team_id, user_id))`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
 
       const cps = await d.select().from(schema.competitions)
@@ -126,7 +152,22 @@ export function startHydration(loaders: {
         rejectReason: (r as any).rejectReason ?? undefined,
         paidAttempts: (r as any).paidAttempts ?? undefined,
         seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
+        teamId: (r as any).teamId ?? undefined,
         createdAt: ms(r.createdAt),
+      })
+
+      const tms = await d.select().from(schema.teams)
+      for (const t of tms) loaders.loadTeam?.({
+        id: t.id, compId: t.compId, name: t.name, captainId: t.captainId,
+        status: t.status as any, attempts: t.attempts, createdAt: ms(t.createdAt),
+      })
+      // Ordered by createdAt — currentTeamMembers() in store.ts takes the LAST
+      // row per (team, slot) as active; hydration must replay in the same
+      // order the app created them, or a restart could resurrect a replaced
+      // partner as "current".
+      const tmm = await d.select().from(schema.teamMembers).orderBy(schema.teamMembers.createdAt)
+      for (const m of tmm) loaders.loadTeamMember?.({
+        teamId: m.teamId, userId: m.userId, slot: m.slot, status: m.status as any,
       })
 
       const pls = await d.select().from(schema.placements)
@@ -147,7 +188,10 @@ export function startHydration(loaders: {
         stage: ((m as any).stage as any) ?? 'prelim', groupKey: (m as any).groupKey ?? '',
         bracket: m.bracket, round: m.round, slot: m.slot,
         p1UserId: m.p1UserId ?? undefined, p2UserId: m.p2UserId ?? undefined,
-        winnerUserId: m.winnerUserId ?? undefined, score: m.score ?? undefined,
+        winnerUserId: m.winnerUserId ?? undefined,
+        p1TeamId: (m as any).p1TeamId ?? undefined, p2TeamId: (m as any).p2TeamId ?? undefined,
+        winnerTeamId: (m as any).winnerTeamId ?? undefined,
+        score: m.score ?? undefined,
         status: m.status as any, createdAt: ms(m.createdAt),
       })
 
@@ -191,19 +235,24 @@ export function startHydration(loaders: {
           id: g.id, ownerId: g.ownerId, name: g.name,
           province: (g as any).province ?? undefined, city: g.city, address: g.address,
           phone: g.phone ?? undefined, instagramUrl: (g as any).instagramUrl ?? undefined,
+          mapUrl: (g as any).mapUrl ?? undefined, openHours: (g as any).openHours ?? undefined,
           stations: g.stations,
           consoles: (() => { try { return JSON.parse((g as any).consoles ?? '[]') } catch { return [] } })(),
           disciplines: g.disciplines ? g.disciplines.split(',').filter(Boolean) : [],
           games: (g as any).games ? (g as any).games.split(',').filter(Boolean) : [],
           features: (g as any).features ? (g as any).features.split(',').filter(Boolean) : [],
+          status: ((g as any).status as any) || (g.verified ? 'verified' : 'pending'),
+          rejectReason: (g as any).rejectReason ?? undefined,
           verified: g.verified, createdAt: ms(g.createdAt),
         })
       } catch (e) { console.error('[db] load gamenets:', e) }
 
       try {
-        // Ids only — the photo bytes stay in Postgres, served on demand.
-        const gp = await d.execute(sql.raw('SELECT gamenet_id FROM app_gamenet_photos'))
-        for (const row of (gp as any as { gamenet_id: string }[])) loaders.loadGamenetPhotoId?.(row.gamenet_id)
+        // Ids only — bytes stay in Postgres, served on demand.
+        const gp = await d.execute(sql.raw('SELECT id, gamenet_id FROM app_gamenet_photos ORDER BY sort, created_at'))
+        for (const row of (gp as any as { id: string; gamenet_id: string }[])) {
+          loaders.loadGamenetPhotoId?.(row.gamenet_id, row.id)
+        }
       } catch (e) { console.error('[db] load gamenet photo ids:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
@@ -222,6 +271,22 @@ export function startHydration(loaders: {
 function fire(promise: Promise<any> | undefined) {
   if (!promise) return
   promise.catch(err => console.error('[db] write failed:', err))
+}
+
+// Per-row write-ordering queue, keyed by an identity string (e.g. a match
+// id). A single fire-and-forget write per row is safe (that's what fire()
+// is for), but bracket resolution can issue TWO writes to the SAME match row
+// within one synchronous call (e.g. buildTree pushes a match 'pending', then
+// resolveByes immediately flips it to 'done' in the same tick) — two
+// un-awaited writes on a pooled connection have no ordering guarantee against
+// each other and can land at Postgres out of issue-order, silently reverting
+// the row to its earlier state. Chaining same-key writes through one promise
+// preserves issue-order without requiring every call site to become async.
+const writeChains = new Map<string, Promise<any>>()
+function fireOrdered(key: string, run: () => Promise<any> | undefined) {
+  const prev = writeChains.get(key) ?? Promise.resolve()
+  const next = prev.then(() => run()).catch(err => console.error('[db] write failed:', err))
+  writeChains.set(key, next)
 }
 
 function userValues(u: User) {
@@ -348,7 +413,7 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts,
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -357,8 +422,8 @@ export const persist = {
       const d = db(); if (!d) return
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
-        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts } })
+        attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -370,26 +435,85 @@ export const persist = {
       if ((patch as any).rejectReason !== undefined) set.rejectReason = (patch as any).rejectReason
       if ((patch as any).paidAttempts !== undefined) set.paidAttempts = (patch as any).paidAttempts
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
+      if ((patch as any).teamId !== undefined)  set.teamId = (patch as any).teamId
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
     },
   },
-  match: {
-    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; score?: string; status: string }) {
+  team: {
+    insert(t: { id: string; compId: string; name: string; captainId: string; status: string; attempts: number }) {
       const d = db(); if (!d) return
-      fire(d.insert(schema.matches).values({
+      fire(d.insert(schema.teams).values({
+        id: t.id, compId: t.compId, name: t.name, captainId: t.captainId, status: t.status as any, attempts: t.attempts,
+      }).onConflictDoNothing())
+    },
+    // Awaited on the create path — same ordering reason as reg.insertAsync:
+    // members/registration inserts that follow must not race this row.
+    async insertAsync(t: { id: string; compId: string; name: string; captainId: string; status: string; attempts: number }) {
+      const d = db(); if (!d) return
+      await d.insert(schema.teams).values({
+        id: t.id, compId: t.compId, name: t.name, captainId: t.captainId, status: t.status as any, attempts: t.attempts,
+      }).onConflictDoNothing()
+    },
+    update(id: string, patch: { status?: string }) {
+      const d = db(); if (!d) return
+      const set: any = {}
+      if (patch.status !== undefined) set.status = patch.status
+      if (Object.keys(set).length === 0) return
+      fire(d.update(schema.teams).set(set).where(eq(schema.teams.id, id)))
+    },
+  },
+  teamMember: {
+    insert(m: { teamId: string; userId: string; slot: number; status: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.teamMembers).values({ teamId: m.teamId, userId: m.userId, slot: m.slot, status: m.status }).onConflictDoNothing())
+    },
+    async insertAsync(m: { teamId: string; userId: string; slot: number; status: string }) {
+      const d = db(); if (!d) return
+      await d.insert(schema.teamMembers).values({ teamId: m.teamId, userId: m.userId, slot: m.slot, status: m.status }).onConflictDoNothing()
+    },
+    update(teamId: string, userId: string, patch: { status?: string }) {
+      const d = db(); if (!d) return
+      const set: any = {}
+      if (patch.status !== undefined) set.status = patch.status
+      if (Object.keys(set).length === 0) return
+      fire(d.update(schema.teamMembers).set(set).where(and(eq(schema.teamMembers.teamId, teamId), eq(schema.teamMembers.userId, userId))))
+    },
+  },
+  match: {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string }) {
+      const d = db(); if (!d) return
+      // Ordered per match id — see fireOrdered's comment. Bracket resolution
+      // (a fresh draw immediately resolving its own byes, or a played match
+      // triggering downstream bye resolution) can issue two writes to the
+      // SAME row within one synchronous call; without ordering, the second
+      // write can land before the first and get silently overwritten.
+      fireOrdered(m.id, () => d.insert(schema.matches).values({
         id: m.id, compId: m.compId, stage: m.stage ?? 'prelim', groupKey: m.groupKey ?? '',
         bracket: m.bracket, round: m.round, slot: m.slot,
         p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId,
+        p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId,
         score: m.score, status: m.status as any,
       }).onConflictDoUpdate({
         target: schema.matches.id,
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, score: m.score, status: m.status as any },
+        // Every mutable field must appear here, even ones this call didn't
+        // change — a key missing from `set` (not merely undefined-valued)
+        // would silently drop it on re-save (docs/27 §1.4 risk #5).
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any },
       }))
     },
-    clearForComp(compId: string) {
+    // Awaited by callers (generatePrelims) — a subsequent buildTree() creates
+    // this comp's new matches right after, and that write must not race the
+    // clear (see store.ts clearMatchesForComp / clearMatchesByStage).
+    async clearForComp(compId: string) {
       const d = db(); if (!d) return
-      fire(d.delete(schema.matches).where(eq(schema.matches.compId, compId)))
+      await d.delete(schema.matches).where(eq(schema.matches.compId, compId))
+    },
+    // Scoped to one stage — used when re-assembling just the final without
+    // touching completed prelim matches. Awaited for the same reason.
+    async clearByStage(compId: string, stage: string) {
+      const d = db(); if (!d) return
+      await d.delete(schema.matches).where(and(eq(schema.matches.compId, compId), eq(schema.matches.stage, stage as any)))
     },
   },
   notif: {
@@ -573,31 +697,70 @@ export const persist = {
     },
   },
   gamenet: {
-    insert(g: { id: string; ownerId: string; name: string; province?: string; city: string; address: string; phone?: string; instagramUrl?: string; stations: number; consoles: { kind: string; count: number }[]; disciplines: string[]; games: string[]; features: string[]; verified: boolean }) {
+    insert(g: { id: string; ownerId: string; name: string; province?: string; city: string; address: string; phone?: string; instagramUrl?: string; mapUrl?: string; openHours?: string; stations: number; consoles: { kind: string; count: number }[]; disciplines: string[]; games: string[]; features: string[]; status: string; rejectReason?: string; verified: boolean }) {
       const d = db(); if (!d) return
       fire(d.insert(schema.gamenets).values({
         id: g.id, ownerId: g.ownerId, name: g.name, province: g.province, city: g.city, address: g.address,
-        phone: g.phone, instagramUrl: g.instagramUrl, stations: g.stations, consoles: JSON.stringify(g.consoles),
-        disciplines: g.disciplines.join(','), games: g.games.join(','), features: g.features.join(','), verified: g.verified,
+        phone: g.phone, instagramUrl: g.instagramUrl, mapUrl: g.mapUrl, openHours: g.openHours,
+        stations: g.stations, consoles: JSON.stringify(g.consoles),
+        disciplines: g.disciplines.join(','), games: g.games.join(','), features: g.features.join(','),
+        status: g.status, rejectReason: g.rejectReason, verified: g.verified,
       }).onConflictDoNothing())
     },
-    setVerified(id: string, verified: boolean) {
+    setStatus(id: string, status: string, rejectReason?: string) {
       const d = db(); if (!d) return
-      fire(d.update(schema.gamenets).set({ verified }).where(eq(schema.gamenets.id, id)))
+      fire(d.update(schema.gamenets).set({
+        status, rejectReason: rejectReason ?? null, verified: status === 'verified',
+      }).where(eq(schema.gamenets.id, id)))
+    },
+    update(g: { id: string; name: string; province?: string; city: string; address: string; phone?: string; instagramUrl?: string; mapUrl?: string; openHours?: string; stations: number; consoles: { kind: string; count: number }[]; disciplines: string[]; games: string[]; features: string[]; status: string; rejectReason?: string; verified: boolean }) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.gamenets).set({
+        name: g.name, province: g.province, city: g.city, address: g.address,
+        phone: g.phone, instagramUrl: g.instagramUrl, mapUrl: g.mapUrl, openHours: g.openHours,
+        stations: g.stations, consoles: JSON.stringify(g.consoles),
+        disciplines: g.disciplines.join(','), games: g.games.join(','), features: g.features.join(','),
+        status: g.status, rejectReason: g.rejectReason ?? null, verified: g.verified,
+      }).where(eq(schema.gamenets.id, g.id)))
+    },
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.gamenetId, id)))
+      fire(d.delete(schema.gamenets).where(eq(schema.gamenets.id, id)))
     },
   },
   gamenetPhoto: {
-    // Venue photo bytes live only in Postgres, served on demand — same
-    // pattern as avatars/receipts (never hydrated into the in-memory store).
-    async upsertAsync(gamenetId: string, dataUrl: string) {
-      const d = db(); if (!d) return
-      await d.insert(schema.gamenetPhotos).values({ gamenetId, dataUrl })
-        .onConflictDoUpdate({ target: schema.gamenetPhotos.gamenetId, set: { dataUrl } })
-    },
-    async read(gamenetId: string): Promise<string | null> {
+    async insertAsync(gamenetId: string, dataUrl: string, sort = 0): Promise<string | null> {
       const d = db(); if (!d) return null
-      const rows = await d.select({ dataUrl: schema.gamenetPhotos.dataUrl }).from(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.gamenetId, gamenetId)).limit(1)
+      const id = 'gpn_' + Math.random().toString(36).slice(2, 10)
+      await d.insert(schema.gamenetPhotos).values({ id, gamenetId, dataUrl, sort })
+      return id
+    },
+    async read(photoId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.gamenetPhotos.dataUrl }).from(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.id, photoId)).limit(1)
       return rows[0]?.dataUrl ?? null
+    },
+    async readFirstForGamenet(gamenetId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.gamenetPhotos.dataUrl }).from(schema.gamenetPhotos)
+        .where(eq(schema.gamenetPhotos.gamenetId, gamenetId)).orderBy(schema.gamenetPhotos.sort, schema.gamenetPhotos.createdAt).limit(1)
+      return rows[0]?.dataUrl ?? null
+    },
+    async gamenetIdOf(photoId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ gamenetId: schema.gamenetPhotos.gamenetId }).from(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.id, photoId)).limit(1)
+      return rows[0]?.gamenetId ?? null
+    },
+    async countForGamenet(gamenetId: string): Promise<number> {
+      const d = db(); if (!d) return 0
+      const rows = await d.select({ id: schema.gamenetPhotos.id }).from(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.gamenetId, gamenetId))
+      return rows.length
+    },
+    async deleteAsync(photoId: string): Promise<boolean> {
+      const d = db(); if (!d) return false
+      await d.delete(schema.gamenetPhotos).where(eq(schema.gamenetPhotos.id, photoId))
+      return true
     },
   },
 }

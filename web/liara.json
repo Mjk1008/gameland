@@ -1,5 +1,11 @@
 {
   "app": "gameland",
   "platform": "next",
-  "port": 3000
+  "port": 3000,
+  "build": {
+    "location": "iran"
+  },
+  "next": {
+    "nodeVersion": "20"
+  }
 }

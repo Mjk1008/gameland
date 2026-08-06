@@ -22,9 +22,15 @@ export function issueCode(phone: string): string {
     for (const [p, t] of lastSend) if (now - t > COOLDOWN) lastSend.delete(p)
     for (const [p, r] of codes) if (now > r.exp) codes.delete(p)
   }
-  const code = String(crypto.randomInt(10000, 100000))  // 5 digits
+  // No Kavenegar → fixed dev code (README + local:prod). With Kavenegar → random 5-digit.
+  const code = process.env.KAVENEGAR_API_KEY
+    ? String(crypto.randomInt(10000, 100000))
+    : '123456'
   codes.set(phone, { code, exp: Date.now() + TTL, tries: 0 })
   lastSend.set(phone, Date.now())
+  if (!process.env.KAVENEGAR_API_KEY) {
+    console.log(`[OTP] ${phone} → ${code} (dev stub — set KAVENEGAR_API_KEY for real SMS)`)
+  }
   return code
 }
 

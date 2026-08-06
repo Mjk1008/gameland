@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const u = getUserByEmail(email)
   // Only password accounts can reset via email; Google accounts log in with Google.
   if (u && u.passwordHash) {
-    const base = process.env.NEXTAUTH_URL || 'https://gameland.liara.run'
+    const base = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://gamelandteam.ir'
     const link = `${base}/reset?token=${makeResetToken(u.id)}`
     const html = `<div style="font-family:Tahoma,sans-serif;direction:rtl;line-height:2">
       <h2>بازیابی گذرواژهٔ گیم‌لند</h2>

@@ -20,18 +20,18 @@ import {
 } from './store'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
-function rng(seed: number) {
+export function rng(seed: number) {
   let s = seed >>> 0
   return () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
 }
-function shuffle<T>(arr: T[], r: () => number): T[] {
+export function shuffle<T>(arr: T[], r: () => number): T[] {
   const a = arr.slice()
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
   return a
 }
-function seedFrom(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+export function seedFrom(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 
-const DEFAULT_QUALIFY = 2   // winner + runner-up, until admin changes it
+export const DEFAULT_QUALIFY = 2   // winner + runner-up, until admin changes it
 
 // group key for a user under the chosen mode
 function groupKeyOf(userId: string, mode: GroupMode): string {
@@ -42,7 +42,7 @@ function groupKeyOf(userId: string, mode: GroupMode): string {
 
 // Balanced-random seat distribution, once-per-bracket, early-bracket priority.
 // Returns brackets[i] = ordered list of userIds (seats) for bracket i (0-based).
-function distributeSeats(players: { userId: string; attempts: number }[], seed: number): string[][] {
+export function distributeSeats(players: { userId: string; attempts: number }[], seed: number): string[][] {
   if (players.length === 0) return []
   const maxK = Math.max(...players.map(p => p.attempts))
   const N = Math.min(6, Math.max(1, maxK))
@@ -84,8 +84,16 @@ function buildTree(compId: string, stage: 'prelim' | 'final', groupKey: string, 
       id: 'm_' + Math.random().toString(36).slice(2, 10),
       compId, stage, groupKey, bracket: bracketIdx, round: 1, slot: i,
       p1UserId: p1 || undefined, p2UserId: p2 || undefined,
-      winnerUserId: p2 ? undefined : (p1 || undefined),          // bye auto-advances
-      status: (p1 && p2) ? 'ready' : (p1 ? 'done' : 'pending'),
+      // Byes are resolved by resolveByes() right below, not pre-resolved here.
+      // Pre-setting winnerUserId/status='done' at push time meant resolveByes
+      // (which skips already-'done' matches) never called feedWinner() for a
+      // bye — the bye winner's advance into round 2 silently never happened,
+      // and once the real adjacent match was later played, round 2 was
+      // mistaken for its OWN bye (only 1 occupant) and auto-advanced that
+      // player again, skipping the actual match against the bye recipient
+      // entirely. Only exercised by non-power-of-2 bracket sizes — missed by
+      // the Phase 0 differential baseline (deliberately an exact power of 2).
+      status: (p1 && p2) ? 'ready' : 'pending',
       createdAt: Date.now(),
     })
   }
@@ -132,9 +140,9 @@ function resolveByes(compId: string, stage: 'prelim' | 'final', groupKey: string
 
 // ── public: generate the preliminary stage ──
 export interface DrawInput { compId: string; registrations: Registration[]; groupMode?: GroupMode }
-export function generatePrelims({ compId, registrations, groupMode }: DrawInput): { groups: number; brackets: number; matches: number } {
+export async function generatePrelims({ compId, registrations, groupMode }: DrawInput): Promise<{ groups: number; brackets: number; matches: number }> {
   const mode: GroupMode = groupMode ?? getEventConfig(compId).groupMode ?? 'city'
-  clearMatchesForComp(compId)
+  await clearMatchesForComp(compId)
 
   const groups = new Map<string, { userId: string; attempts: number }[]>()
   for (const r of registrations) {
@@ -222,7 +230,7 @@ export function computeQualifiers(compId: string): Qualifier[] {
 }
 
 // ── assemble / re-assemble the final bracket from current qualifiers ──
-export function assembleFinal(compId: string): { seats: number; capped: boolean } {
+export async function assembleFinal(compId: string): Promise<{ seats: number; capped: boolean }> {
   const cfg = getEventConfig(compId)
   let ids = computeQualifiers(compId).map(q => q.userId)
   if (cfg.finalSeeding?.length) {
@@ -239,7 +247,7 @@ export function assembleFinal(compId: string): { seats: number; capped: boolean 
   const capped = ids.length > cap
   if (capped) ids = ids.slice(0, cap)
 
-  clearMatchesByStage(compId, 'final')
+  await clearMatchesByStage(compId, 'final')
   if (ids.length >= 2) buildTree(compId, 'final', '', 0, ids, seedFrom(compId + 'final-tree'))
   return { seats: ids.length, capped }
 }

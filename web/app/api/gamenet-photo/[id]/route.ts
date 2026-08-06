@@ -2,9 +2,12 @@ import { persist } from '@/lib/db/persistence'
 
 export const dynamic = 'force-dynamic'
 
-// Serve a gamenet's venue photo straight from Postgres (never held in RAM).
+// Serve a gamenet venue photo by photo id (legacy: gamenet id still works).
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const dataUrl = await persist.gamenetPhoto.read(params.id)
+  let dataUrl = await persist.gamenetPhoto.read(params.id)
+  if (!dataUrl && params.id.startsWith('gn_')) {
+    dataUrl = await persist.gamenetPhoto.readFirstForGamenet(params.id)
+  }
   if (!dataUrl) return new Response(null, { status: 404 })
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(dataUrl)
   if (!m) return new Response(null, { status: 404 })

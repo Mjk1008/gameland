@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { allUsers, allRegistrations, allEvents, getUserById, referralLeaderboard } from '@/lib/store'
+import { ticketPriceFor } from '@/lib/ticket-price'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
 import { BackHeader } from '@/components/ui'
@@ -18,6 +19,12 @@ export default function AnalyticsHubPage() {
   const eventTitle = new Map(events.map(e => [e.id, e.title]))
   const eventDisc = new Map<string, Disc>(events.map(e => [e.id, e.disc]))
 
+  const priceCache = new Map<string, number>()
+  const priceForComp = (compId: string) => {
+    if (!priceCache.has(compId)) priceCache.set(compId, ticketPriceFor(compId).price)
+    return priceCache.get(compId)!
+  }
+
   const regs: RegRec[] = allRegistrations().map(r => {
     const u = getUserById(r.userId)
     return {
@@ -28,6 +35,7 @@ export default function AnalyticsHubPage() {
       city: (u?.city || '').trim() || 'نامشخص',
       status: r.status,
       tickets: r.attempts,
+      price: priceForComp(r.compId),
       at: r.createdAt,
     }
   })

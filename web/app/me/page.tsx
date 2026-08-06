@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
 import AvatarEditor from './avatar-editor'
 import ShareCard from './share-card'
+import TeamCard from './team-card'
 
 export default async function MePage() {
   const session = await getServerSession(authOptions)
@@ -21,6 +22,16 @@ export default async function MePage() {
   const unread = unreadCount(uid)
   const openEvents = allEvents().filter(c => c.status === 'open' || c.status === 'live' || c.status === 'soon').slice(0, 3)
   const pc = profileCompletion(u)
+
+  const myTeams = teamsForUser(uid).map(t => {
+    const members = currentTeamMembers(t.id).map(m => {
+      const mu = getUserById(m.userId)
+      const reg = getRegistration(m.userId, t.compId)
+      return { name: mu?.name ?? '', tag: mu?.tag ?? '', isMe: m.userId === uid, status: m.status, regStatus: reg?.status }
+    })
+    const needsAttention = members.some(m => m.status === 'declined' || m.regStatus === 'rejected') || members.length < 2
+    return { team: t, comp: getEvent(t.compId), members, needsAttention }
+  }).filter(x => x.comp)
 
   // my national rank — same formula as home/leaderboard (bonus + activity + placements)
   const gamers = allUsers().filter(g => g.role === 'gamer')
@@ -102,6 +113,16 @@ export default async function MePage() {
         </Link>
       )}
 
+      {myTeams.length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: C.thi }}>تیم‌های من</span>
+          {myTeams.map(({ team, comp, members, needsAttention }) => (
+            <TeamCard key={team.id} compId={team.compId} compTitle={comp!.title} teamId={team.id} teamName={team.name}
+              isCaptain={team.captainId === uid} needsAttention={needsAttention} members={members} />
+          ))}
+        </div>
+      )}
+
       {openEvents.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -148,7 +169,7 @@ export default async function MePage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <Link href="/gamenet" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>
-          <span style={{ fontSize: 13, color: C.thi }}>گیم‌نتی داری؟ ثبتش کن</span>
+          <span style={{ fontSize: 13, color: C.thi }}>گیم‌نت داری؟ ثبتش کن</span>
           <span style={{ color: C.tmut }}>›</span>
         </Link>
         <Link href="/me/settings" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>

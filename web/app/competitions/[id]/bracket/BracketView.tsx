@@ -10,7 +10,7 @@ export type MatchDTO = {
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
 }
-type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string }
+type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string> }
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
@@ -30,7 +30,7 @@ function roundName(playersInRound: number): string {
   }
 }
 
-export default function BracketView({ matches, meUid, isAdmin, compId }: Props) {
+export default function BracketView({ matches, meUid, isAdmin, compId, venueLabels }: Props) {
   // Build navigable scopes: one per prelim group (city/province) + the final.
   const scopes = useMemo<Scope[]>(() => {
     const out: Scope[] = []
@@ -118,6 +118,11 @@ export default function BracketView({ matches, meUid, isAdmin, compId }: Props) 
         <div style={{ fontSize: 11, color: C.tmut }}>
           {scope?.stage === 'final' ? 'فینال' : scope?.label} · {totalPlayers} نفر · {rounds.length} مرحله{meUid ? ' · ' : ''}{meUid && <span style={{ color: C.accent }}>بازی‌های تو بنفشه</span>}
         </div>
+        {scope?.stage === 'prelim' && venueLabels?.[scope.groupKey] && (
+          <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 11px', lineHeight: 1.7 }}>
+            📍 {venueLabels[scope.groupKey]}
+          </div>
+        )}
       </div>
 
       {mode === 'rounds'

@@ -1,37 +1,63 @@
-# Gameland — Web (MVP scaffold)
+# Gameland — Web App
 
-Phase-1 MVP per [docs/09-roadmap](../docs/09-roadmap.md): **ranking · Gamer Bank · competition execution · notifications.**
+Next.js 14 · Persian/RTL · Liara (Iran) · Postgres via Drizzle
 
-**Stack:** Next.js 14 (App Router) · React 18 · TypeScript · Tailwind · Persian/RTL · in-memory seed data (Postgres comes next).
-
-## Run
+## Quick start (local)
 
 ```bash
 cd web
+npm run setup      # creates .env.local if missing
 npm install
-npm run dev          # http://localhost:3000
-npm run ranking:demo # CLI demo of the ranking engine
+npm run dev        # http://localhost:3000
 ```
 
-## What's wired
+**Dev login (in-memory, no DATABASE_URL):**
+- Admin phone: `09120000000` · OTP: `123456`
+- Or use phones in `ADMIN_PHONES` from `.env.local`
 
-- `lib/schema.ts` — full TS domain schema (Player, Competition, PrelimBracket, Attempt, Seed, MatchResult, RankingEntry, CoinTxn, Sponsor, Prize, Notification). Legal-by-design: prizes carry a sponsor id (R1); coins are non-convertible (R6).
-- `lib/ranking.ts` — points × tier-multiplier engine ([docs/14](../docs/14-ranking-design.md)). 52-week rolling window; honors page; tie-breaks.
-- `lib/competition-engine.ts` — 6 prelim → 128 final logic ([docs/15](../docs/15-competition-engine.md)). Caps: 6 attempts, 3 seeds. Per-player roadmap.
-- `lib/notifications.ts` — SMS-first template registry (Kavenegar-shaped). Stub provider.
-- `lib/seed.ts` — mock 36 players + 4 competitions (Amol-eFootball-flavored, matching the real Gameland).
+## Deploy (Liara)
 
-## Pages
+App is **`gameland`** on Liara · production URL: **https://gamelandteam.ir**
 
-- `/` — landing + top-10 ranking + recent competitions
-- `/leaderboard` — full national eFootball ranking
-- `/players` · `/players/[id]` — Gamer Bank index + honors profile
-- `/competitions` · `/competitions/[id]` — competition page with per-player roadmap
+```bash
+# از root ریپو:
+npm run sync                              # pull + rebase
+npm run ship -- "fix: something"          # commit → push → deploy
+npm run ship -- --push "fix: something"   # commit → push فقط
+npm run ship -- --deploy-only             # deploy فقط
+npm run deploy                            # deploy فقط (مستقیم)
+```
 
-## Next iterations
+Config: `liara.json` · DB: `gameland-db` (Liara Postgres)
 
-1. **Persist:** Postgres (Drizzle) on Iranian cloud per [docs/12](../docs/12-tech-approach.md).
-2. **Ingest** founder's ~2k-gamer DB (Excel + PDF) per [docs/13](../docs/13-data-intake.md).
-3. **Auth + organizer admin UI** (result entry).
-4. **Coin wallet** (Shaparak gateway: ZarinPal/NextPay) + sponsor-funded prize flow.
-5. **SMS provider** (Kavenegar) wired to live triggers.
+Apply schema to a fresh DB:
+```bash
+export DATABASE_URL="postgresql://..."   # from liara env ls
+npm run db:init
+```
+
+## Env vars
+
+See `.env.example` for the full list. Key vars:
+
+| Var | Local | Production |
+|-----|-------|------------|
+| `DATABASE_URL` | empty = in-memory | Liara Postgres |
+| `NEXTAUTH_URL` | `http://localhost:3000` | `https://gamelandteam.ir` |
+| `GOOGLE_OAUTH_ENABLED` | `false` | `false` (Iran blocks Google server-side) |
+| `KAVENEGAR_API_KEY` | empty = OTP `123456` | live SMS |
+
+Full infra guide: [`docs/16-infrastructure.md`](../docs/16-infrastructure.md)
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Local dev server |
+| `npm run build` | Production build |
+| `npm run deploy` | Deploy to Liara |
+| `npm run env:prod` | List production env vars |
+| `npm run db:init` | Apply `lib/db/init.sql` |
+| `npm run ranking:demo` | CLI ranking engine demo |
+
+Root-level shortcuts (run from repo root): `npm run sync`, `npm run ship`, `npm run deploy`.

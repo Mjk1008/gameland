@@ -18,6 +18,9 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>('A')
   const [finalSize, setFinalSize] = useState(128)
   const [teams, setTeams] = useState(64)
+  const [teamSize, setTeamSize] = useState<1 | 2>(1)
+  const [ticketPrice, setTicketPrice] = useState('')
+  const [ticketOriginal, setTicketOriginal] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -34,6 +37,7 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
           format: 'مقدماتی (شهری) + فینال', date: compDate,
           status: 'open', statusLabel: 'ثبت‌نام باز',
           competitionId: compId,
+          teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined,
         }),
       })
       const j = await res.json()
@@ -70,9 +74,23 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
         </div>
       </Field>
 
+      <Field label="فرمت بازی" hint="براکت‌ها تیم‌به‌تیم چیده می‌شن. هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
+            const on = teamSize === k
+            return <button key={k} type="button" onClick={() => setTeamSize(k)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
+          })}
+        </div>
+      </Field>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <Field label="جایزه (میلیون تومان)"><input type="number" inputMode="numeric" min="0" value={prize} onChange={e => setPrize(Number(e.target.value))} style={inp} /></Field>
         <Field label="ظرفیت (نفر)"><input type="number" inputMode="numeric" min="2" value={teams} onChange={e => setTeams(Number(e.target.value))} style={inp} /></Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
       </div>
 
       <Field label="تایر (امتیازبندی)">

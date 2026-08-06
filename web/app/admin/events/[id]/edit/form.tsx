@@ -10,6 +10,8 @@ export type EventInit = {
   id: string; title: string; season: string; disc: keyof typeof DISC
   prize: number; teams: number; format: string; date: string; finalSize: number
   tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done'
+  teamSize: 1 | 2; ticketPrice?: number; ticketOriginal?: number
+  formatLocked: boolean
 }
 const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته' }
 
@@ -25,6 +27,9 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   const [finalSize, setFinalSize] = useState(init.finalSize || 128)
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>(init.tier)
   const [status, setStatus] = useState<'open' | 'soon' | 'live' | 'done'>(init.status)
+  const [teamSize, setTeamSize] = useState<1 | 2>(init.teamSize)
+  const [ticketPrice, setTicketPrice] = useState(init.ticketPrice != null ? String(init.ticketPrice) : '')
+  const [ticketOriginal, setTicketOriginal] = useState(init.ticketOriginal != null ? String(init.ticketOriginal) : '')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -32,7 +37,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true); setSaved(false)
     try {
-      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status] }) })
+      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize: init.formatLocked ? undefined : teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setSaved(true); router.refresh()
@@ -80,6 +85,20 @@ export default function EditEventForm({ init }: { init: EventInit }) {
 
       <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی تک / مقدماتی + فینال" /></Field>
 
+      <Field label="فرمت بازی" hint={init.formatLocked ? 'ثبت‌نامی برای این مسابقه وجود داره — فرمت دیگه قابل تغییر نیست' : 'براکت‌ها تیم‌به‌تیم چیده می‌شن. هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.'}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: init.formatLocked ? 0.5 : 1 }}>
+          {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
+            const on = teamSize === k
+            return <button key={k} type="button" disabled={init.formatLocked} onClick={() => setTeamSize(k)} style={{ all: 'unset', cursor: init.formatLocked ? 'not-allowed' : 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
+          })}
+        </div>
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
+      </div>
+
       <Field label="سایزِ براکتِ فینال">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
           {[16, 32, 64, 128].map(n => {
@@ -109,6 +128,6 @@ export default function EditEventForm({ init }: { init: EventInit }) {
 }
 
 const inp: React.CSSProperties = { background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 16, outline: 'none', width: '100%', boxSizing: 'border-box' }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12.5, color: C.tmut }}>{label}</span>{children}</label>
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={{ fontSize: 12.5, color: C.tmut }}>{label}</span>{children}{hint && <span style={{ fontSize: 11, color: C.tmut }}>{hint}</span>}</label>
 }

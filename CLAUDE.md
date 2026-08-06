@@ -9,9 +9,10 @@
 
 | | |
 |---|---|
-| **Working copy** | `~/gameland-work` — a clone of `git@github.com:Mjk1008/gameland.git`, branch `mvp` |
+| **Working copy** | `~/gameland` — branch `mvp` · `git@github.com:Mjk1008/gameland.git` |
+| **Also exists** | `~/gameland-work` — older cloud clone; prefer `~/gameland` now |
 | **NEVER use `/tmp`** | macOS purges it. On 2026-07-26 it emptied `public/fonts`, `public/cards`, `public/games` and corrupted `.git` mid-session; two deploys failed with "Upload failed" because files vanished during archiving. |
-| **Deploy** | `cd ~/gameland-work/web && liara deploy --no-app-logs` |
+| **Deploy** | `npm run ship -- "message"` from repo root, or `cd web && liara deploy --no-app-logs` |
 | **Never** | plain `liara deploy` — it hangs forever tailing app logs after a successful deploy |
 | **Always** | `git push origin mvp` with every deploy |
 | **Live URLs** | `gamelandteam.ir` (+ `www`), also `gameland.liara.run` |
@@ -52,6 +53,7 @@ Base64 images live in their **own tables** and are **never hydrated into RAM**. 
 | Payment receipts (فیش) | `app_receipts` | `/api/admin/receipt/[regId]` (admin only) |
 | News covers | `app_news` | `/api/news-image/[id]` |
 | Promo slides | `app_promos` | `/api/promo/[id]` |
+| Gamenet photos | `app_gamenet_photos` | `/api/gamenet-photo/[id]` |
 
 **Never inline base64 into a page.** Doing so once made the home page 7.4 MB / 12 s on mobile.
 Home is ~45 KB now. If you add an image type, follow this pattern.
@@ -148,7 +150,7 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
 - **Referral campaign** — code = the user's own `@tag`, entered **at ticket purchase** (not signup),
   prefilled from `?ref=` caught anywhere in the app. Rewards count **approved** tickets only
   (3 → 1 free سهم, 6 → 3 total). `setReferrerByTag` is immutable and blocks self-referral.
-  Marketing brief: `gameland-referral-brief.md` in the parent workspace.
+  Marketing brief: [`docs/gameland-referral-brief.md`](docs/gameland-referral-brief.md).
 
 ---
 
@@ -163,5 +165,15 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
   transcripts) and fix the root cause — several "the AI is dumb" reports turned out to be an empty
   knowledge base, a `#0` rank bug, and rules missing from the prompt.
 
-Strategy docs live in `docs/`. Env vars currently set on Liara: `DATABASE_URL`, `NEXTAUTH_SECRET`,
+---
+
+## 9. Active work (as of 2026-08-06)
+
+| Track | Doc | Status |
+|---|---|---|
+| **Gamenet platform** | [`docs/26-gamenet-platform-plan.md`](docs/26-gamenet-platform-plan.md) | Phase 1–2 + 0.5 shipped; Phase 3+ pending |
+| **Team 2v2** | [`docs/27-team-format-plan.md`](docs/27-team-format-plan.md) | Code shipped; pilot on separate رویداد |
+| **Execution plan** | [`docs/28-execution-plan.md`](docs/28-execution-plan.md) | Sprint order |
+
+Strategy docs live in `docs/`. Env vars on Liara: `DATABASE_URL`, `NEXTAUTH_SECRET`,
 `KAVENEGAR_API_KEY`, `KAVENEGAR_OTP_TEMPLATE`, `METIS_API_KEY`, `HONOR_USER_PHONE`.

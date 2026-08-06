@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createEvent, updateEvent, getUserById, getEvent } from '@/lib/store'
+import { createEvent, updateEvent, getUserById, getEvent, setEventConfig, registrationsForComp } from '@/lib/store'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -26,6 +26,15 @@ export async function POST(req: Request) {
     competitionId: b.competitionId ? String(b.competitionId) : undefined,
     finalSize,
   })
+  // Format + per-event price live in EventConfig, not the Event row (same
+  // "undefined = platform default" idiom as ticketPrice). No immutability
+  // guard needed here — nothing has registered yet on a brand-new event.
+  const teamSize = Number(b.teamSize) === 2 ? 2 : undefined
+  const ticketPrice = b.ticketPrice != null && b.ticketPrice !== '' ? Number(b.ticketPrice) : undefined
+  const ticketOriginal = b.ticketOriginal != null && b.ticketOriginal !== '' ? Number(b.ticketOriginal) : undefined
+  if (teamSize !== undefined || ticketPrice !== undefined || ticketOriginal !== undefined) {
+    setEventConfig(e.id, { teamSize, ticketPrice, ticketOriginal })
+  }
   return NextResponse.json({ ok: true, event: e })
 }
 
@@ -54,6 +63,23 @@ export async function PATCH(req: Request) {
   if (b.date != null) patch.date = String(b.date)
   if (['open', 'soon', 'live', 'done'].includes(b.status)) patch.status = b.status
   if (b.statusLabel != null) patch.statusLabel = String(b.statusLabel)
+
+  // teamSize is frozen once anyone has registered — a live event's format can
+  // never flip under existing registrations (docs/27 §1.5). ticketPrice has
+  // no such lock: changing an event's price mid-flight doesn't corrupt data,
+  // it just changes what's charged going forward.
+  if (b.teamSize !== undefined) {
+    const nextTeamSize = Number(b.teamSize) === 2 ? 2 : undefined
+    if (registrationsForComp(id).length > 0) {
+      return NextResponse.json({ error: 'ثبت‌نامی برای این مسابقه وجود داره — فرمت دیگه قابل تغییر نیست' }, { status: 409 })
+    }
+    setEventConfig(id, { teamSize: nextTeamSize })
+  }
+  if (b.ticketPrice !== undefined || b.ticketOriginal !== undefined) {
+    const ticketPrice = b.ticketPrice != null && b.ticketPrice !== '' ? Number(b.ticketPrice) : undefined
+    const ticketOriginal = b.ticketOriginal != null && b.ticketOriginal !== '' ? Number(b.ticketOriginal) : undefined
+    setEventConfig(id, { ticketPrice, ticketOriginal })
+  }
 
   try {
     const e = updateEvent(id, patch)

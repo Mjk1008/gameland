@@ -1,4 +1,5 @@
 import { pendingRegistrations, getUserById, getEvent, hasReceipt } from '@/lib/store'
+import { ticketPriceFor } from '@/lib/ticket-price'
 import RequestList from './request-list'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +13,7 @@ export default function RequestsAdmin() {
       referrerTag: u?.referredBy ? getUserById(u.referredBy)?.tag : undefined,
       name: u?.name ?? '?', tag: u?.tag ?? '?', phone: u?.phone ?? '', city: u?.city ?? '',
       event: c?.title ?? r.compId, hasReceipt: hasReceipt(r.id),
+      price: ticketPriceFor(r.compId).price,
     }
   })
   return <RequestList rows={rows} />

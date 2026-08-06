@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { C } from '@/components/ui'
+import type { PrelimVenue } from '@/lib/store'
+import PrelimVenuePanel from './prelim-venue-panel'
 
 export type BracketInfo = { groupKey: string; groupLabel: string; bracket: number; players: number; done: number; total: number; qualify: number; complete: boolean }
 type Props = {
@@ -11,6 +13,8 @@ type Props = {
   brackets: BracketInfo[]
   qualifierCount: number
   finalExists: boolean; finalSeats: number
+  prelimVenues?: Record<string, PrelimVenue>
+  gamenetOptions: { id: string; name: string; city: string; province?: string }[]
 }
 
 export default function TournamentPanel(p: Props) {
@@ -54,6 +58,10 @@ export default function TournamentPanel(p: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Section title="۰ · محل برگزاری مقدماتی" sub="قبل از قرعه‌کشی اعلام کن هر شهر/استان کجا بازی می‌کنه — فقط برچسب، روی براکت اثری نداره">
+        <PrelimVenuePanel compId={p.compId} groupMode={p.groupMode} prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
+      </Section>
+
       {/* 1) draw / group mode */}
       <Section title="۱ · مرحلهٔ مقدماتی" sub="بازیکن‌ها بر اساس شهر یا استان گروه‌بندی و براکت‌بندی می‌شن">
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>

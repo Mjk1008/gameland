@@ -31,6 +31,18 @@ Each stage uses skills/frameworks: TAM-SAM-SOM, PESTEL, JTBD, proto-personas, po
 
 > **Infra:** Liara (Iran) = primary · Supabase = secondary. See [`CLAUDE.md`](CLAUDE.md) and [`docs/16`](docs/16-infrastructure.md).
 
+## Dev workflow
+
+```bash
+npm run setup          # first time: bootstrap .env.local
+npm run dev            # local server (http://localhost:3000)
+npm run sync           # pull latest from origin/mvp
+npm run ship -- "msg"  # commit → push → deploy to Liara
+npm run deploy         # deploy only
+```
+
+GitHub Actions auto-deploys on push to `mvp` when `web/**` changes (needs `LIARA_API_TOKEN` secret).
+
 ## ⚖️ Legal note (managed — not a blocker)
 Per founder direction: competitions are already run widely in Iran (incl. IRCG itself), so **permits come later and building proceeds now.** The design stays legally-safe **by default** — **sponsor-funded prizes** (never entry-funded pools) + **non-convertible coin wallet** + skill framing (the model IRCG's own Champions Cup uses) — so the gambling line (IPC Art. 705) isn't crossed and permits remain attainable. Risk scales with cash-prize size. Detail: [`docs/11-risks.md`](docs/11-risks.md).
 

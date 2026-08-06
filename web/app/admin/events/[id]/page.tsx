@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets } from '@/lib/store'
 import { computeQualifiers } from '@/lib/bracket'
+import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
@@ -21,13 +22,23 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const pendingCount = allRegs.filter(r => r.status === 'pending').length
   const regs = approvedRegistrationsForComp(c.id)
   const totalAttempts = regs.reduce((s, r) => s + r.attempts, 0)
-  const participants = regs.map(r => { const u = getUserById(r.userId); return { userId: r.userId, name: u?.name || '?', tag: u?.tag || '?' } })
+  const cfg = getEventConfig(c.id)
+  const isTeamEvent = cfg.teamSize === 2
+  const soloParticipants = regs.map(r => { const u = getUserById(r.userId); return { id: r.userId, name: u?.name || '?', tag: u?.tag || '?' } })
+  const teamParticipants = seatableTeamsForComp(c.id).map(t => {
+    const tags = currentTeamMembers(t.id).map(m => getUserById(m.userId)?.tag).filter(Boolean)
+    return { id: t.id, name: t.name, subtitle: tags.length ? `@${tags.join(' + @')}` : '۲ عضو' }
+  })
   const alreadyFinalized = placementsForComp(c.id).length > 0
 
   // ── tournament state for the panel ──
   const all = matchesForComp(c.id)
   const drawn = all.length > 0
-  const cfg = getEventConfig(c.id)
+  // Seat counts must read the team columns on a team event — the user
+  // columns (p1UserId/p2UserId) are never set on a team match, so reading
+  // them unconditionally would silently show 0 players/seats to the admin
+  // deciding whether to draw/assemble (docs/27 §1.4).
+  const seatOf = (m: (typeof all)[number], side: 1 | 2) => isTeamEvent ? (side === 1 ? m.p1TeamId : m.p2TeamId) : (side === 1 ? m.p1UserId : m.p2UserId)
   const brackets: BracketInfo[] = []
   for (const gk of prelimGroupKeys(c.id)) {
     const label = gk.split(':')[1] || gk
@@ -35,14 +46,16 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
     for (const b of bIdxs) {
       const ms = all.filter(m => m.stage === 'prelim' && m.groupKey === gk && m.bracket === b)
       const r1 = ms.filter(m => m.round === Math.min(...ms.map(x => x.round)))
-      const players = r1.reduce((s, m) => s + (m.p1UserId ? 1 : 0) + (m.p2UserId ? 1 : 0), 0)
+      const players = r1.reduce((s, m) => s + (seatOf(m, 1) ? 1 : 0) + (seatOf(m, 2) ? 1 : 0), 0)
       const done = ms.filter(m => m.status === 'done').length
       brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: cfg.qualify[qualifyKey(gk, b)] ?? 2, complete: ms.every(m => m.status === 'done') })
     }
   }
-  const qualifierCount = computeQualifiers(c.id).length
+  const qualifierCount = isTeamEvent ? computeTeamQualifiers(c.id).length : computeQualifiers(c.id).length
   const finalExists = all.some(m => m.stage === 'final')
-  const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [m.p1UserId, m.p2UserId].filter(Boolean))).size
+  const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [seatOf(m, 1), seatOf(m, 2)].filter(Boolean))).size
+  const incompleteTeams = isTeamEvent ? incompleteTeamsForComp(c.id) : []
+  const gamenetOptions = allGamenets().filter(g => g.status === 'verified').map(g => ({ id: g.id, name: g.name, city: g.city, province: g.province }))
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -88,13 +101,39 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
 
       <Card><PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} /></Card>
 
+      {/* «تیم‌های ناقص» — non-negotiable (docs/27 §3.3): without this, an admin
+          rejecting one person silently kills a paying team with no signal
+          anywhere else in the UI. Shown above the draw controls on purpose. */}
+      {incompleteTeams.length > 0 && (
+        <Card>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, marginBottom: 10 }}>⚠ تیم‌های ناقص ({incompleteTeams.length})</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {incompleteTeams.map(({ team, members }) => (
+              <div key={team.id} style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 12px' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.thi, marginBottom: 6 }}>{team.name}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {members.length === 0 && <span style={{ fontSize: 11.5, color: C.tmut }}>عضوی ثبت نشده</span>}
+                  {members.map(m => (
+                    <div key={m.member.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+                      <span style={{ color: C.tbody }}>{m.member.slot === 0 ? '(کاپیتان) ' : ''}{m.user ? `@${m.user.tag}` : m.member.userId}</span>
+                      <span style={{ color: C.tmut }}>{m.member.status === 'accepted' ? (m.registration?.status ?? 'بدون ثبت‌نام') : m.member.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <TournamentPanel
         compId={c.id} drawn={drawn} regCount={regs.length}
         groupMode={cfg.groupMode} brackets={brackets}
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
+        prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
       />
 
-      <Card><FinalizeControls compId={c.id} participants={participants} done={alreadyFinalized} /></Card>
+      <Card><FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} /></Card>
 
       <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
         <DeleteEventButton compId={c.id} title={c.title} />

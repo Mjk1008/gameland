@@ -7,7 +7,8 @@ import {
 } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { DISC } from '@/lib/mock-data'
-import { TICKET, toman } from '@/lib/payment'
+import { toman } from '@/lib/payment'
+import { ticketPriceFor } from '@/lib/ticket-price'
 import { AI_MODEL } from '@/lib/ai-config'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,7 @@ const MAX_HISTORY_CHARS = 4500  // hard budget so a long chat can't blow the con
 // The model may reference these by id in action markers; the client renders
 // them from THIS data, so a widget can never show something invented.
 interface Entities {
-  events: { id: string; title: string; disc: string; discName: string; status: string; statusLabel: string; prize: number; date: string; location: string; format: string; deadlineDays: number | null; registered: boolean; canBuy: number }[]
+  events: { id: string; title: string; disc: string; discName: string; status: string; statusLabel: string; prize: number; date: string; location: string; format: string; deadlineDays: number | null; registered: boolean; canBuy: number; ticketPrice: number }[]
   news: { id: string; title: string; excerpt: string; body: string; tags: string[]; cover: string; at: number }[]
   regs: { comp: string; status: string; attempts: number; reason?: string; href: string }[]
 }
@@ -52,6 +53,7 @@ function buildEntities(uid: string): Entities {
         deadlineDays: e.regDeadline && e.regDeadline > Date.now() ? Math.max(1, Math.ceil((e.regDeadline - Date.now()) / 86400000)) : null,
         registered: !!reg && reg.status !== 'rejected',
         canBuy: remainingTickets(uid, e.id),
+        ticketPrice: ticketPriceFor(e.id).price,
       }
     })
 
@@ -159,7 +161,7 @@ const SYSTEM = `تو «دستیار گیم‌لند» هستی — دستیار 
 «وضعیت لحظه‌ای» همیشه از حرف‌های قبلیِ همین گفتگو معتبرتره. اگه چیزی عوض شده (مثلاً ثبت‌نامی که قبلاً رد بود حالا تایید شده)، همون جدید رو بگو و اگه خبر خوبیه تبریک بگو — به حرف قبلیت گیر نده.
 
 ## قوانین گیم‌لند
-هر کاربر تا ۶ سهم در هر رشته؛ هر سهم یک شانس جدا در قرعه‌کشی مقدماتی؛ قیمت هر سهم ${toman(TICKET.price)} تومان؛ بعد از خرید باید فیش واریز رو در اپ آپلود کنه تا ادمین تایید کنه؛ بعد از قرعه‌کشی ثبت‌نام و تغییر سهم قفل می‌شه؛ حداکثر ۳ سید به فینال می‌رسه. ثبت‌نامِ ردشده رو می‌شه با «درخواست مجدد» و فیش جدید دوباره فرستاد.
+هر کاربر تا ۶ سهم در هر رشته؛ هر سهم یک شانس جدا در قرعه‌کشی مقدماتی؛ قیمتِ هر سهم رشته‌به‌رشته فرق داره — عددِ دقیقش رو از فیلدِ ticketPrice همون رویداد تو «وضعیت لحظه‌ای» بگو، هیچ‌وقت عدد ثابت حدس نزن؛ بعد از خرید باید فیش واریز رو در اپ آپلود کنه تا ادمین تایید کنه؛ بعد از قرعه‌کشی ثبت‌نام و تغییر سهم قفل می‌شه؛ حداکثر ۳ سید به فینال می‌رسه. ثبت‌نامِ ردشده رو می‌شه با «درخواست مجدد» و فیش جدید دوباره فرستاد.
 کمپین دعوت: کد دعوتِ هر کس همون @تگِ خودشه و موقعِ خریدِ سهم وارد می‌شه؛ هر ۳ سهمِ تاییدشدهٔ دعوتی‌ها = ۱ سهم رایگان، ۶ سهم = جمعاً ۳ سهم رایگان.
 
 ## ساختار مسابقه (این‌ها را دقیق بگو، حدس نزن)

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { approvedRegistrationsForComp, pushNotif } from '@/lib/store'
+import { approvedRegistrationsForComp, seatableTeamsForComp, currentTeamMembers, getEventConfig, pushNotif } from '@/lib/store'
 import { generatePrelims, isDrawn } from '@/lib/bracket'
+import { generateTeamPrelims } from '@/lib/bracket-team'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -13,10 +14,20 @@ export async function POST(req: Request) {
   if (!compId) return NextResponse.json({ error: 'compId الزامی' }, { status: 400 })
   const mode = groupMode === 'province' ? 'province' : 'city'
 
+  if (getEventConfig(compId).teamSize === 2) {
+    const teams = seatableTeamsForComp(compId)
+    if (teams.length === 0) return NextResponse.json({ error: 'هیچ تیمِ کاملی نداریم' }, { status: 400 })
+    const result = await generateTeamPrelims({ compId, teams, groupMode: mode })
+    for (const t of teams) for (const m of currentTeamMembers(t.id)) {
+      pushNotif(m.userId, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرِ تیمت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
+    }
+    return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })
+  }
+
   const regs = approvedRegistrationsForComp(compId)
   if (regs.length === 0) return NextResponse.json({ error: 'هیچ ثبت‌نام تاییدشده‌ای نداریم' }, { status: 400 })
 
-  const result = generatePrelims({ compId, registrations: regs, groupMode: mode })
+  const result = await generatePrelims({ compId, registrations: regs, groupMode: mode })
   for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
 
   return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })

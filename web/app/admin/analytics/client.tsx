@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react'
 import { C, DISP, BackHeader, DISC_DOT } from '@/components/ui'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
-import { TICKET, toman } from '@/lib/payment'
+import { toman } from '@/lib/payment'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
-export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; status: 'pending' | 'approved' | 'rejected'; tickets: number; at: number }
+export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; status: 'pending' | 'approved' | 'rejected'; tickets: number; price: number; at: number }
 export interface UserRec { at: number; city: string; disc: Disc | null }
 
 // Status is the only categorical encoding — three reserved status colors, never
@@ -65,7 +65,9 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
   const approvedTickets = sum(fReg, 'approved')
   const activeUsers = new Set(fReg.map(r => r.uid)).size
   const compCount = new Set(fReg.map(r => r.compId)).size
-  const revenue = approvedTickets * TICKET.price
+  // Per-event price (ticketPriceFor), never a single global constant — an
+  // event can be priced differently from the platform default.
+  const revenue = fReg.reduce((a, r) => a + (r.status === 'approved' ? r.tickets * r.price : 0), 0)
 
   // Grouped breakdowns (stacked by status).
   const group = (keyOf: (r: RegRec) => string, dotOf?: (r: RegRec) => string): Bucket[] => {

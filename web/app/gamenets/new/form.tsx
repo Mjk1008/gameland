@@ -5,30 +5,8 @@ import { DISC } from '@/lib/mock-data'
 import { IRAN_GEO, citiesOf } from '@/lib/iran-geo'
 import { GAMENET_FEATURES, CONSOLE_KINDS } from '@/lib/gamenet-features'
 import { GAMENET_GAMES } from '@/lib/gamenet-games'
+import { GAMENET_PHOTO_MAX, compressGamenetPhoto } from '@/lib/gamenet-photos'
 import { C, DISP, Button, GameBadge, inp, Field, BackHeader } from '@/components/ui'
-
-// Downscale + re-encode to a light JPEG before upload — same routine as the
-// admin news cover picker (app/admin/news/client.tsx).
-function compress(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader()
-    fr.onload = () => {
-      const img = new Image()
-      img.onload = () => {
-        const W = Math.min(1280, img.width)
-        const H = Math.round((img.height / img.width) * W)
-        const cv = document.createElement('canvas')
-        cv.width = W; cv.height = H
-        cv.getContext('2d')!.drawImage(img, 0, 0, W, H)
-        resolve(cv.toDataURL('image/jpeg', 0.82))
-      }
-      img.onerror = reject
-      img.src = fr.result as string
-    }
-    fr.onerror = reject
-    fr.readAsDataURL(file)
-  })
-}
 
 export default function NewGamenetForm() {
   const router = useRouter()
@@ -43,7 +21,7 @@ export default function NewGamenetForm() {
   const [discs, setDiscs] = useState<string[]>([])
   const [games, setGames] = useState<string[]>([])
   const [features, setFeatures] = useState<string[]>([])
-  const [photo, setPhoto] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<string[]>([])
   const [photoBusy, setPhotoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err,  setErr]  = useState<string | null>(null)
@@ -53,24 +31,32 @@ export default function NewGamenetForm() {
   const toggleGame = (d: string) => setGames(s => s.includes(d) ? s.filter(x => x !== d) : [...s, d])
   const toggleFeature = (d: string) => setFeatures(s => s.includes(d) ? s.filter(x => x !== d) : [...s, d])
 
-  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return
-    setPhotoBusy(true)
-    try { setPhoto(await compress(f)) }
-    catch { setErr('عکس خونده نشد، یه فایل دیگه امتحان کن') }
+  async function pickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!files.length) return
+    setPhotoBusy(true); setErr(null)
+    try {
+      const next = [...photos]
+      for (const f of files) {
+        if (next.length >= GAMENET_PHOTO_MAX) break
+        next.push(await compressGamenetPhoto(f))
+      }
+      setPhotos(next)
+    } catch { setErr('عکس خونده نشد، یه فایل دیگه امتحان کن') }
     finally { setPhotoBusy(false) }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null)
     if (!attest) { setErr('اول تایید کن صاحب یا نمایندهٔ این مکانی'); return }
-    if (!photo) { setErr('عکسِ محل الزامیه'); return }
+    if (photos.length === 0) { setErr('حداقل یک عکسِ محل الزامیه'); return }
     setBusy(true)
     try {
       const consoles = Object.entries(consoleCounts).filter(([, n]) => n > 0).map(([kind, count]) => ({ kind, count }))
       const res = await fetch('/api/gamenets', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attest, name, province, city, address: addr, phone, instagramUrl: instagram, consoles, disciplines: discs, games, features, photoData: photo }),
+        body: JSON.stringify({ attest, name, province, city, address: addr, phone, instagramUrl: instagram, consoles, disciplines: discs, games, features, photos }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت نشد، دوباره امتحان کن')
@@ -166,19 +152,28 @@ export default function NewGamenetForm() {
           </div>
         </Field>
 
-        <Field label="عکسِ محل — الزامی">
-          <input type="file" accept="image/*" onChange={pickPhoto} style={{ display: 'none' }} id="gn-photo" />
-          {photo ? (
-            <label htmlFor="gn-photo" style={{ display: 'block', cursor: 'pointer', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line}` }}>
-              <img src={photo} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} />
-            </label>
-          ) : (
+        <Field label={`عکس‌های محل — حداقل ۱، حداکثر ${GAMENET_PHOTO_MAX}`}>
+          <input type="file" accept="image/*" multiple onChange={pickPhotos} style={{ display: 'none' }} id="gn-photo" />
+          {photos.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              {photos.map((p, i) => (
+                <div key={i} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line}` }}>
+                  <img src={p} alt="" style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }} />
+                  <button type="button" onClick={() => setPhotos(s => s.filter((_, j) => j !== i))}
+                    style={{ all: 'unset', cursor: 'pointer', position: 'absolute', top: 6, left: 6, width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {photos.length < GAMENET_PHOTO_MAX && (
             <label htmlFor="gn-photo" style={{ cursor: 'pointer', boxSizing: 'border-box', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 96, background: C.sf2, border: `1.5px dashed ${C.accent}88`, borderRadius: 14, color: C.accent }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4zM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
-              <span style={{ fontSize: 12.5, fontWeight: 700 }}>{photoBusy ? 'در حال آماده‌سازی…' : 'انتخاب عکسِ محل'}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700 }}>{photoBusy ? 'در حال آماده‌سازی…' : photos.length ? 'افزودن عکس دیگر' : 'انتخاب عکس‌های محل'}</span>
             </label>
           )}
-          <div style={{ fontSize: 11, color: C.tmut, marginTop: 6 }}>بیشترین فیلترِ ثبت‌های الکی همینه — عکسِ واقعی از یه مکانِ واقعی.</div>
+          <div style={{ fontSize: 11, color: C.tmut, marginTop: 6 }}>چند عکس از فضا، کنسول‌ها و محیط — کمک می‌کنه سریع‌تر تأیید بشی.</div>
         </Field>
 
         <div style={{ padding: '10px 12px', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, fontSize: 11.5, color: C.tmut, lineHeight: 1.7 }}>
@@ -187,7 +182,7 @@ export default function NewGamenetForm() {
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button type="submit" disabled={busy || !attest || !photo}>{busy ? 'در حال ارسال…' : 'ارسال برای بررسی'}</Button>
+        <Button type="submit" disabled={busy || !attest || photos.length === 0}>{busy ? 'در حال ارسال…' : 'ارسال برای بررسی'}</Button>
       </form>
     </div>
   )

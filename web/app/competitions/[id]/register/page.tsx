@@ -2,7 +2,8 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, profileCompletion, remainingTickets, matchesForComp } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser } from '@/lib/store'
+import { ticketPriceFor } from '@/lib/ticket-price'
 import { C } from '@/components/ui'
 import Link from 'next/link'
 import RegisterForm from './form'
@@ -27,6 +28,11 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   const remaining = remainingTickets(uid, params.id)
   const drawn = matchesForComp(params.id).length > 0
   if ((owned > 0 && remaining === 0) || drawn) redirect(`/competitions/${params.id}/me`)
+
+  const isTeamEvent = getEventConfig(c.id).teamSize === 2
+  // A partner who's already invited (or declined) to a team for this event
+  // must accept/decline from the invite banner, not create a second team here.
+  if (isTeamEvent && teamForUser(uid, c.id) && !owned) redirect(`/competitions/${params.id}`)
 
   // A complete gamer profile is required before joining any competition.
   const pc = profileCompletion(u)
@@ -56,5 +62,6 @@ export default async function RegisterPage({ params }: { params: { id: string } 
     )
   }
 
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} freeTickets={u.freeTickets ?? 0} />
+  const price = ticketPriceFor(c.id)
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} />
 }
