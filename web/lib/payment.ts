@@ -9,6 +9,17 @@ export const TICKET = {
 }
 export const toman = (n: number) => n.toLocaleString('en-US')
 
+/** Event.prize is stored in millions (admin UI: «میلیون تومان»). */
+export function prizeMillionLabel(millions: number): string {
+  if (!millions) return ''
+  return `${toman(millions)} میلیون تومان`
+}
+
+/** Full Tomans (ticket prices, payment amounts). */
+export function tomanFull(n: number): string {
+  return `${toman(n)} تومان`
+}
+
 // Manual card-to-card payment + receipt channels (MVP — no coins/gateway).
 // User pays to this card, sends the receipt to one of the channels, admin approves.
 export const PAYMENT = {

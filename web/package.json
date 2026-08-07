@@ -18,7 +18,8 @@
     "db:init": "psql \"$DATABASE_URL\" -f lib/db/init.sql",
     "ranking:demo": "npx tsx scripts/demo-ranking.ts",
     "icons": "node scripts/gen-icons.mjs",
-    "arena:seed": "curl -s -X POST http://localhost:3000/api/arena/seed"
+    "arena:seed": "curl -s -X POST http://localhost:3000/api/arena/seed",
+    "assistant:eval": "npx tsx scripts/assistant-eval.ts"
   },
   "engines": {
     "node": ">=20"

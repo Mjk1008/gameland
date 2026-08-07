@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { C, DISC_DOT } from '@/components/ui'
 import { faDigits } from '@/lib/jalali'
-import { toman } from '@/lib/payment'
+import { prizeMillionLabel } from '@/lib/payment'
 
 const GOLD = '#F5C84B'
 
@@ -379,7 +379,7 @@ function EventCard({ ev }: { ev: EventEnt }) {
           <Chip>{ev.discName}</Chip>
           {ev.date && <Chip>{ev.date}</Chip>}
           {ev.location && <Chip>📍 {ev.location}</Chip>}
-          {ev.prize > 0 && <Chip gold>🏆 {toman(ev.prize)} تومان</Chip>}
+          {ev.prize > 0 && <Chip gold>🏆 {prizeMillionLabel(ev.prize)}</Chip>}
           {ev.deadlineDays && <Chip gold>⏳ {faDigits(ev.deadlineDays)} روز تا بستنِ ثبت‌نام</Chip>}
         </div>
         <Link href={href} style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', display: 'flex', width: '100%', minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 11, background: open && !ev.registered ? C.accent : C.sf2, color: open && !ev.registered ? C.ink : C.thi, border: `1px solid ${open && !ev.registered ? C.accent : C.line2}`, fontSize: 13, fontWeight: 800 }}>{cta}</Link>
