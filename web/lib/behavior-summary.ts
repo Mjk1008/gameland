@@ -36,6 +36,11 @@ export function buildBehaviorStory(funnel: FunnelStep[], days: number, prevAppro
   return body
 }
 
+export function buildEmptyBehaviorStory(days: number) {
+  const period = days > 0 ? `${days} روز اخیر` : 'کل دوره'
+  return `هنوز رویداد tracking در ${period} ثبت نشده. از دیپلوی اخیر، هر ثبت‌نام، فیش و بازدید صفحه اینجا جمع می‌شه — چند روز صبر کن یا خودت یک ثبت‌نام تست بزن.`
+}
+
 export type FunnelInsight = { tone: 'warn' | 'good' | 'neutral'; title: string; text: string }
 
 export function buildFunnelInsights(funnel: FunnelStep[]): FunnelInsight[] {

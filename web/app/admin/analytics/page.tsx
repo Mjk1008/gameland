@@ -24,7 +24,7 @@ function behaviorBusiness(regs: RegRec[], range: ReturnType<typeof parseBehavior
   return { pending, approvedTickets, revenueM: Math.round(revenue / 1_000_000) }
 }
 
-const VIEWS: BehaviorView[] = ['overview', 'retention', 'paths', 'raw']
+const VIEWS: BehaviorView[] = ['overview', 'funnel', 'retention', 'paths', 'raw']
 
 export default function AnalyticsHubPage({ searchParams }: { searchParams: { bdays?: string; bfrom?: string; bto?: string; bcity?: string; bdisc?: string; bview?: string } }) {
   const events = allEvents()
@@ -83,8 +83,8 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       <BackHeader title="آنالیتیکس" href="/admin" />
       <Suspense>
         <HubTabs tabs={[
+          { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
           { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} referral={referral} showHeader={false} /> },
-          { key: 'behavior', label: 'رفتار کاربران', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },
         ]} />
       </Suspense>

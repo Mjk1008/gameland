@@ -70,6 +70,40 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
   .animate-fade-up, .gl-skel { animation: none; }
 }
 
+/* Behavior billboard — sticky command bar + responsive grids */
+.gl-behavior-cmd {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(20, 17, 13, .94);
+  backdrop-filter: blur(8px);
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.gl-behavior-cmd-inner {
+  margin: 0 16px;
+  background: var(--sf1);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+}
+.gl-behavior-kpi {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .gl-behavior-kpi { grid-template-columns: repeat(4, 1fr); }
+}
+.gl-behavior-split {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 700px) {
+  .gl-behavior-split { grid-template-columns: 1.2fr .85fr; align-items: start; }
+}
+
 
 /* Installed PWA renders edge-to-edge (viewportFit: cover), so the OS status bar
    overlaps the page. Paint an opaque strip behind it and let sticky headers

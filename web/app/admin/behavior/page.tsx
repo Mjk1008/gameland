@@ -21,7 +21,7 @@ function behaviorBusiness(regs: RegRec[], range: ReturnType<typeof parseBehavior
   return { pending, approvedTickets, revenueM: Math.round(revenue / 1_000_000) }
 }
 
-const VIEWS: BehaviorView[] = ['overview', 'retention', 'paths', 'raw']
+const VIEWS: BehaviorView[] = ['overview', 'funnel', 'retention', 'paths', 'raw']
 
 export default function BehaviorPage({ searchParams }: { searchParams: { bdays?: string; bfrom?: string; bto?: string; bcity?: string; bdisc?: string; bview?: string } }) {
   const events = allEvents()
@@ -53,7 +53,7 @@ export default function BehaviorPage({ searchParams }: { searchParams: { bdays?:
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="رفتار کاربران" href="/admin" />
+      <BackHeader title="بیلبورد داده" href="/admin" />
       <BehaviorContent range={range} view={view} city={city} disc={disc} cityOptions={cityOptions} discOptions={discOptions} business={behaviorBusiness(regs, range, city, disc)} />
     </div>
   )
