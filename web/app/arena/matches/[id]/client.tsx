@@ -93,10 +93,7 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
       const j = await r.json()
       if (!r.ok) { setErr(j.error); return }
       track('arena_result_confirm', { matchId })
-      if (j.pointsAwarded) {
-        track('arena_points_awarded', { points: j.pointsAwarded })
-        setPointsMsg(`+${j.pointsAwarded} امتیاز میدون`)
-      }
+      if (j.pointsAwarded) setPointsMsg(`+${j.pointsAwarded} امتیاز میدون`)
       await reload()
     } finally { setBusy(false) }
   }

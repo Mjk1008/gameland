@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createPhoneUser, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { hashPassword, MIN_PASSWORD } from '@/lib/password'
+import { trackServer } from '@/lib/track-server'
 
 // Minimal signup — just enough to create an account and be able to log in.
 // The full gamer profile is completed later on the profile page.
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
   try {
     const u = createPhoneUser({ phone, email, passwordHash: hashPassword(password) })
     await persist.user.insertAsync(u)   // durable: only report success once committed
+    const sessionId = (b.sessionId ?? '').toString().slice(0, 40) || 'server'
+    trackServer({ userId: u.id, sessionId, name: 'signup_complete', path: '/signup' })
     return NextResponse.json({ ok: true, userId: u.id })
   } catch (e: any) {
     const map: Record<string, string> = {

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, updateUser } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
+import { trackServer, trackUserProps } from '@/lib/track-server'
 
 const VALID_DISCS = new Set(Object.keys(DISC))
 const VALID_MSG = new Set(['whatsapp', 'telegram', 'both'])
@@ -33,6 +34,12 @@ export async function POST(req: Request) {
     const u = updateUser(uid, {
       firstName, lastName, province, city, phone, messenger,
       tag, discs, primaryDisc: discs[0], experienceYears, teamName, playerId,
+    })
+    trackServer({
+      userId: uid,
+      name: 'profile_complete',
+      path: '/welcome',
+      props: trackUserProps(u, { discs: discs.join(',') }),
     })
     return NextResponse.json({ ok: true, user: { id: u.id, tag: u.tag } })
   } catch (e: any) {

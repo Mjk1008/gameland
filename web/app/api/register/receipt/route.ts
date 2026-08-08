@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getRegistration, getUserById, markReceipt, pushNotif, getEvent, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
+import { trackServer, trackUserProps } from '@/lib/track-server'
 
 const MAX_CHARS = 3_000_000   // ~2.2MB decoded — a receipt photo
 
@@ -22,8 +23,17 @@ export async function POST(req: Request) {
   const reg = getRegistration(uid, compId)
   if (!reg) return NextResponse.json({ error: 'اول در این مسابقه ثبت‌نام کن' }, { status: 404 })
 
+  const u = getUserById(uid)!
+  const c = getEvent(compId)
+
   await persist.receipt.upsertAsync(reg.id, imageData)
   markReceipt(reg.id)
+  trackServer({
+    userId: uid,
+    name: 'receipt_submit',
+    path: `/competitions/${compId}/pay`,
+    props: trackUserProps(u, { compId, disc: c?.disc }),
+  })
   // let admin know a receipt arrived (in-app; SMS if enabled)
   pushNotif(uid, 'registration', 'فیش دریافت شد', `فیشِ پرداختِ «${getEvent(compId)?.title ?? 'مسابقه'}» رسید و در انتظار تأیید ادمینه.`)
   return NextResponse.json({ ok: true })

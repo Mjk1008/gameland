@@ -20,6 +20,11 @@ function getSessionId(): string {
   return sessionId
 }
 
+/** Session id for correlating pre-auth steps with server-fired events. */
+export function getTrackSessionId(): string {
+  return getSessionId()
+}
+
 // Allow-listed callers only — never pass raw user text (receipt content,
 // chat text, phone numbers) as a prop value; ids/enums/counts are fine.
 export function track(name: string, props?: Record<string, unknown>) {

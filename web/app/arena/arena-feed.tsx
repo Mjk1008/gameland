@@ -77,6 +77,9 @@ export default function ArenaFeed({ myId, defaultCity, defaultProvince, discs, e
 
   useEffect(() => {
     track('arena_tab_open')
+  }, [])
+
+  useEffect(() => {
     void (async () => {
       await ensureDemo()
       await load()

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { C, DISP } from '@/components/ui'
+import { track } from '@/lib/track'
 import RadialBracket from './RadialBracket'
 
 // ── types coming from the server ──
@@ -50,6 +51,8 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
   }, [matches, meUid, scopes])
 
   const [scopeKey, setScopeKey] = useState<string>(myScopeKey)
+
+  useEffect(() => { track('bracket_view', { compId }) }, [compId])
   const scope = scopes.find(s => s.key === scopeKey) ?? scopes[0]
   const scopeMatches = useMemo(() => scope ? matches.filter(m => m.stage === scope.stage && m.groupKey === scope.groupKey) : [], [matches, scope])
 

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>گیم‌لند · موکاپ داشبورد داده</title>
+  <style>
+    :root {
+      --ink:#14110D; --sf1:#1E1A14; --sf2:#262019; --line:#322A1F; --line2:#40362A;
+      --accent:#A855F7; --accent-soft:rgba(168,85,247,.14);
+      --gold:#F5A623; --gold-soft:rgba(245,166,35,.12);
+      --thi:#F6EFE4; --tbody:#A89A88; --tmut:#6E6252;
+      --win:#3FBE86; --win-soft:rgba(63,190,134,.12);
+      --live:#FF5A4E; --live-soft:rgba(255,90,78,.1);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Tahoma,'Segoe UI',sans-serif;background:var(--ink);color:var(--thi);line-height:1.55}
+    .wrap{max-width:960px;margin:0 auto;padding:10px 14px 48px}
+
+    /* sticky command bar */
+    .cmd{position:sticky;top:0;z-index:20;background:rgba(20,17,13,.94);backdrop-filter:blur(8px);padding:10px 0 12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+    .cmd-inner{background:var(--sf1);border:1px solid var(--line);border-radius:16px;padding:12px}
+    .cmd-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+    .cmd-top h1{font-size:18px;font-weight:800;flex:1;min-width:140px}
+    .fresh{font-size:10px;color:var(--tmut)}
+    .badge{font-size:9px;font-weight:800;letter-spacing:.14em;color:var(--gold);background:var(--gold-soft);border:1px solid rgba(245,166,35,.35);border-radius:999px;padding:3px 8px}
+
+    /* date picker — Amplitude-style */
+    .date-box{background:var(--sf2);border:1px solid var(--line2);border-radius:12px;padding:10px;margin-bottom:8px}
+    .date-mode{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+    .preset{border:1px solid var(--line);background:var(--sf1);color:var(--tbody);border-radius:999px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer}
+    .preset.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+    .custom-range{display:none;grid-template-columns:1fr 1fr auto;gap:6px;align-items:end}
+    .custom-range.show{display:grid}
+    .custom-range label{font-size:9px;color:var(--tmut);display:flex;flex-direction:column;gap:3px}
+    .custom-range input[type=date]{min-height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--ink);color:var(--thi);padding:0 8px;font-size:11px}
+    .apply-btn{min-height:36px;border:none;border-radius:8px;background:var(--accent);color:var(--ink);font-weight:800;font-size:11px;padding:0 14px;cursor:pointer}
+
+    .dim-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .dim-row select{min-height:34px;border-radius:8px;border:1px solid var(--line2);background:var(--sf2);color:var(--thi);font-size:11px;padding:0 8px}
+    .dim-row label{font-size:9px;color:var(--tmut);display:flex;flex-direction:column;gap:2px}
+    .export-btn{margin-right:auto;border:1px solid var(--line2);background:transparent;color:var(--gold);border-radius:8px;padding:6px 12px;font-size:10px;font-weight:700;cursor:pointer}
+
+    /* STORY — numbers talk */
+    .story{background:linear-gradient(135deg,rgba(168,85,247,.08),rgba(245,166,35,.06));border:1px solid rgba(168,85,247,.25);border-radius:16px;padding:14px 16px;margin-bottom:14px}
+    .story-kicker{font-size:10px;font-weight:800;color:var(--accent);letter-spacing:.06em;margin-bottom:6px}
+    .story-body{font-size:14px;font-weight:600;line-height:1.85;color:var(--thi)}
+    .story-body em{font-style:normal;color:var(--gold)}
+    .story-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .story-actions button{border:1px solid var(--line2);background:var(--sf2);color:var(--tbody);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer}
+
+    /* KPI with narrative */
+    .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+    @media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+    .kpi{background:var(--sf1);border:1px solid var(--line);border-radius:14px;padding:12px 10px;cursor:pointer;transition:border-color .15s}
+    .kpi:hover,.kpi.sel{border-color:var(--accent)}
+    .kpi-label{font-size:10px;color:var(--tmut);margin-bottom:2px}
+    .kpi-val{font-size:22px;font-weight:800;color:var(--thi);line-height:1.1}
+    .kpi-delta{font-size:10px;font-weight:700;margin-top:4px}
+    .kpi-delta.up{color:var(--win)} .kpi-delta.down{color:var(--live)}
+    .kpi-say{font-size:10px;color:var(--tbody);margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+    .spark{height:28px;margin-top:6px}
+
+    /* sections */
+    .section{margin-bottom:14px}
+    .section-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px}
+    .section-head h2{font-size:13px;font-weight:800}
+    .section-head p{font-size:10px;color:var(--tmut);max-width:280px;line-height:1.6}
+    .card{background:var(--sf1);border:1px solid var(--line);border-radius:15px;padding:14px}
+
+    /* annotated chart */
+    .chart-wrap{position:relative;margin-top:8px}
+    .callout{position:absolute;background:var(--sf2);border:1px solid var(--gold);border-radius:8px;padding:4px 8px;font-size:9px;color:var(--gold);font-weight:700;max-width:120px;line-height:1.4}
+    .callout::after{content:'';position:absolute;width:8px;height:8px;background:var(--gold);border-radius:50%;bottom:-12px;left:50%;transform:translateX(-50%)}
+
+    /* funnel + insight column */
+    .split{display:grid;gap:10px}
+    @media(min-width:700px){.split{grid-template-columns:1.2fr .8fr}}
+    .insight-list{display:flex;flex-direction:column;gap:8px}
+    .insight-item{background:var(--sf2);border-radius:10px;padding:10px;border-right:3px solid var(--accent)}
+    .insight-item.warn{border-right-color:var(--live)}
+    .insight-item.good{border-right-color:var(--win)}
+    .insight-item b{display:block;font-size:11px;margin-bottom:3px}
+    .insight-item span{font-size:10px;color:var(--tbody)}
+
+    .f-step{margin-bottom:8px}
+    .f-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+    .f-bar{height:7px;background:var(--sf2);border-radius:999px;overflow:hidden}
+    .f-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:999px}
+
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th,td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--line)}
+    th{color:var(--tmut);font-weight:700}
+
+    .tabs{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}
+    .tab{flex-shrink:0;padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:var(--sf1);color:var(--tbody);font-size:11px;font-weight:700;cursor:pointer}
+    .tab.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+    .panel{display:none}.panel.on{display:block}
+
+    .footnote{font-size:9px;color:var(--tmut);text-align:center;margin-top:24px;line-height:1.8}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cmd">
+    <div class="cmd-inner">
+      <div class="cmd-top">
+        <div><span class="badge">موکاپ · نسخه ۳</span>
+          <h1>دادهٔ گیم‌لند</h1></div>
+        <span class="fresh" id="fresh">به‌روز · همین الان</span>
+      </div>
+
+      <!-- DATE PICKER -->
+      <div class="date-box">
+        <div class="date-mode" id="presets">
+          <button type="button" class="preset" data-mode="7">۷ روز</button>
+          <button type="button" class="preset on" data-mode="30">۳۰ روز</button>
+          <button type="button" class="preset" data-mode="90">۹۰ روز</button>
+          <button type="button" class="preset" data-mode="launch">از اول</button>
+          <button type="button" class="preset" data-mode="custom">📅 خودت انتخاب کن</button>
+        </div>
+        <div class="custom-range" id="custom-range">
+          <label>از<input type="date" id="date-from" value="2026-07-01" /></label>
+          <label>تا<input type="date" id="date-to" value="2026-08-08" /></label>
+          <button type="button" class="apply-btn" id="apply-range">اعمال</button>
+        </div>
+        <div class="dim-row" style="margin-top:8px">
+          <label>مقایسه<select id="compare"><option value="prev">با دوره قبل</option><option value="none">بدون مقایسه</option></select></label>
+          <label>شهر<select id="city"><option value="all">همه</option><option>تهران</option><option>کرج</option></select></label>
+          <label>رشته<select id="disc"><option value="all">همه</option><option>FC26</option><option>PES</option></select></label>
+          <button type="button" class="export-btn" id="export">↓ خروجی CSV</button>
+        </div>
+        <div style="font-size:10px;color:var(--tmut);margin-top:8px" id="range-label">۳۰ روز اخیر · مقایسه با ۳۰ روز قبل</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NARRATIVE STORY -->
+  <div class="story" id="story">
+    <div class="story-kicker">خلاصه</div>
+    <div class="story-body" id="story-text">…</div>
+    <div class="story-actions">
+      <button type="button" data-drill="funnel">گلوگاه قیف</button>
+      <button type="button" data-drill="pending">صف تأیید</button>
+      <button type="button" data-drill="city">تهران</button>
+    </div>
+  </div>
+
+  <!-- KPIs THAT SPEAK -->
+  <div class="kpi-grid" id="kpis"></div>
+
+  <div class="tabs">
+    <button type="button" class="tab on" data-p="overview">روند</button>
+    <button type="button" class="tab" data-p="funnel">قیف</button>
+    <button type="button" class="tab" data-p="cohort">ماندگاری</button>
+    <button type="button" class="tab" data-p="raw">داده خام</button>
+  </div>
+
+  <div class="panel on" id="p-overview">
+    <div class="section">
+      <div class="section-head">
+        <div><h2>کاربر فعال روزانه</h2><p>خط بنفش = این بازه · خط طلایی = دوره قبل</p></div>
+      </div>
+      <div class="card chart-wrap" style="padding-bottom:28px">
+        <svg id="main-chart" width="100%" height="140" viewBox="0 0 440 140"></svg>
+        <div class="callout" style="top:18px;left:55%" id="callout-drop">▼ کم شد<br/>۱۸ مرداد</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-funnel">
+    <div class="split">
+      <div class="card">
+        <div class="section-head"><h2>قیف ثبت‌نام</h2><p>روی هر مرحله بزن → لیست کاربر</p></div>
+        <div id="funnel"></div>
+      </div>
+      <div class="insight-list" id="funnel-insights"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-cohort">
+    <div class="card">
+      <div class="section-head"><h2>برگشت کاربر</h2><p>هر ردیف = هفته ثبت‌نام · هر ستون = هفته بعد</p></div>
+      <div id="cohort" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;font-size:9px"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="p-raw">
+    <div class="card">
+      <table><thead><tr><th>زمان</th><th>رویداد</th><th>کاربر</th><th>جزئیات</th></tr></thead><tbody id="raw"></tbody></table>
+    </div>
+  </div>
+
+  <p class="footnote">موکاپ · دادهٔ نمونه</p>
+</div>
+
+<script>
+const fa = n => String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]).replace(/\./g,'٫').replace(/,/g,'،');
+const pct = (a,b) => b ? Math.round((a/b-1)*100) : 0;
+
+let state = { days: 30, mode: '30', from: null, to: null, city: 'all', disc: 'all', compare: 'prev' };
+
+function mockMetrics(days) {
+  const scale = days / 30;
+  return {
+    dau: Math.round(84 * scale * (0.9 + Math.random()*0.2)),
+    signup: Math.round(510 * scale),
+    receipt: Math.round(241 * scale),
+    approved: Math.round(198 * scale),
+    revenueM: Math.round(446 * scale),
+    pending: Math.round(47 + (days > 60 ? 12 : 0)),
+    dropReceipt: Math.round(18 + Math.random()*8),
+    prevApproved: Math.round(198 * scale * 0.88),
+  };
+}
+
+function buildStory(m, days) {
+  const conv = m.receipt ? Math.round(m.approved / m.receipt * 100) : 0;
+  const prevConv = 82;
+  const delta = conv - prevConv;
+  const where = state.city === 'all' ? 'تهران و FC26' : state.city;
+  return {
+    html: `تو <em>${fa(days)} روز</em> گذشته، <em>${fa(m.signup)}</em> نفر ثبت‌نام کردن و <em>${fa(m.approved)}</em> سهم تأیید شد (${fa(conv)}٪ فیش‌ها). `
+      + (delta < 0
+        ? `گلوگاه: <em style="color:var(--live)">بعد از فیش</em> — ${fa(Math.abs(delta))}٪ کمتر از قبل، بیشتر ${where}.`
+        : `تبدیل فیش <em style="color:var(--win)">بهتر از قبل</em> (+${fa(delta)}٪).`),
+    insights: [
+      { type: delta < 0 ? 'warn' : 'good', title: 'فیش → تأیید', text: `${fa(conv)}٪ · ${delta < 0 ? 'ادمین کند شده یا یادآوری لازمه' : 'اوضاع خوبه'}` },
+      { type: 'neutral', title: 'ثبت‌نام → پرداخت', text: `${fa(Math.round(m.receipt/m.signup*100))}٪ می‌رن صفحه پرداخت${m.receipt/m.signup < 0.45 ? ' — اینجا می‌ریزه' : ''}` },
+      { type: 'neutral', title: 'صف ادمین', text: `${fa(m.pending)} تا منتظر · هدف: زیر ۲۴ ساعت` },
+      { type: 'good', title: 'دستیار', text: `با چت ${fa(38)}٪ تأیید vs ${fa(29)}٪ بدون — FAQ جواب می‌ده` },
+    ],
+    funnel: [
+      ['ورود', m.signup + 110], ['حساب', m.signup], ['پروفایل', Math.round(m.signup*0.87)],
+      ['سهم', Math.round(m.signup*0.75)], ['پرداخت', Math.round(m.signup*0.57)],
+      ['فیش', m.receipt], ['تأیید', m.approved],
+    ],
+  };
+}
+
+function renderKpis(m) {
+  const items = [
+    { label: 'کاربر فعال روزانه', val: m.dau, delta: pct(m.dau, m.dau*0.92), say: 'میانگین هر روز' },
+    { label: 'سهم تأییدشده', val: m.approved, delta: pct(m.approved, m.prevApproved), say: 'شاخص اصلی این فاز' },
+    { label: 'درآمد (M ت)', val: m.revenueM, delta: pct(m.revenueM, m.revenueM*0.91), say: 'فقط سهم‌های تأییدشده' },
+    { label: 'صف ادمین', val: m.pending, delta: +5, say: 'هر عدد = ریسک تأخیر', invert: true },
+  ];
+  document.getElementById('kpis').innerHTML = items.map((k,i) => {
+    const up = k.delta >= 0;
+    const good = k.invert ? !up : up;
+    return `<div class="kpi${i===1?' sel':''}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${fa(k.val)}</div>
+      <div class="kpi-delta ${good?'up':'down'}">${up?'↑':'↓'} ${fa(Math.abs(k.delta))}٪ نسبت به قبل</div>
+      <div class="kpi-say">${k.say}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderChart(m) {
+  const pts = Array.from({length:14}, (_,i) => 60 + Math.sin(i)*12 + (i===10?-22:0) + Math.random()*8);
+  const max = Math.max(...pts);
+  const w=440,h=140,p=12;
+  const line = pts.map((v,i)=>`${p+(i/13)*(w-2*p)},${h-p-(v/max)*(h-2*p)}`).join(' ');
+  const prev = pts.map((v,i)=>`${p+(i/13)*(w-2*p)},${h-p-((v*0.92)/max)*(h-2*p)}`).join(' ');
+  document.getElementById('main-chart').innerHTML = `
+    <polyline fill="none" stroke="rgba(245,166,35,.4)" stroke-width="1.5" stroke-dasharray="4 3" points="${prev}"/>
+    <polyline fill="none" stroke="#A855F7" stroke-width="2.5" points="${line}"/>
+    ${pts.map((v,i)=>`<circle cx="${p+(i/13)*(w-2*p)}" cy="${h-p-(v/max)*(h-2*p)}" r="3" fill="${i===10?'#FF5A4E':'#F5A623'}"/>`).join('')}
+  `;
+}
+
+function renderFunnel(story) {
+  const first = story.funnel[0][1];
+  document.getElementById('funnel').innerHTML = story.funnel.map(([label,n],i) => {
+    const w = Math.round(n/first*100);
+    const prev = i>0 ? story.funnel[i-1][1] : null;
+    const step = prev ? Math.round(n/prev*100) : null;
+    return `<div class="f-step"><div class="f-head"><span>${label}</span><span>${fa(n)}${step?' · '+fa(step)+'٪':''}</span></div>
+      <div class="f-bar"><div class="f-fill" style="width:${w}%"></div></div></div>`;
+  }).join('');
+  document.getElementById('funnel-insights').innerHTML = story.insights.map(x =>
+    `<div class="insight-item ${x.type==='warn'?'warn':x.type==='good'?'good':''}"><b>${x.title}</b><span>${x.text}</span></div>`
+  ).join('');
+}
+
+function renderAll() {
+  const days = state.days;
+  const m = mockMetrics(days);
+  const story = buildStory(m, days);
+  document.getElementById('story-text').innerHTML = story.html;
+  renderKpis(m);
+  renderChart(m);
+  renderFunnel(story);
+  document.getElementById('range-label').textContent =
+    state.mode === 'custom'
+      ? `${state.from} تا ${state.to} (${fa(days)} روز)${state.compare==='prev'?' · مقایسه با قبل':''}`
+      : `${fa(days)} روز اخیر${state.compare==='prev'?' · مقایسه با '+fa(days)+' روز قبل':''}`;
+}
+
+function daysBetween(a,b){return Math.max(1,Math.round((new Date(b)-new Date(a))/86400000))}
+
+document.getElementById('presets').addEventListener('click', e => {
+  const b = e.target.closest('.preset'); if(!b) return;
+  document.querySelectorAll('.preset').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const mode = b.dataset.mode;
+  document.getElementById('custom-range').classList.toggle('show', mode==='custom');
+  if(mode==='custom') return;
+  state.mode = mode;
+  state.days = mode==='7'?7:mode==='90'?90:mode==='launch'?45:30;
+  renderAll();
+});
+
+document.getElementById('apply-range').addEventListener('click', () => {
+  const f = document.getElementById('date-from').value;
+  const t = document.getElementById('date-to').value;
+  state.from = f; state.to = t; state.mode = 'custom';
+  state.days = daysBetween(f,t);
+  renderAll();
+});
+
+['compare','city','disc'].forEach(id => {
+  document.getElementById(id).addEventListener('change', e => { state[id==='compare'?'compare':id==='city'?'city':'disc'] = e.target.value; renderAll(); });
+});
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  document.getElementById('p-'+t.dataset.p).classList.add('on');
+}));
+
+document.getElementById('export').addEventListener('click', () => alert('خروجی CSV از app_track_events'));
+
+renderAll();
+</script>
+</body>
+</html>

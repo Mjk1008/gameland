@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards } from '@/lib/store'
-import { persist } from '@/lib/db/persistence'
+import { trackServer, trackUserProps } from '@/lib/track-server'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -33,11 +33,14 @@ export async function POST(req: Request) {
 
   // Server-fired funnel event — no client dependency, free coverage of the
   // approve/reject step for the /admin/behavior funnel view.
-  persist.track.insertMany([{
-    id: 'ev_' + Math.random().toString(36).slice(2, 10),
-    userId: r.userId, sessionId: 'server', name: status === 'approved' ? 'reg_approved' : 'reg_rejected',
-    path: `/admin/requests`, props: JSON.stringify({ compId: r.compId }),
-  }])
+  const gamer = getUserById(r.userId)
+  const ev = getEvent(r.compId)
+  trackServer({
+    userId: r.userId,
+    name: status === 'approved' ? 'reg_approved' : 'reg_rejected',
+    path: '/admin/requests',
+    props: trackUserProps(gamer, { compId: r.compId, disc: ev?.disc }),
+  })
 
   const c = getEvent(r.compId)
   const title = c?.title ?? 'مسابقه'

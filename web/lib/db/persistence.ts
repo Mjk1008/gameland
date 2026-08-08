@@ -366,6 +366,27 @@ function userValues(u: User) {
   }
 }
 
+function trackEventWhere(sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
+  const parts: string[] = []
+  if (sinceMs > 0) parts.push(`created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})`)
+  if (untilMs && untilMs > 0) parts.push(`created_at < to_timestamp(${Math.floor(untilMs / 1000)})`)
+  if (filters?.city && filters.city !== 'all') {
+    const c = filters.city.replace(/'/g, "''")
+    parts.push(`(
+      props::jsonb->>'city' = '${c}'
+      OR (user_id IS NOT NULL AND user_id IN (SELECT id FROM app_users WHERE city = '${c}'))
+    )`)
+  }
+  if (filters?.disc && filters.disc !== 'all') {
+    const d = filters.disc.replace(/'/g, "''")
+    parts.push(`(
+      props::jsonb->>'disc' = '${d}'
+      OR (user_id IS NOT NULL AND user_id IN (SELECT id FROM app_users WHERE primary_disc = '${d}'))
+    )`)
+  }
+  return parts.length ? parts.join(' AND ') : 'TRUE'
+}
+
 export const persist = {
   user: {
     insert(u: User) {
@@ -713,30 +734,39 @@ export const persist = {
       const safe = prefix.replace(/'/g, "''")
       fire(d.execute(sql.raw(`DELETE FROM app_track_events WHERE id LIKE '${safe}%'`)))
     },
+    trackWhere(sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
+      return trackEventWhere(sinceMs, filters, untilMs)
+    },
     // Unique actors (user, falling back to session pre-auth) per named step —
     // the right denominator for step-to-step conversion %, not raw event count.
-    async funnelCounts(names: string[], sinceMs: number) {
+    async funnelCounts(names: string[], sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
       const d = db(); if (!d) return []
       const list = names.map(n => `'${n.replace(/'/g, "''")}'`).join(',')
+      const where = trackEventWhere(sinceMs, filters, untilMs)
       const res: any = await d.execute(sql.raw(
         `SELECT name, COUNT(DISTINCT COALESCE(user_id, session_id)) AS n
-         FROM app_track_events WHERE name IN (${list}) AND created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})
+         FROM app_track_events WHERE name IN (${list}) AND ${where}
          GROUP BY name`))
       return (res.rows ?? res) as { name: string; n: string }[]
     },
-    async topPaths(sinceMs: number, limit = 10) {
+    async topPaths(sinceMs: number, limit = 10, filters?: { city?: string; disc?: string }, untilMs?: number) {
       const d = db(); if (!d) return []
+      const where = trackEventWhere(sinceMs, filters, untilMs)
       const res: any = await d.execute(sql.raw(
         `SELECT path, COUNT(*) AS n FROM app_track_events
-         WHERE name='pageview' AND created_at >= to_timestamp(${Math.floor(sinceMs / 1000)})
+         WHERE name='pageview' AND ${where}
          GROUP BY path ORDER BY n DESC LIMIT ${Math.floor(limit)}`))
       return (res.rows ?? res) as { path: string; n: string }[]
     },
-    async dau(days: number) {
+    async dau(sinceMs: number, chartDays = 14, filters?: { city?: string; disc?: string }, untilMs?: number) {
       const d = db(); if (!d) return []
+      const filt = trackEventWhere(sinceMs, filters, untilMs)
+      const window = sinceMs > 0
+        ? filt
+        : `${filt === 'TRUE' ? '' : filt + ' AND '}created_at >= now() - interval '${Math.floor(chartDays)} days'`
       const res: any = await d.execute(sql.raw(
         `SELECT date_trunc('day', created_at) AS day, COUNT(DISTINCT COALESCE(user_id, session_id)) AS n
-         FROM app_track_events WHERE created_at >= now() - interval '${Math.floor(days)} days'
+         FROM app_track_events WHERE ${window}
          GROUP BY day ORDER BY day`))
       return (res.rows ?? res) as { day: string; n: string }[]
     },
@@ -744,14 +774,21 @@ export const persist = {
     // are computed against the signed-up population (not raw event counts) so
     // "chatters convert more" isn't just an artifact of chatters being a
     // smaller, more-engaged group.
-    async chatCorrelation(sinceMs: number) {
+    async chatCorrelation(sinceMs: number, filters?: { city?: string; disc?: string }) {
       const d = db(); if (!d) return null
       const t = Math.floor(sinceMs / 1000)
+      const time = sinceMs > 0 ? `created_at >= to_timestamp(${t})` : 'TRUE'
+      const userCity = filters?.city && filters.city !== 'all'
+        ? `AND user_id IN (SELECT id FROM app_users WHERE city = '${filters.city.replace(/'/g, "''")}')`
+        : ''
+      const userDisc = filters?.disc && filters.disc !== 'all'
+        ? `AND user_id IN (SELECT id FROM app_users WHERE primary_disc = '${filters.disc.replace(/'/g, "''")}')`
+        : ''
       const res: any = await d.execute(sql.raw(`
-        WITH signed AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='signup_complete' AND user_id IS NOT NULL AND created_at >= to_timestamp(${t})),
-        chatters AS (SELECT DISTINCT user_id FROM app_ai_messages WHERE created_at >= to_timestamp(${t})),
-        approved AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='reg_approved' AND user_id IS NOT NULL AND created_at >= to_timestamp(${t})),
-        reached  AS (SELECT DISTINCT user_id FROM app_track_events WHERE name IN ('ticket_select','pay_page_view') AND user_id IS NOT NULL AND created_at >= to_timestamp(${t}))
+        WITH signed AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='signup_complete' AND user_id IS NOT NULL AND ${time} ${userCity} ${userDisc}),
+        chatters AS (SELECT DISTINCT user_id FROM app_ai_messages WHERE ${time}),
+        approved AS (SELECT DISTINCT user_id FROM app_track_events WHERE name='reg_approved' AND user_id IS NOT NULL AND ${time} ${userCity} ${userDisc}),
+        reached  AS (SELECT DISTINCT user_id FROM app_track_events WHERE name IN ('ticket_select','pay_page_view') AND user_id IS NOT NULL AND ${time} ${userCity} ${userDisc})
         SELECT
           (SELECT COUNT(*) FROM signed WHERE user_id IN (SELECT user_id FROM chatters)) AS chatters_signed,
           (SELECT COUNT(*) FROM signed WHERE user_id NOT IN (SELECT user_id FROM chatters)) AS nonchatters_signed,
@@ -762,6 +799,59 @@ export const persist = {
       `))
       const rows = (res.rows ?? res) as any[]
       return rows[0] ?? null
+    },
+    async listEvents(sinceMs: number, limit = 5000, filters?: { city?: string; disc?: string }, untilMs?: number) {
+      const d = db(); if (!d) return []
+      const where = trackEventWhere(sinceMs, filters, untilMs)
+      const res: any = await d.execute(sql.raw(
+        `SELECT created_at, name, user_id, session_id, path, props
+         FROM app_track_events WHERE ${where}
+         ORDER BY created_at DESC LIMIT ${Math.floor(Math.min(limit, 10000))}`))
+      return (res.rows ?? res) as { created_at: string; name: string; user_id: string | null; session_id: string; path: string; props: string }[]
+    },
+    async topJourneys(sinceMs: number, limit = 8, filters?: { city?: string; disc?: string }, untilMs?: number) {
+      const d = db(); if (!d) return []
+      const where = trackEventWhere(sinceMs, filters, untilMs)
+      const res: any = await d.execute(sql.raw(`
+        WITH pv AS (
+          SELECT session_id, path, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY created_at) AS rn
+          FROM app_track_events WHERE name='pageview' AND ${where}
+        ),
+        j AS (
+          SELECT a.path AS p1, b.path AS p2, COUNT(DISTINCT a.session_id) AS n
+          FROM pv a JOIN pv b ON a.session_id=b.session_id AND b.rn=a.rn+1
+          GROUP BY a.path, b.path
+        )
+        SELECT p1 || ' → ' || p2 AS journey, n FROM j ORDER BY n DESC LIMIT ${Math.floor(limit)}`))
+      return (res.rows ?? res) as { journey: string; n: string }[]
+    },
+    async retentionGrid(sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number, maxWeeks = 4, maxCohorts = 6) {
+      const d = db(); if (!d) return []
+      const where = trackEventWhere(sinceMs, filters, untilMs)
+      const res: any = await d.execute(sql.raw(`
+        WITH cohort AS (
+          SELECT user_id, date_trunc('week', MIN(created_at)) AS w0
+          FROM app_track_events
+          WHERE name='signup_complete' AND user_id IS NOT NULL AND ${where}
+          GROUP BY user_id
+        ),
+        sized AS (SELECT w0, COUNT(*)::int AS cohort_size FROM cohort GROUP BY w0),
+        recent AS (SELECT w0, cohort_size FROM sized ORDER BY w0 DESC LIMIT ${Math.floor(maxCohorts)}),
+        weeks AS (SELECT generate_series(0, ${Math.floor(maxWeeks)}) AS wk),
+        active AS (
+          SELECT c.w0,
+            GREATEST(0, FLOOR(EXTRACT(EPOCH FROM date_trunc('week', e.created_at) - c.w0) / 604800))::int AS wk,
+            e.user_id
+          FROM cohort c
+          JOIN app_track_events e ON e.user_id=c.user_id AND e.created_at >= c.w0
+        )
+        SELECT r.w0, r.cohort_size, w.wk, COUNT(DISTINCT a.user_id)::int AS active
+        FROM recent r
+        CROSS JOIN weeks w
+        LEFT JOIN active a ON a.w0=r.w0 AND a.wk=w.wk
+        GROUP BY r.w0, r.cohort_size, w.wk
+        ORDER BY r.w0 DESC, w.wk`))
+      return (res.rows ?? res) as { w0: string; cohort_size: number; wk: number; active: number }[]
     },
   },
   gamenet: {

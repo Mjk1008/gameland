@@ -28,7 +28,7 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-export default function PayView({ compId, title, attempts, payable, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, price }: { compId: string; title: string; attempts: number; payable: number; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; price: number }) {
+export default function PayView({ compId, title, attempts, payable, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, price, disc, city }: { compId: string; title: string; attempts: number; payable: number; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; price: number; disc: string; city: string }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const links = paymentLinks()
@@ -37,7 +37,7 @@ export default function PayView({ compId, title, attempts, payable, alreadyPaid 
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  useEffect(() => { track('pay_page_view', { compId, status }) }, [])
+  useEffect(() => { track('pay_page_view', { compId, status, disc, city }) }, [compId, status, disc, city])
 
   function copyCard() {
     navigator.clipboard?.writeText(PAYMENT.card).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
@@ -51,7 +51,6 @@ export default function PayView({ compId, title, attempts, payable, alreadyPaid 
       const res = await fetch('/api/register/receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, imageData }) })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j.error || 'آپلود نشد، دوباره امتحان کن')
-      track('receipt_submit', { compId })
       setUploaded(true); router.refresh()
     } catch (e: any) { setErr(e.message) }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = '' }

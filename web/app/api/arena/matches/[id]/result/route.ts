@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { submitPlayResult, getPlayMatch } from '@/lib/arena'
 import { withArenaUser, sendArenaNotifs, userBrief } from '@/lib/arena-http'
-import { persist } from '@/lib/db/persistence'
+import { trackServer } from '@/lib/track-server'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   return withArenaUser(async uid => {
@@ -12,14 +12,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 })
     sendArenaNotifs(res.notify)
     if (res.pointsAwarded > 0) {
-      persist.track.insertMany([{
-        id: 'ev_' + Math.random().toString(36).slice(2, 10),
+      trackServer({
         userId: res.match.winnerUserId ?? uid,
-        sessionId: 'server',
         name: 'arena_points_awarded',
         path: '/arena',
-        props: JSON.stringify({ matchId: params.id, points: res.pointsAwarded }),
-      }])
+        props: { matchId: params.id, points: res.pointsAwarded },
+      })
     }
     return NextResponse.json({
       match: { ...res.match, requester: userBrief(res.match.requesterId), acceptor: userBrief(res.match.acceptorId) },

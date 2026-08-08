@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { C, DISP, Wordmark, Button } from '@/components/ui'
-import { track } from '@/lib/track'
+import { track, getTrackSessionId } from '@/lib/track'
 
 export default function SignupPage() {
   const [phone, setPhone] = useState('')
@@ -26,7 +26,7 @@ export default function SignupPage() {
     try {
       const res = await fetch('/api/signup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, email, password }),
+        body: JSON.stringify({ phone, email, password, sessionId: getTrackSessionId() }),
       })
       const j = await res.json()
       if (!res.ok) {
@@ -36,7 +36,7 @@ export default function SignupPage() {
         else setFe({ form: msg })
         setBusy(false); return
       }
-      track('signup_complete')
+      // signup_complete fires server-side with user_id — see /api/signup
       // redirect:true → NextAuth navigates only after the session cookie is
       // set, avoiding a race where /me loads before auth and bounces to /login.
       await signIn('credentials', { phone, password, redirect: true, callbackUrl: '/me' })

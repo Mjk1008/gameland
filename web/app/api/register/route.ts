@@ -3,6 +3,16 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
+import { trackServer, trackUserProps } from '@/lib/track-server'
+
+function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserById>>, c: NonNullable<ReturnType<typeof getEvent>>, attempts: number) {
+  trackServer({
+    userId: uid,
+    name: 'ticket_select',
+    path: `/competitions/${c.id}/register`,
+    props: trackUserProps(u, { compId: c.id, disc: c.disc, tickets: attempts }),
+  })
+}
 
 export async function POST(req: Request) {
   await whenReady()
@@ -60,6 +70,7 @@ export async function POST(req: Request) {
       const paid = attempts - free
       pushNotif(uid, 'registration', 'تیم ساخته شد',
         `تیمت برای «${c.title}» ساخته شد — ${attempts} بلیط برای خودت (${free} رایگان + ${paid} پرداختی). هم‌تیمیت باید دعوت رو قبول کنه و سهمِ خودش رو جدا پرداخت کنه.`)
+      fireTicketSelect(uid, u, c, attempts)
       return NextResponse.json({ ok: true, registration: r, freeUsed: free })
     } catch (e: any) {
       return NextResponse.json({ error: errorMap[e.message] || e.message }, { status: 400 })
@@ -80,6 +91,7 @@ export async function POST(req: Request) {
       free > 0
         ? `${c.title} با ${attempts} بلیط ثبت شد (${free} سهمِ رایگانِ دعوت + ${paid} پرداختی). ${paid > 0 ? 'برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : 'نیازی به پرداخت نیست — منتظرِ تاییدِ ادمین بمون.'}`
         : `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
+    fireTicketSelect(uid, u, c, attempts)
     return NextResponse.json({ ok: true, registration: r, freeUsed: free })
   } catch (e: any) {
     return NextResponse.json({ error: errorMap[e.message] || e.message }, { status: 400 })
