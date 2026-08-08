@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, hasAvatar, activityPointsOf, type Event } from '@/lib/store'
+import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, hasAvatar, activityPointsOf, resolveCompetitionCardCover, resolveEventCardCover, type Event } from '@/lib/store'
 import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
 import { pointsForPlacement } from '@/lib/ranking'
@@ -194,10 +194,11 @@ export default async function HomePage() {
               return (
                 <CompetitionCard key={c.id} href={`/competitions/e/${c.id}`} title={c.title}
                   sub={[c.location, c.date].filter(Boolean).join(' · ') || undefined}
+                  coverSrc={resolveCompetitionCardCover(c.id, evs)}
                   coverDisc={evs[0]?.disc} discCount={evs.length} prizeSum={evs.reduce((s, e) => s + (e.prize || 0), 0)} status={motherStatus(evs)} />
               )
             })}
-            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} />)}
+            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} coverSrc={resolveEventCardCover(e.id, e.disc)} />)}
           </div>
         )}
       </div>

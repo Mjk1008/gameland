@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getCompetition, eventsForCompetition, approvedRegistrationsForComp } from '@/lib/store'
+import { getCompetition, eventsForCompetition, approvedRegistrationsForComp, hasCompetitionCover, hasEventCover } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import AddDisciplineForm from './add-discipline'
 import EditCompetition from './edit-competition'
+import CompetitionCoverPanel from './competition-cover-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,8 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
         </div>
         <EditCompetition id={comp.id} title={comp.title} location={comp.location} date={comp.date} childCount={discEvents.length} />
       </div>
+
+      <CompetitionCoverPanel id={comp.id} hasCover={hasCompetitionCover(comp.id)} />
 
       {/* disciplines in this competition */}
       <div>

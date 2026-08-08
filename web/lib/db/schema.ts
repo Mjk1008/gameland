@@ -14,6 +14,19 @@ export const competitions = pgTable('app_competitions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// ─── Competition / event cover blobs — bytes in PG, ids only in RAM ────────
+export const competitionCovers = pgTable('app_competition_covers', {
+  competitionId: text('competition_id').primaryKey(),
+  dataUrl:       text('data_url').notNull(),
+  updatedAt:     timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const eventCovers = pgTable('app_event_covers', {
+  eventId:   text('event_id').primaryKey(),
+  dataUrl:   text('data_url').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Enums (must match init.sql) ─────────────────────────────
 export const eventTierEnum   = pgEnum('event_tier',   ['S', 'A', 'B', 'C'])
 export const eventStatusEnum = pgEnum('event_status', ['soon', 'open', 'live', 'done'])

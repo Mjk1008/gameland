@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { C } from '@/components/ui'
 import JalaliRangePicker from '@/components/JalaliRangePicker'
+import CoverUploader from '@/components/CoverUploader'
 
 export default function NewCompetitionPage() {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
   const [date, setDate] = useState('')
+  const [coverData, setCoverData] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -21,6 +23,16 @@ export default function NewCompetitionPage() {
       const res = await fetch('/api/admin/competitions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, location, date }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ساخته نشد')
+      if (coverData && j.competition?.id) {
+        const cr = await fetch('/api/admin/competition-cover', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: j.competition.id, imageData: coverData }),
+        })
+        if (!cr.ok) {
+          const cj = await cr.json().catch(() => ({}))
+          throw new Error(cj.error || 'رویداد ساخته شد ولی کاور ذخیره نشد')
+        }
+      }
       router.push(`/admin/competitions/${j.competition.id}`); router.refresh()
     } catch (e: any) { setErr(e.message); setBusy(false) }
   }
@@ -32,6 +44,11 @@ export default function NewCompetitionPage() {
       <div style={{ fontSize: 12.5, color: C.tmut, marginBottom: 18, lineHeight: 1.8 }}>اول خودِ مسابقه (رویداد) رو بساز؛ بعد داخلش رشته‌ها (فیفا، PES…) رو اضافه می‌کنی.</div>
 
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <CoverUploader
+          label="کاور رویداد (اختیاری)"
+          previewSrc={coverData ?? undefined}
+          onUpload={async dataUrl => { setCoverData(dataUrl) }}
+        />
         <Field label="عنوان مسابقه"><input value={title} onChange={e => setTitle(e.target.value)} style={inp} placeholder="جام تابستانهٔ گیم‌لند" /></Field>
         <Field label="محل برگزاری"><input value={location} onChange={e => setLocation(e.target.value)} style={inp} placeholder="ایران‌مال، تهران" /></Field>
         <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>

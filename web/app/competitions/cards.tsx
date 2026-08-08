@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Event, Registration } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
-import { C, Num, StatusChip, GAME_BANNER, DISC_DOT } from '@/components/ui'
+import { C, Num, StatusChip, DISC_DOT } from '@/components/ui'
 
 const REG_STATE: Record<string, { label: string; c: string; s: string }> = {
   approved: { label: 'ثبت‌نامت تاییده', c: C.win, s: C.winSoft },
@@ -15,9 +15,9 @@ const cardShell: React.CSSProperties = {
   transform: 'translateZ(0)', boxShadow: '0 10px 34px -18px rgba(0,0,0,.8)',
 }
 
-// Banner (16:9) with a discipline image (or gradient) + a bottom scrim + overlays.
-function Banner({ disc, title, sub, status, discColor }: { disc?: string; title: string; sub?: string; status?: string; discColor: string }) {
-  const img = disc ? GAME_BANNER[disc] : undefined
+// Banner (16:9) — coverSrc should come from resolveEventCardCover / resolveCompetitionCardCover.
+function Banner({ disc, coverSrc, title, sub, status, discColor }: { disc?: string; coverSrc?: string; title: string; sub?: string; status?: string; discColor: string }) {
+  const img = coverSrc
   return (
     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', overflow: 'hidden', background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
       {img && <img src={img} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -32,7 +32,7 @@ function Banner({ disc, title, sub, status, discColor }: { disc?: string; title:
 }
 
 // One discipline (child Event) — banner + prize/capacity/format + reg state.
-export function DisciplineCard({ ev, reg }: { ev: Event; reg?: Registration }) {
+export function DisciplineCard({ ev, reg, coverSrc }: { ev: Event; reg?: Registration; coverSrc?: string }) {
   // days-to-start countdown — shown only when a real future start time exists
   const daysToStart = ev.startsAt && ev.startsAt > Date.now() ? Math.max(1, Math.ceil((ev.startsAt - Date.now()) / 86400000)) : null
   const d = DISC[ev.disc as keyof typeof DISC]
@@ -41,7 +41,7 @@ export function DisciplineCard({ ev, reg }: { ev: Event; reg?: Registration }) {
   const rs = reg ? REG_STATE[reg.status] : null
   return (
     <Link href={`/competitions/${ev.id}`} style={{ ...cardShell, border: `1px solid ${rs ? rs.c + '66' : 'rgba(246,239,228,.10)'}` }}>
-      <Banner disc={ev.disc} title={d?.name ?? ev.disc} sub={daysToStart ? `⏳ ${daysToStart} روز تا شروع${ev.date ? ' · ' + ev.date : ''}` : (ev.date || undefined)} status={ev.status} discColor={discColor} />
+      <Banner disc={ev.disc} coverSrc={coverSrc} title={d?.name ?? ev.disc} sub={daysToStart ? `⏳ ${daysToStart} روز تا شروع${ev.date ? ' · ' + ev.date : ''}` : (ev.date || undefined)} status={ev.status} discColor={discColor} />
       <div style={{ background: bodyBg, padding: '12px 14px 14px' }}>
         {rs && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: rs.s, border: `1px solid ${rs.c}55`, borderRadius: 8, padding: '5px 10px', marginBottom: 10 }}>
@@ -61,14 +61,14 @@ export function DisciplineCard({ ev, reg }: { ev: Event; reg?: Registration }) {
   )
 }
 
-// Mother competition (رویداد) — cover from its first discipline + summary.
-export function CompetitionCard({ href, title, sub, coverDisc, discCount, prizeSum, status }: {
-  href: string; title: string; sub?: string; coverDisc?: string; discCount: number; prizeSum: number; status?: string
+// Mother competition (رویداد) — custom cover or first discipline fallback.
+export function CompetitionCard({ href, title, sub, coverDisc, coverSrc, discCount, prizeSum, status }: {
+  href: string; title: string; sub?: string; coverDisc?: string; coverSrc?: string; discCount: number; prizeSum: number; status?: string
 }) {
   const discColor = coverDisc ? (DISC_DOT[coverDisc] ?? C.accent) : C.accent
   return (
     <Link href={href} style={{ ...cardShell, border: '1px solid rgba(168,85,247,.28)' }}>
-      <Banner disc={coverDisc} title={title} sub={sub} status={status} discColor={discColor} />
+      <Banner disc={coverDisc} coverSrc={coverSrc} title={title} sub={sub} status={status} discColor={discColor} />
       <div style={{ background: bodyBg, padding: '12px 14px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'stretch', background: 'rgba(20,17,13,.45)', border: '1px solid rgba(246,239,228,.07)', borderRadius: 12, overflow: 'hidden' }}>
           <Cell><Num size={16} color={C.accent}>{discCount}</Num><Lab>رشته</Lab></Cell>

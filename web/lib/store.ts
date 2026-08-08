@@ -8,6 +8,7 @@
 
 import { Disc } from './mock-data'
 import { persist, startHydration, whenAuthReady as persistAuthReady } from './db/persistence'
+import { bundledBannerDataUrl, defaultDiscBanner } from './game-assets'
 import { usingDb } from './db/client'
 
 // ─── Users ──────────────────────────────────────────────────────────────────
@@ -94,6 +95,8 @@ function ensureHydrated() {
     loadNews:      (n: NewsRow) => { newsRows.set(n.id, n) },
     loadSetting:   (k: string, v: string) => { appSettings.set(k, v) },
     loadAvatarId:  (userId: string) => { avatarIds.add(userId) },
+    loadCompetitionCoverId: (id: string) => { competitionCoverIds.add(id) },
+    loadEventCoverId: (id: string) => { eventCoverIds.add(id) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
     loadGamenet:   (g: Gamenet) => { gamenets.set(g.id, g) },
     loadGamenetPhotoId: (gamenetId: string, photoId: string) => {
@@ -106,11 +109,29 @@ function ensureHydrated() {
   }).then(() => {
     reconcileDefaultPromos()
     seedRankingIfEmpty()
-    // Heavy arena demo seed must not block auth (whenReady) — runs after boot.
+    // Heavy seeds must not block auth (whenReady).
     setImmediate(() => {
+      reconcileDefaultEventCovers().catch(e => console.warn('[covers]', e))
       try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
     })
   })
+}
+
+// One-time per event: copy bundled game banners into the cover blob tables so
+// existing رشته‌ها keep their visuals on the new system. Idempotent — skips
+// events that already have an admin/uploaded cover. Admin can replace anytime.
+async function reconcileDefaultEventCovers() {
+  for (const e of events.values()) {
+    if (hasEventCover(e.id)) continue
+    const dataUrl = bundledBannerDataUrl(e.disc)
+    if (!dataUrl) continue
+    try {
+      await persist.eventCover.upsertAsync(e.id, dataUrl)
+      eventCoverIds.add(e.id)
+    } catch (err) {
+      console.warn('[covers] seed event', e.id, err)
+    }
+  }
 }
 
 // Which users have a profile photo — ids only (the image bytes stay in Postgres
@@ -119,6 +140,51 @@ const avatarIds = new Set<string>()
 export function hasAvatar(userId: string): boolean { return avatarIds.has(userId) }
 export function markAvatar(userId: string): void { avatarIds.add(userId) }
 export function unmarkAvatar(userId: string): void { avatarIds.delete(userId) }
+
+// Competition / event card covers — ids only in RAM (bytes in Postgres blobs).
+const competitionCoverIds = new Set<string>()
+const eventCoverIds = new Set<string>()
+export function hasCompetitionCover(id: string): boolean { return competitionCoverIds.has(id) }
+export function hasEventCover(id: string): boolean { return eventCoverIds.has(id) }
+export function competitionCoverUrl(id: string): string | undefined {
+  return hasCompetitionCover(id) ? `/api/competition-cover/${id}` : undefined
+}
+export function eventCoverUrl(id: string): string | undefined {
+  return hasEventCover(id) ? `/api/event-cover/${id}` : undefined
+}
+/** Card cover for a رشته: uploaded blob → bundled game banner fallback. */
+export function resolveEventCardCover(eventId: string, disc: string): string | undefined {
+  return eventCoverUrl(eventId) ?? defaultDiscBanner(disc)
+}
+
+/** Card cover for a رویداد: own upload → first child → bundled banner of first disc. */
+export function resolveCompetitionCardCover(compId: string, childEvents: { id: string; disc: string }[]): string | undefined {
+  const own = competitionCoverUrl(compId)
+  if (own) return own
+  for (const e of childEvents) {
+    const c = resolveEventCardCover(e.id, e.disc)
+    if (c) return c
+  }
+  return childEvents[0] ? defaultDiscBanner(childEvents[0].disc) : undefined
+}
+export async function setCompetitionCover(id: string, dataUrl: string): Promise<void> {
+  if (!competitions.has(id)) throw new Error('COMPETITION_NOT_FOUND')
+  await persist.competitionCover.upsertAsync(id, dataUrl)
+  competitionCoverIds.add(id)
+}
+export function removeCompetitionCover(id: string): void {
+  competitionCoverIds.delete(id)
+  persist.competitionCover.delete(id)
+}
+export async function setEventCover(id: string, dataUrl: string): Promise<void> {
+  if (!events.has(id)) throw new Error('EVENT_NOT_FOUND')
+  await persist.eventCover.upsertAsync(id, dataUrl)
+  eventCoverIds.add(id)
+}
+export function removeEventCover(id: string): void {
+  eventCoverIds.delete(id)
+  persist.eventCover.delete(id)
+}
 
 // Which registrations have an uploaded payment receipt — ids only (image bytes
 // stay in Postgres, served on demand), so RAM stays flat with many receipts.
@@ -558,6 +624,7 @@ export function updateCompetition(id: string, patch: Partial<Competition>): Comp
   return c
 }
 export function deleteCompetition(id: string) {
+  removeCompetitionCover(id)
   competitions.delete(id)
   for (const e of events.values()) if (e.competitionId === id) deleteEvent(e.id)
   persist.competition?.delete?.(id)
@@ -598,6 +665,7 @@ export function updateEvent(id: string, patch: Partial<Event>): Event {
 // placements, config). DB delete of the event row cascades the child rows.
 export function deleteEvent(id: string) {
   if (!events.has(id)) throw new Error('EVENT_NOT_FOUND')
+  removeEventCover(id)
   events.delete(id)
   eventConfigs.delete(id)
   for (const [k, r] of regs) if (r.compId === id) regs.delete(k)

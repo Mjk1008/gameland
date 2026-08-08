@@ -40,6 +40,8 @@ export function startHydration(loaders: {
   loadNews?:     (n: any) => void
   loadSetting?:  (k: string, v: string) => void
   loadAvatarId?: (userId: string) => void
+  loadCompetitionCoverId?: (competitionId: string) => void
+  loadEventCoverId?: (eventId: string) => void
   loadReceiptId?: (regId: string) => void
   loadGamenet?:  (g: any) => void
   loadGamenetPhotoId?: (gamenetId: string, photoId: string) => void
@@ -60,6 +62,8 @@ export function startHydration(loaders: {
       // sandbox can't). All guarded with IF NOT EXISTS.
       for (const stmt of [
         `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_competition_covers (competition_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_event_covers (event_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bonus_points INTEGER`,
@@ -259,6 +263,16 @@ export function startHydration(loaders: {
         const av = await d.execute(sql.raw('SELECT user_id FROM app_avatars'))
         for (const row of (av as any as { user_id: string }[])) loaders.loadAvatarId?.(row.user_id)
       } catch (e) { console.error('[db] load avatar ids:', e) }
+
+      try {
+        const cc = await d.execute(sql.raw('SELECT competition_id FROM app_competition_covers'))
+        for (const row of (cc as any as { competition_id: string }[])) loaders.loadCompetitionCoverId?.(row.competition_id)
+      } catch (e) { console.error('[db] load competition cover ids:', e) }
+
+      try {
+        const ec = await d.execute(sql.raw('SELECT event_id FROM app_event_covers'))
+        for (const row of (ec as any as { event_id: string }[])) loaders.loadEventCoverId?.(row.event_id)
+      } catch (e) { console.error('[db] load event cover ids:', e) }
 
       try {
         const rc = await d.execute(sql.raw('SELECT reg_id FROM app_receipts'))
@@ -689,6 +703,38 @@ export const persist = {
     delete(id: string) {
       const d = db(); if (!d) return
       fire(d.delete(schema.promos).where(eq(schema.promos.id, id)))
+    },
+  },
+  competitionCover: {
+    async upsertAsync(competitionId: string, dataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.competitionCovers).values({ competitionId, dataUrl })
+        .onConflictDoUpdate({ target: schema.competitionCovers.competitionId, set: { dataUrl, updatedAt: new Date() } })
+    },
+    async read(competitionId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.competitionCovers.dataUrl }).from(schema.competitionCovers).where(eq(schema.competitionCovers.competitionId, competitionId)).limit(1)
+      return rows[0]?.dataUrl ?? null
+    },
+    delete(competitionId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.competitionCovers).where(eq(schema.competitionCovers.competitionId, competitionId)))
+    },
+  },
+  eventCover: {
+    async upsertAsync(eventId: string, dataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.eventCovers).values({ eventId, dataUrl })
+        .onConflictDoUpdate({ target: schema.eventCovers.eventId, set: { dataUrl, updatedAt: new Date() } })
+    },
+    async read(eventId: string): Promise<string | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.eventCovers.dataUrl }).from(schema.eventCovers).where(eq(schema.eventCovers.eventId, eventId)).limit(1)
+      return rows[0]?.dataUrl ?? null
+    },
+    delete(eventId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.eventCovers).where(eq(schema.eventCovers.eventId, eventId)))
     },
   },
   avatar: {

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DISC } from '@/lib/mock-data'
 import { C, Button, GameBadge, inp, Field } from '@/components/ui'
+import CoverUploader from '@/components/CoverUploader'
 
 type Disc = keyof typeof DISC
 
@@ -21,6 +22,7 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
   const [teamSize, setTeamSize] = useState<1 | 2>(1)
   const [ticketPrice, setTicketPrice] = useState('')
   const [ticketOriginal, setTicketOriginal] = useState('')
+  const [coverData, setCoverData] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -42,7 +44,17 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'اضافه نشد')
-      setOpen(false); setPrize(0)
+      if (coverData && j.event?.id) {
+        const cr = await fetch('/api/admin/event-cover', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: j.event.id, imageData: coverData }),
+        })
+        if (!cr.ok) {
+          const cj = await cr.json().catch(() => ({}))
+          throw new Error(cj.error || 'رشته اضافه شد ولی کاور ذخیره نشد')
+        }
+      }
+      setOpen(false); setPrize(0); setCoverData(null)
       router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -59,6 +71,13 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
   return (
     <form onSubmit={submit} style={{ background: C.sf1, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 13 }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: C.thi }}>رشتهٔ جدید</div>
+
+      <CoverUploader
+        label="کاور رشته (اختیاری)"
+        hint="۱۶:۹ · اگه نذاری، عکس پیش‌فرض بازی نشون داده می‌شه"
+        previewSrc={coverData ?? undefined}
+        onUpload={async dataUrl => { setCoverData(dataUrl) }}
+      />
 
       <Field label="رشته">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

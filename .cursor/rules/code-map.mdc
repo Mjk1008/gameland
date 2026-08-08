@@ -1,0 +1,38 @@
+---
+description: Gameland code navigation — read before broad exploration
+alwaysApply: true
+---
+
+# Code navigation
+
+**Before searching the whole repo**, read [`docs/code-map.md`](docs/code-map.md) for file locations and patterns. Product/deploy/Iran rules stay in `CLAUDE.md`.
+
+## Quick lookup
+
+| Task | File |
+|---|---|
+| Business data / reads | `web/lib/store.ts` |
+| DB schema + hydration | `web/lib/db/persistence.ts` |
+| Auth / roles | `web/lib/auth.ts` |
+| Bracket / draw | `web/lib/bracket.ts` (+ `bracket-team.ts` for 2v2) |
+| Ranking | `web/lib/ranking.ts` |
+| Competition cards + covers | `web/app/competitions/cards.tsx` |
+| Home sliders | `promo-slider.tsx`, `news-slider.tsx` · admin `/admin/content` |
+| AI assistant | `web/app/api/assistant/route.ts` |
+| Shared UI | `web/components/ui.tsx` |
+
+## Vocabulary
+
+- **رویداد** = `Competition` (mother) → `/competitions/e/[id]`
+- **رشته** = `Event` (discipline) → `/competitions/[id]`
+
+## Blob rule
+
+Image bytes in Postgres; RAM holds IDs only. Pages use `/api/*/ [id]` — never inline base64.
+
+## Exploration discipline
+
+1. Check `docs/code-map.md` quick lookup first.
+2. Use targeted `grep`/`glob` — don't read whole directories.
+3. Read only files on the path to the change.
+4. Update `docs/code-map.md` after adding a major feature area.

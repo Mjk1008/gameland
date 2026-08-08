@@ -175,6 +175,7 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
 
 | Track | Doc | Status |
 |---|---|---|
+| **Code map (agents)** | [`docs/code-map.md`](docs/code-map.md) | Where to find things — update after major features |
 | **Gamenet platform** | [`docs/26-gamenet-platform-plan.md`](docs/26-gamenet-platform-plan.md) | Phase 1–2 + 0.5 shipped; Phase 3+ pending |
 | **Team 2v2** | [`docs/27-team-format-plan.md`](docs/27-team-format-plan.md) | Code shipped; pilot on separate رویداد |
 | **Execution plan** | [`docs/28-execution-plan.md`](docs/28-execution-plan.md) | Sprint order |

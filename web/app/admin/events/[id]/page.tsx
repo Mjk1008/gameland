@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover } from '@/lib/store'
 import { computeQualifiers } from '@/lib/bracket'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { DISC } from '@/lib/mock-data'
@@ -10,6 +10,7 @@ import FinalizeControls from './finalize-controls'
 import TournamentPanel, { type BracketInfo } from './tournament-panel'
 import DeleteEventButton from './delete-button'
 import PrizeEditor from './prize-editor'
+import EventCoverPanel from './event-cover-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +78,8 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         </div>
         <StatusChip status={c.status} />
       </div>
+
+      <EventCoverPanel id={c.id} hasCover={hasEventCover(c.id)} />
 
       <Link href={`/admin/events/${c.id}/edit`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, background: C.sf2, border: `1px solid ${C.line2}`, borderRadius: 12, color: C.thi, fontWeight: 700, fontSize: 13.5 }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
