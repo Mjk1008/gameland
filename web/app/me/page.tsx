@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
 import { challengePointsOf } from '@/lib/arena'
+import { isArenaEnabled } from '@/lib/arena-enabled'
 import { pointsForPlacement } from '@/lib/ranking'
 import type { EventTier } from '@/lib/schema'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
@@ -48,6 +49,7 @@ export default async function MePage() {
   const myRank = myIdx >= 0 && (pts.get(uid) ?? 0) > 0 ? myIdx + 1 : null
   const myPoints = pts.get(uid) ?? 0
   const myArenaPoints = challengePointsOf(uid)
+  const arenaOn = isArenaEnabled()
 
   return (
     <div style={{ padding: '16px 16px 28px' }} className="animate-fade-up">
@@ -79,7 +81,7 @@ export default async function MePage() {
         </Link>
       )}
 
-      {/* AI assistant entry */}
+      {arenaOn && (
       <Link href="/me/arena" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.accent}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 10 }}>
         <span style={{ width: 38, height: 38, borderRadius: 11, background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>⚔</span>
         <span style={{ flex: 1, minWidth: 0 }}>
@@ -88,6 +90,7 @@ export default async function MePage() {
         </span>
         <span style={{ color: C.accent, fontSize: 14 }}>‹</span>
       </Link>
+      )}
 
       {/* AI assistant entry */}
       <Link href="/assistant" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 16 }}>

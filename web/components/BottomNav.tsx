@@ -11,6 +11,7 @@ const icons = {
   cup: <><path d="M6 9h12v3a6 6 0 0 1-12 0z" /><path d="M9 18h6M10 21h4" /><path d="M6 9H4a2 2 0 0 1 0-4h2M18 9h2a2 2 0 0 0 0-4h-2" /></>,
   rank: <><path d="M4 20h16" /><rect x="5" y="11" width="4" height="8" rx="1" /><rect x="10" y="6" width="4" height="13" rx="1" /><rect x="15" y="14" width="4" height="5" rx="1" /></>,
   users: <><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></>,
+  gift: <><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" /></>,
   arena: <><circle cx="8" cy="10" r="2.5" /><circle cx="16" cy="10" r="2.5" /><path d="M5 19a7 7 0 0 1 14 0" /><path d="M12 3v3M9.5 5.5h5" /></>,
   me: <><circle cx="12" cy="9" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></>,
   login: <><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="M10 17l-5-5 5-5" /><path d="M5 12h12" /></>,
@@ -25,7 +26,9 @@ const TABS = [
   { href: '/', label: 'خانه', icon: icons.home },
   { href: '/competitions', label: 'مسابقات', icon: icons.cup },
   { href: '/leaderboard', label: 'رنکینگ', icon: icons.rank },
-  ...(ARENA_ON ? [{ href: '/arena', label: 'میدون', icon: icons.arena }] : []),
+  ...(ARENA_ON
+    ? [{ href: '/arena', label: 'میدون', icon: icons.arena }]
+    : [{ href: '/invite', label: 'دعوت', icon: icons.gift }]),
 ]
 
 export default function BottomNav() {
