@@ -40,7 +40,7 @@ export function parseBehaviorRange(params: {
     }
   }
 
-  const key = params.bdays ?? '30'
+  const key = params.bdays ?? 'all'
   if (key === 'all') {
     return {
       sinceMs: 0,

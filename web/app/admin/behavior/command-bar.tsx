@@ -46,7 +46,7 @@ function CommandBarInner({
 }) {
   const pathname = usePathname()
   const search = useSearchParams()
-  const time = search.get('bdays') ?? '30'
+  const time = search.get('bdays') ?? 'all'
   const city = search.get('bcity') ?? 'all'
   const disc = search.get('bdisc') ?? 'all'
   const view = (search.get('bview') ?? 'overview') as BehaviorView
