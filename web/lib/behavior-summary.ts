@@ -21,7 +21,7 @@ export function buildBehaviorStory(funnel: FunnelStep[], days: number, prevAppro
   const convDelta = conv != null && prevConv != null ? conv - prevConv : null
 
   const period = days > 0 ? `${days} روز` : 'کل دوره'
-  let body = `تو ${period}، ${signup} نفر ثبت‌نام کردن و ${approved} سهم تأیید شد`
+  let body = `تو ${period}، ${signup} حساب جدید ساخته شد و ${approved} سهم تأیید شد`
   if (conv != null && receipt > 0) body += ` (${conv}٪ فیش‌ها).`
   else body += '.'
 
@@ -39,6 +39,23 @@ export function buildBehaviorStory(funnel: FunnelStep[], days: number, prevAppro
 export function buildEmptyBehaviorStory(days: number) {
   const period = days > 0 ? `${days} روز اخیر` : 'کل دوره'
   return `هنوز رویداد tracking در ${period} ثبت نشده. از دیپلوی اخیر، هر ثبت‌نام، فیش و بازدید صفحه اینجا جمع می‌شه — چند روز صبر کن یا خودت یک ثبت‌نام تست بزن.`
+}
+
+/** Ground-truth signup count from app_users (track signup_complete was client-only until Aug 2026). */
+export function gamersCreatedInRange(
+  users: { role: string; createdAt: number; city?: string; primaryDisc?: string | null }[],
+  sinceMs: number,
+  untilMs: number | undefined,
+  city: string,
+  disc: string,
+) {
+  return users.filter(u =>
+    u.role === 'gamer'
+    && u.createdAt >= sinceMs
+    && (untilMs ? u.createdAt < untilMs : true)
+    && (city === 'all' || (u.city || '').trim() === city)
+    && (disc === 'all' || u.primaryDisc === disc)
+  ).length
 }
 
 export type FunnelInsight = { tone: 'warn' | 'good' | 'neutral'; title: string; text: string }

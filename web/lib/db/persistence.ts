@@ -783,14 +783,21 @@ export const persist = {
     trackWhere(sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
       return trackEventWhere(sinceMs, filters, untilMs)
     },
-    // Unique actors (user, falling back to session pre-auth) per named step —
-    // the right denominator for step-to-step conversion %, not raw event count.
-    async funnelCounts(names: string[], sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
+    // Unique actors per step — pre-auth steps count sessions; post-auth count
+    // logged-in users only (client-fired signup_complete without user_id was
+    // inflating counts before server-side tracking shipped).
+    async funnelCounts(names: string[], sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number, mode: 'registration' | 'arena' = 'registration') {
       const d = db(); if (!d) return []
       const list = names.map(n => `'${n.replace(/'/g, "''")}'`).join(',')
       const where = trackEventWhere(sinceMs, filters, untilMs)
+      const expr = mode === 'arena'
+        ? `COUNT(DISTINCT COALESCE(user_id, session_id))`
+        : `CASE WHEN name = 'signup_start'
+             THEN COUNT(DISTINCT session_id)
+             ELSE COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL)
+           END`
       const res: any = await d.execute(sql.raw(
-        `SELECT name, COUNT(DISTINCT COALESCE(user_id, session_id)) AS n
+        `SELECT name, ${expr} AS n
          FROM app_track_events WHERE name IN (${list}) AND ${where}
          GROUP BY name`))
       return (res.rows ?? res) as { name: string; n: string }[]

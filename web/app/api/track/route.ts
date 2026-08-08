@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { persist } from '@/lib/db/persistence'
+import { clientTrackAllowed, trackEventId } from '@/lib/track-events'
 
 // Behavioral event ingest — always returns ok, never throws into the client.
 // Fire-and-forget write (persist.track.insertMany doesn't await the DB), so
@@ -19,8 +20,9 @@ export async function POST(req: Request) {
 
   const rows = events
     .filter((e: any) => e && typeof e.name === 'string' && e.name.length > 0 && e.name.length < 60)
+    .filter((e: any) => clientTrackAllowed(e.name, uid))
     .map((e: any) => ({
-      id: 'ev_' + Math.random().toString(36).slice(2, 10),
+      id: trackEventId(e.name, uid),
       userId: uid,
       sessionId,
       name: e.name.slice(0, 60),
@@ -28,6 +30,6 @@ export async function POST(req: Request) {
       props: JSON.stringify(e.props ?? {}).slice(0, 500),
     }))
 
-  persist.track.insertMany(rows)
+  if (rows.length) persist.track.insertMany(rows)
   return NextResponse.json({ ok: true })
 }

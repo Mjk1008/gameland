@@ -1,11 +1,12 @@
 import Link from 'next/link'
+import { allUsers } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { C, DISP } from '@/components/ui'
 import { faDigits, toJalali, J_MONTHS } from '@/lib/jalali'
 import type { Disc } from '@/lib/mock-data'
 import { isArenaEnabled } from '@/lib/arena-enabled'
 import type { BehaviorRange } from '@/lib/behavior-range'
-import { buildBehaviorStory, buildEmptyBehaviorStory, buildFunnelInsights, deltaPct, type FunnelStep } from '@/lib/behavior-summary'
+import { buildBehaviorStory, buildEmptyBehaviorStory, buildFunnelInsights, deltaPct, gamersCreatedInRange, type FunnelStep } from '@/lib/behavior-summary'
 import BehaviorCommandBar from './command-bar'
 import StoryBillboard from './story-billboard'
 import type { BehaviorView } from './view-tabs'
@@ -78,7 +79,7 @@ export default async function BehaviorContent({
   ] = await Promise.all([
     persist.track.funnelCounts(funnelNames, sinceMs, filters, untilMs),
     compare ? persist.track.funnelCounts(funnelNames, range.prevSince, filters, range.prevUntil) : Promise.resolve([]),
-    isArenaEnabled() && needFunnel ? persist.track.funnelCounts(ARENA_FUNNEL_STEPS.map(s => s.name), sinceMs, filters, untilMs) : Promise.resolve([]),
+    isArenaEnabled() && needFunnel ? persist.track.funnelCounts(ARENA_FUNNEL_STEPS.map(s => s.name), sinceMs, filters, untilMs, 'arena') : Promise.resolve([]),
     needPaths ? persist.track.topPaths(sinceMs, 10, filters, untilMs) : Promise.resolve([]),
     needPaths ? persist.track.topJourneys(sinceMs, 8, filters, untilMs) : Promise.resolve([]),
     persist.track.dau(sinceMs, chartDays, filters, untilMs),
@@ -90,7 +91,11 @@ export default async function BehaviorContent({
 
   const counts = new Map(funnelRows.map(r => [r.name, Number(r.n)]))
   const prevCounts = new Map(prevFunnelRows.map(r => [r.name, Number(r.n)]))
-  const funnel: FunnelStep[] = FUNNEL_STEPS.map(s => ({ ...s, n: counts.get(s.name) ?? 0 }))
+  const realSignups = gamersCreatedInRange(allUsers(), sinceMs, untilMs, city, disc)
+  const funnel: FunnelStep[] = FUNNEL_STEPS.map(s => ({
+    ...s,
+    n: s.name === 'signup_complete' ? realSignups : (counts.get(s.name) ?? 0),
+  }))
   const first = funnel[0]?.n ?? 0
   const approved = counts.get('reg_approved') ?? 0
   const prevApproved = prevCounts.get('reg_approved') ?? 0

@@ -1,4 +1,5 @@
 import { persist } from '@/lib/db/persistence'
+import { trackEventId } from '@/lib/track-events'
 
 type UserCtx = { city?: string; primaryDisc?: string | null }
 
@@ -11,7 +12,7 @@ export function trackServer(e: {
   props?: Record<string, unknown>
 }) {
   persist.track.insertMany([{
-    id: 'ev_' + Math.random().toString(36).slice(2, 10),
+    id: trackEventId(e.name, e.userId),
     userId: e.userId,
     sessionId: (e.sessionId ?? 'server').slice(0, 40),
     name: e.name.slice(0, 60),
