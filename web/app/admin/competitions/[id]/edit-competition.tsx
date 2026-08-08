@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
+import JalaliRangePicker from '@/components/JalaliRangePicker'
 
 // Edit / delete a parent competition (رویداد). The location field here is what
 // the app — and the AI assistant — reports as the venue, so it must be fixable.
@@ -63,7 +64,7 @@ export default function EditCompetition({ id, title, location, date, childCount 
         <input value={loc} onChange={e => setLoc(e.target.value.slice(0, 120))} placeholder="مثلاً: سالن ایسپورت تهران — حضوری" style={inp} />
       </Field>
       <Field label="تاریخ">
-        <input value={d} onChange={e => setD(e.target.value.slice(0, 60))} placeholder="مثلاً: ۱۵ مرداد ۱۴۰۵" style={inp} />
+        <JalaliRangePicker value={d} onChange={display => setD(display)} />
       </Field>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>

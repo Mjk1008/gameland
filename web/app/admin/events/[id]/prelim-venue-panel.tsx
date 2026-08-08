@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { IRAN_GEO, PROVINCE_NAMES } from '@/lib/iran-geo'
 import type { PrelimVenue } from '@/lib/store'
 import { C } from '@/components/ui'
+import JalaliDatePicker from '@/components/JalaliDatePicker'
 
 type GamenetPick = { id: string; name: string; city: string; province?: string }
 
@@ -116,8 +117,8 @@ export default function PrelimVenuePanel({
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <input value={form.fromDate ?? ''} onChange={e => setForm(f => ({ ...f, fromDate: e.target.value }))} placeholder="از تاریخ" style={inp} />
-        <input value={form.toDate ?? ''} onChange={e => setForm(f => ({ ...f, toDate: e.target.value }))} placeholder="تا تاریخ" style={inp} />
+        <JalaliDatePicker valueDisplay={form.fromDate ?? ''} onChange={d => setForm(f => ({ ...f, fromDate: d || undefined }))} placeholder="از تاریخ" />
+        <JalaliDatePicker valueDisplay={form.toDate ?? ''} onChange={d => setForm(f => ({ ...f, toDate: d || undefined }))} placeholder="تا تاریخ" />
       </div>
       <input value={form.scheduleNote ?? ''} onChange={e => setForm(f => ({ ...f, scheduleNote: e.target.value }))} placeholder="زمان‌بندی / توضیح" style={inp} />
       <input dir="ltr" value={form.contactPhone ?? ''} onChange={e => setForm(f => ({ ...f, contactPhone: e.target.value }))} placeholder="تماس" style={{ ...inp, textAlign: 'left' }} />

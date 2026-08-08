@@ -101,3 +101,24 @@ export function todayJalali(): Jalali {
   const n = new Date()
   return toJalali(n.getFullYear(), n.getMonth() + 1, n.getDate())
 }
+
+export function formatJalali(j: Jalali): string {
+  return `${faDigits(j.jd)} ${J_MONTHS[j.jm - 1]} ${faDigits(j.jy)}`
+}
+
+export function jalaliToIso(j: Jalali): string {
+  const g = toGregorian(j.jy, j.jm, j.jd)
+  return `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`
+}
+
+export function isoToJalali(iso: string): Jalali | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return null
+  return toJalali(+m[1], +m[2], +m[3])
+}
+
+export function formatIsoRangeJalali(fromIso: string, toIso: string): string {
+  const f = isoToJalali(fromIso), t = isoToJalali(toIso)
+  if (!f || !t) return `${fromIso} تا ${toIso}`
+  return formatJalaliRange(f, t)
+}

@@ -2,6 +2,8 @@
 import { Suspense, useCallback, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { C } from '@/components/ui'
+import JalaliDatePicker from '@/components/JalaliDatePicker'
+import { formatIsoRangeJalali } from '@/lib/jalali'
 import type { Disc } from '@/lib/mock-data'
 
 const TIMES = [
@@ -92,13 +94,11 @@ function BehaviorFiltersInner({ cityOptions, discOptions }: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'end' }}>
           <label style={{ fontSize: 9, color: C.tmut, display: 'flex', flexDirection: 'column', gap: 3 }}>
             از
-            <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-              style={{ minHeight: 36, borderRadius: 8, border: `1px solid ${C.line}`, background: C.sf2, color: C.thi, fontSize: 11, padding: '0 8px' }} />
+            <JalaliDatePicker compact valueIso={from} onChange={(_, __, iso) => setFrom(iso)} placeholder="از تاریخ" yearMin={1400} />
           </label>
           <label style={{ fontSize: 9, color: C.tmut, display: 'flex', flexDirection: 'column', gap: 3 }}>
             تا
-            <input type="date" value={to} onChange={e => setTo(e.target.value)}
-              style={{ minHeight: 36, borderRadius: 8, border: `1px solid ${C.line}`, background: C.sf2, color: C.thi, fontSize: 11, padding: '0 8px' }} />
+            <JalaliDatePicker compact valueIso={to} onChange={(_, __, iso) => setTo(iso)} placeholder="تا تاریخ" yearMin={1400} />
           </label>
           <button type="button" onClick={applyCustom}
             style={{ minHeight: 36, border: 'none', borderRadius: 8, background: C.accent, color: C.ink, fontWeight: 800, fontSize: 11, padding: '0 14px', cursor: 'pointer' }}>
@@ -112,7 +112,7 @@ function BehaviorFiltersInner({ cityOptions, discOptions }: {
         <FilterSelect label="رشته" value={disc} param="bdisc" options={[{ v: 'all', l: 'همه' }, ...discOptions.map(d => ({ v: d.key, l: d.name }))]} search={search} pathname={pathname} />
       </div>
       <div style={{ fontSize: 10, color: C.tmut }}>
-        {bfrom && bto ? `${bfrom} تا ${bto}` : time === 'all' ? 'کل دوره' : `${time === 'custom' ? '…' : time} روز`}
+        {bfrom && bto ? formatIsoRangeJalali(bfrom, bto) : time === 'all' ? 'کل دوره' : `${time === 'custom' ? '…' : time} روز`}
       </div>
     </div>
   )
