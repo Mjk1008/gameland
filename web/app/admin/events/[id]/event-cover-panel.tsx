@@ -1,11 +1,10 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import CoverUploader from '@/components/CoverUploader'
-import { eventCoverUrl } from '@/lib/store'
 
 export default function EventCoverPanel({ id, hasCover }: { id: string; hasCover: boolean }) {
   const router = useRouter()
-  const preview = hasCover ? eventCoverUrl(id) : undefined
+  const preview = hasCover ? `/api/event-cover/${id}` : undefined
 
   async function upload(imageData: string) {
     const res = await fetch('/api/admin/event-cover', {

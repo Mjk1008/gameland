@@ -8,7 +8,8 @@
 
 import { Disc } from './mock-data'
 import { persist, startHydration, whenAuthReady as persistAuthReady } from './db/persistence'
-import { bundledBannerDataUrl, defaultDiscBanner } from './game-assets'
+import { bundledBannerDataUrl } from './game-assets-server'
+import { defaultDiscBanner } from './game-assets'
 import { usingDb } from './db/client'
 
 // ─── Users ──────────────────────────────────────────────────────────────────

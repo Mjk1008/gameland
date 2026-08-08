@@ -1,11 +1,10 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import CoverUploader from '@/components/CoverUploader'
-import { competitionCoverUrl } from '@/lib/store'
 
 export default function CompetitionCoverPanel({ id, hasCover }: { id: string; hasCover: boolean }) {
   const router = useRouter()
-  const preview = hasCover ? competitionCoverUrl(id) : undefined
+  const preview = hasCover ? `/api/competition-cover/${id}` : undefined
 
   async function upload(imageData: string) {
     const res = await fetch('/api/admin/competition-cover', {
