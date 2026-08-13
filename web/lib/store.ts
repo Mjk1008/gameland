@@ -113,6 +113,7 @@ function ensureHydrated() {
     loadPlayMatch: (m: unknown) => { require('./arena').hydratePlayMatch(m as any) },
     loadPromoterCode: (c: unknown) => { require('./promoter').hydratePromoterCode(c as any) },
     loadPromoterEarning: (e: unknown) => { require('./promoter').hydratePromoterEarning(e as any) },
+    loadPromoterCodeRequest: (r: unknown) => { require('./promoter').hydratePromoterCodeRequest(r as any) },
   }).then(() => {
     reconcileDefaultPromos()
     seedRankingIfEmpty()

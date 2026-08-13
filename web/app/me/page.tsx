@@ -83,6 +83,22 @@ export default async function MePage() {
         </Link>
       )}
 
+      {promoDash && (
+        <Link href="/me/promoter" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.gold}55`, borderRadius: 13, padding: '13px 14px', marginBottom: 16 }}>
+          <span style={{ width: 38, height: 38, borderRadius: 11, background: C.goldSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>🎟</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: C.thi }}>پنل پروموتر</span>
+            <span style={{ display: 'block', fontSize: 11, color: C.tmut, marginTop: 2 }}>
+              {promoDash.codes.length > 0
+                ? `${promoDash.codes.length} کد · ${promoDash.totalUses} استفاده`
+                : promoDash.pendingRequest ? 'درخواست کد در انتظار تأیید' : 'بدون کد فعال — درخواست بزن'}
+              {promoDash.pendingCommission > 0 ? ` · ${promoDash.pendingCommission.toLocaleString('fa-IR')} ت معوق` : ''}
+            </span>
+          </span>
+          <span style={{ color: C.gold, fontSize: 14 }}>‹</span>
+        </Link>
+      )}
+
       {arenaOn && (
       <Link href="/me/arena" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.accent}44`, borderRadius: 13, padding: '13px 14px', marginBottom: 10 }}>
         <span style={{ width: 38, height: 38, borderRadius: 11, background: C.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>⚔</span>
@@ -109,20 +125,6 @@ export default async function MePage() {
         <div style={{ marginBottom: 16 }}>
           <ShareCard uid={uid} name={u.name} tag={u.tag} city={u.city} disc={u.primaryDisc ?? null} rank={myRank} points={myPoints} total={gamers.length} hasPhoto={hasAvatar(uid)} />
         </div>
-      )}
-
-      {promoDash && (
-        <Link href="/me/promoter" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, background: C.sf1, border: `1px solid ${C.gold}55`, borderRadius: 13, padding: '13px 14px', marginBottom: 16 }}>
-          <span style={{ width: 38, height: 38, borderRadius: 11, background: C.goldSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>🎟</span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: C.thi }}>پنل پروموتر</span>
-            <span style={{ display: 'block', fontSize: 11, color: C.tmut, marginTop: 2 }}>
-              کد {promoDash.code} · {promoDash.totalUses} استفاده
-              {promoDash.pendingCommission > 0 ? ` · ${promoDash.pendingCommission.toLocaleString('fa-IR')} ت معوق` : ''}
-            </span>
-          </span>
-          <span style={{ color: C.gold, fontSize: 14 }}>‹</span>
-        </Link>
       )}
 
       {/* Tiles */}

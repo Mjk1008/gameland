@@ -5,7 +5,8 @@ import { getUserById, whenReady } from '@/lib/store'
 import {
   allPromoterCodes, updatePromoterCode, getPromoterCode,
   pendingEarningsTotal, allPromoterEarnings, activatePromoter, deactivatePromoter,
-  updatePromoterTerms, listActivePromoters, primaryCodeForPromoter,
+  updatePromoterTerms, listActivePromoters, pendingCodeRequests,
+  adminIssueCode, rejectCodeRequest, statsForCode,
 } from '@/lib/promoter'
 
 async function adminOnly() {
@@ -17,27 +18,61 @@ async function adminOnly() {
   return uid
 }
 
+function errMsg(code: string) {
+  if (code === 'CODE_EXISTS') return 'کد تکراری است'
+  if (code === 'USER_NOT_FOUND') return 'کاربر پیدا نشد'
+  if (code === 'NOT_ACTIVE') return 'پروموتر فعال نیست'
+  if (code === 'NOT_FOUND') return 'درخواست پیدا نشد'
+  if (code === 'ALREADY_REVIEWED') return 'این درخواست قبلاً بررسی شده'
+  if (code === 'CODE_LIMIT') return 'سقف کد برای این پروموتر پر است'
+  if (code === 'DISCOUNT_RANGE') return 'تخفیف باید ۱ تا ۹۰٪ باشد'
+  if (code === 'COMMISSION_RANGE') return 'کمیسیون باید ۰ تا ۵۰٪ باشد'
+  if (code === 'CODE_LENGTH') return 'کد باید ۳ تا ۲۴ کاراکتر باشد'
+  return 'عملیات انجام نشد'
+}
+
 export async function GET() {
   await whenReady()
-  if (!await adminOnly()) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
+  const adminId = await adminOnly()
+  if (!adminId) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const partners = listActivePromoters().map(u => {
-    const code = primaryCodeForPromoter(u.id)
+    const codes = allPromoterCodes()
+      .filter(c => c.promoterUserId === u.id && c.active)
+      .map(c => ({
+        id: c.id,
+        code: c.code,
+        discountPercent: c.discountPercent,
+        commissionPercent: c.commissionPercent,
+        note: c.note,
+        ...statsForCode(c.id),
+      }))
     return {
       userId: u.id,
       name: u.name,
       tag: u.tag,
       phone: u.phone ?? '',
-      discountPercent: u.promoterDiscountPercent ?? code?.discountPercent ?? 0,
-      commissionPercent: u.promoterCommissionPercent ?? code?.commissionPercent ?? 0,
-      code: code?.code ?? '',
-      codeId: code?.id,
-      useCount: code?.useCount ?? 0,
+      discountPercent: u.promoterDiscountPercent ?? 0,
+      commissionPercent: u.promoterCommissionPercent ?? 0,
+      codes,
       active: !!u.promoterActive,
-      note: code?.note,
       pendingCommission: allPromoterEarnings()
         .filter(e => e.promoterUserId === u.id && e.status === 'pending')
         .reduce((s, e) => s + e.commissionAmount, 0),
+    }
+  })
+
+  const requests = pendingCodeRequests().map(r => {
+    const u = getUserById(r.promoterUserId)
+    return {
+      id: r.id,
+      promoterUserId: r.promoterUserId,
+      promoterName: u?.name ?? '?',
+      promoterTag: u?.tag ?? '?',
+      promoterPhone: u?.phone ?? '',
+      requestedCode: r.requestedCode,
+      note: r.note,
+      createdAt: r.createdAt,
     }
   })
 
@@ -52,12 +87,13 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json({ partners, earnings, pendingTotal: pendingEarningsTotal() })
+  return NextResponse.json({ partners, requests, earnings, pendingTotal: pendingEarningsTotal() })
 }
 
 export async function POST(req: Request) {
   await whenReady()
-  if (!await adminOnly()) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
+  const adminId = await adminOnly()
+  if (!adminId) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
   const action = (body.action ?? 'activate').toString()
@@ -88,29 +124,59 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ ok: true })
     } catch (e: any) {
-      const msg = e.message === 'DISCOUNT_RANGE' ? 'تخفیف باید ۱ تا ۹۰٪ باشد'
-        : e.message === 'COMMISSION_RANGE' ? 'کمیسیون باید ۰ تا ۵۰٪ باشد'
-        : 'به‌روزرسانی نشد'
-      return NextResponse.json({ error: msg }, { status: 400 })
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    }
+  }
+
+  if (action === 'approveRequest') {
+    const requestId = (body.requestId ?? '').toString()
+    if (!requestId) return NextResponse.json({ error: 'درخواست نامعتبر' }, { status: 400 })
+    try {
+      const req = pendingCodeRequests().find(r => r.id === requestId)
+      if (!req) return NextResponse.json({ error: 'درخواست پیدا نشد' }, { status: 404 })
+      const code = adminIssueCode(req.promoterUserId, adminId, {
+        requestId,
+        code: body.code?.toString(),
+        note: body.note?.toString(),
+      })
+      return NextResponse.json({ ok: true, code: { id: code.id, code: code.code } })
+    } catch (e: any) {
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    }
+  }
+
+  if (action === 'rejectRequest') {
+    const requestId = (body.requestId ?? '').toString()
+    if (!requestId) return NextResponse.json({ error: 'درخواست نامعتبر' }, { status: 400 })
+    try {
+      rejectCodeRequest(requestId, adminId, body.reason?.toString())
+      return NextResponse.json({ ok: true })
+    } catch (e: any) {
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    }
+  }
+
+  if (action === 'createCode') {
+    const userId = (body.promoterUserId ?? body.userId ?? '').toString()
+    if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
+    try {
+      const code = adminIssueCode(userId, adminId, {
+        code: body.code?.toString(),
+        note: body.note?.toString(),
+        compId: body.compId?.toString(),
+      })
+      return NextResponse.json({ ok: true, code: { id: code.id, code: code.code } })
+    } catch (e: any) {
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
     }
   }
 
   try {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
-    const code = activatePromoter(
-      userId,
-      Number(body.discountPercent),
-      Number(body.commissionPercent),
-      body.note,
-    )
-    return NextResponse.json({ ok: true, code })
+    activatePromoter(userId, Number(body.discountPercent), Number(body.commissionPercent))
+    return NextResponse.json({ ok: true })
   } catch (e: any) {
-    const msg = e.message === 'CODE_EXISTS' ? 'کد تکراری — تگ این کاربر قبلاً استفاده شده'
-      : e.message === 'USER_NOT_FOUND' ? 'کاربر پیدا نشد'
-      : e.message === 'DISCOUNT_RANGE' ? 'تخفیف باید ۱ تا ۹۰٪ باشد'
-      : e.message === 'COMMISSION_RANGE' ? 'کمیسیون باید ۰ تا ۵۰٪ باشد'
-      : 'فعال‌سازی نشد'
-    return NextResponse.json({ error: msg }, { status: 400 })
+    return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
   }
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { allUsers, allEvents, pendingRegistrations, allPromos } from '@/lib/store'
+import { pendingCodeRequests } from '@/lib/promoter'
 import { C, Num } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,7 @@ export default function AdminHome() {
   const events = allEvents()
   const liveComps = events.filter(c => c.status === 'live' || c.status === 'open').length
   const pending = pendingRegistrations().length
+  const codeReqPending = pendingCodeRequests().length
   const slideCount = allPromos().length
 
   // Grouped hubs — related jobs live under one URL with tabs instead of one
@@ -21,7 +23,7 @@ export default function AdminHome() {
     { href: '/admin/requests',    label: 'درخواست‌ها', sub: pending ? `${pending} منتظر` : 'همه رسیدگی‌شده', icon: <IconInbox />, badge: pending },
     { href: '/admin/gamers',      label: 'گیمرها',     sub: `${userCount} کاربر`,        icon: <IconUsers /> },
     { href: '/admin/gamenets',    label: 'گیم‌نت‌ها',  sub: 'تأیید و مدیریت',            icon: <IconPin /> },
-    { href: '/admin/promoters',   label: 'پروموتر',    sub: 'کد تخفیف · کمیسیون',        icon: <IconGift /> },
+    { href: '/admin/promoters',   label: 'پروموتر',    sub: codeReqPending ? `${codeReqPending} درخواست کد` : 'فعال‌سازی · تأیید کد', icon: <IconGift />, badge: codeReqPending },
     { href: '/admin/arena',       label: 'میدون',      sub: 'نسبت درخواست/تأیید',        icon: <IconPin /> },
     { href: '/admin/notify',      label: 'اعلان',      sub: 'ارسال پیام همگانی',         icon: <IconBell /> },
   ]
@@ -43,6 +45,14 @@ export default function AdminHome() {
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent }} />
           <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.accent }}>درخواست ثبت‌نام منتظر تایید</span>
           <Num size={18} color={C.accent}>{pending}</Num>
+        </Link>
+      )}
+
+      {codeReqPending > 0 && (
+        <Link href="/admin/promoters" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold }} />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.gold }}>درخواست کد پروموتر منتظر تأیید</span>
+          <Num size={18} color={C.gold}>{codeReqPending}</Num>
         </Link>
       )}
 

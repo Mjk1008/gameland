@@ -34,9 +34,30 @@ export interface PromoterEarning {
   createdAt: number
 }
 
+export type CodeRequestStatus = 'pending' | 'approved' | 'rejected'
+
+/** Promoter asks admin for a new code — admin must approve before code goes live. */
+export interface PromoterCodeRequest {
+  id: string
+  promoterUserId: string
+  requestedCode?: string
+  compId?: string
+  note?: string
+  status: CodeRequestStatus
+  rejectReason?: string
+  reviewedBy?: string
+  reviewedAt?: number
+  approvedCodeId?: string
+  createdAt: number
+}
+
+const MAX_CODES_PER_PROMOTER = 5
+const MAX_PENDING_REQUESTS = 1
+
 const codes = new Map<string, PromoterCode>()
 const codeByStr = new Map<string, string>()
 const earnings = new Map<string, PromoterEarning>()
+const codeRequests = new Map<string, PromoterCodeRequest>()
 
 function ms(v: unknown): number {
   return v instanceof Date ? v.getTime() : typeof v === 'number' ? v : Date.now()
@@ -92,6 +113,27 @@ export function hydratePromoterEarning(row: {
     createdAt: ms(row.createdAt),
   }
   earnings.set(e.id, e)
+}
+
+export function hydratePromoterCodeRequest(row: {
+  id: string; promoterUserId: string; requestedCode?: string | null; compId?: string | null
+  note?: string | null; status: string; rejectReason?: string | null; reviewedBy?: string | null
+  reviewedAt?: unknown; approvedCodeId?: string | null; createdAt: unknown
+}) {
+  const r: PromoterCodeRequest = {
+    id: row.id,
+    promoterUserId: row.promoterUserId,
+    requestedCode: row.requestedCode ?? undefined,
+    compId: row.compId ?? undefined,
+    note: row.note ?? undefined,
+    status: row.status as CodeRequestStatus,
+    rejectReason: row.rejectReason ?? undefined,
+    reviewedBy: row.reviewedBy ?? undefined,
+    reviewedAt: row.reviewedAt ? ms(row.reviewedAt) : undefined,
+    approvedCodeId: row.approvedCodeId ?? undefined,
+    createdAt: ms(row.createdAt),
+  }
+  codeRequests.set(r.id, r)
 }
 
 export function allPromoterCodes(): PromoterCode[] {
@@ -214,8 +256,8 @@ function persistPromoterUser(u: User) {
   })
 }
 
-/** Admin activates partner — one code from @tag, terms stored on user row. */
-export function activatePromoter(userId: string, discountPercent: number, commissionPercent: number, note?: string) {
+/** Admin activates partner — terms only; codes need separate approval or admin create. */
+export function activatePromoter(userId: string, discountPercent: number, commissionPercent: number) {
   const u = getUserById(userId)
   if (!u || u.role !== 'gamer') throw new Error('USER_NOT_FOUND')
   const d = Math.round(discountPercent)
@@ -228,19 +270,7 @@ export function activatePromoter(userId: string, discountPercent: number, commis
   u.promoterCommissionPercent = c
   u.promoterActivatedAt = Date.now()
   persistPromoterUser(u)
-
-  const existing = allPromoterCodes().find(pc => pc.promoterUserId === userId)
-  if (existing) {
-    updatePromoterCode(existing.id, { active: true, discountPercent: d, commissionPercent: c, note })
-    return existing
-  }
-  return createPromoterCode({
-    code: defaultCodeForUser(u),
-    promoterUserId: userId,
-    discountPercent: d,
-    commissionPercent: c,
-    note,
-  })
+  return u
 }
 
 export function deactivatePromoter(userId: string) {
@@ -253,6 +283,122 @@ export function deactivatePromoter(userId: string) {
   }
 }
 
+export function statsForCode(codeId: string) {
+  const regs = allRegistrations().filter(r => r.promoterCodeId === codeId && r.status !== 'rejected')
+  const approved = regs.filter(r => r.status === 'approved').length
+  const pending = regs.filter(r => r.status === 'pending').length
+  const conversionPercent = (approved + pending) > 0 ? Math.round(approved / (approved + pending) * 100) : 0
+  const code = codes.get(codeId)
+  const mine = [...earnings.values()].filter(e => e.codeId === codeId)
+  return {
+    useCount: code?.useCount ?? 0,
+    totalUses: regs.length,
+    approved,
+    pending,
+    conversionPercent,
+    pendingCommission: mine.filter(e => e.status === 'pending').reduce((s, e) => s + e.commissionAmount, 0),
+  }
+}
+
+export function pendingCodeRequests() {
+  return [...codeRequests.values()].filter(r => r.status === 'pending').sort((a, b) => a.createdAt - b.createdAt)
+}
+
+export function requestsForPromoter(userId: string) {
+  return [...codeRequests.values()].filter(r => r.promoterUserId === userId).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+function assertCanAddCode(promoterUserId: string) {
+  const active = allPromoterCodes().filter(c => c.promoterUserId === promoterUserId && c.active)
+  if (active.length >= MAX_CODES_PER_PROMOTER) throw new Error('CODE_LIMIT')
+}
+
+function assertNoPendingRequest(promoterUserId: string) {
+  if (pendingCodeRequests().some(r => r.promoterUserId === promoterUserId)) throw new Error('REQUEST_PENDING')
+}
+
+/** Promoter submits a code request — admin must approve. */
+export function submitCodeRequest(promoterUserId: string, input: { code?: string; note?: string; compId?: string }) {
+  const u = getUserById(promoterUserId)
+  if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
+  assertCanAddCode(promoterUserId)
+  assertNoPendingRequest(promoterUserId)
+
+  let requestedCode: string | undefined
+  if (input.code?.trim()) {
+    requestedCode = normCode(input.code)
+    if (requestedCode.length < 3 || requestedCode.length > 24) throw new Error('CODE_LENGTH')
+    if (codeByStr.has(requestedCode)) throw new Error('CODE_EXISTS')
+  }
+
+  const r: PromoterCodeRequest = {
+    id: cid('pcr_'),
+    promoterUserId,
+    requestedCode,
+    compId: input.compId || undefined,
+    note: input.note?.trim() || undefined,
+    status: 'pending',
+    createdAt: Date.now(),
+  }
+  codeRequests.set(r.id, r)
+  persist.promoterCodeRequest.insert(r)
+  return r
+}
+
+/** Admin creates code directly (no request) or approves a pending request. */
+export function adminIssueCode(
+  promoterUserId: string,
+  adminId: string,
+  input: { code?: string; compId?: string; note?: string; requestId?: string },
+) {
+  const u = getUserById(promoterUserId)
+  if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
+
+  let req: PromoterCodeRequest | undefined
+  if (input.requestId) {
+    req = codeRequests.get(input.requestId)
+    if (!req || req.promoterUserId !== promoterUserId) throw new Error('NOT_FOUND')
+    if (req.status !== 'pending') throw new Error('ALREADY_REVIEWED')
+  } else {
+    assertCanAddCode(promoterUserId)
+  }
+
+  const codeStr = input.code
+    ? normCode(input.code)
+    : req?.requestedCode
+      ? normCode(req.requestedCode)
+      : defaultCodeForUser(u)
+
+  const c = createPromoterCode({
+    code: codeStr,
+    promoterUserId,
+    discountPercent: u.promoterDiscountPercent ?? 20,
+    commissionPercent: u.promoterCommissionPercent ?? 10,
+    compId: input.compId ?? req?.compId,
+    note: input.note ?? req?.note,
+  })
+
+  if (req) {
+    req.status = 'approved'
+    req.reviewedBy = adminId
+    req.reviewedAt = Date.now()
+    req.approvedCodeId = c.id
+    persist.promoterCodeRequest.update(req)
+  }
+  return c
+}
+
+export function rejectCodeRequest(requestId: string, adminId: string, reason?: string) {
+  const req = codeRequests.get(requestId)
+  if (!req || req.status !== 'pending') throw new Error('NOT_FOUND')
+  req.status = 'rejected'
+  req.reviewedBy = adminId
+  req.reviewedAt = Date.now()
+  req.rejectReason = reason?.trim() || 'رد شد'
+  persist.promoterCodeRequest.update(req)
+  return req
+}
+
 export function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
   const u = getUserById(userId)
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
@@ -263,8 +409,6 @@ export function updatePromoterTerms(userId: string, discountPercent: number, com
   u.promoterDiscountPercent = d
   u.promoterCommissionPercent = c
   persistPromoterUser(u)
-  const pc = allPromoterCodes().find(x => x.promoterUserId === userId)
-  if (pc) updatePromoterCode(pc.id, { discountPercent: d, commissionPercent: c })
 }
 
 export function primaryCodeForPromoter(userId: string): PromoterCode | undefined {
@@ -285,8 +429,10 @@ export interface PromoterActivityRow {
 export function promoterDashboard(userId: string) {
   const u = getUserById(userId)
   if (!u?.promoterActive) return null
-  const code = primaryCodeForPromoter(userId)
-  const codeIds = new Set(allPromoterCodes().filter(c => c.promoterUserId === userId).map(c => c.id))
+
+  const myCodes = allPromoterCodes().filter(c => c.promoterUserId === userId).sort((a, b) => b.createdAt - a.createdAt)
+  const activeCodes = myCodes.filter(c => c.active)
+  const codeIds = new Set(myCodes.map(c => c.id))
   const regs = allRegistrations()
     .filter(r => r.promoterCodeId && codeIds.has(r.promoterCodeId) && r.status !== 'rejected')
     .sort((a, b) => b.createdAt - a.createdAt)
@@ -300,33 +446,58 @@ export function promoterDashboard(userId: string) {
   const pendingCommission = mine.filter(e => e.status === 'pending').reduce((s, e) => s + e.commissionAmount, 0)
   const paidCommission = mine.filter(e => e.status === 'paid').reduce((s, e) => s + e.commissionAmount, 0)
 
-  const activity: PromoterActivityRow[] = regs.slice(0, 50).map(r => {
-    const buyer = getUserById(r.userId)
-    const ev = getEvent(r.compId)
+  const codes = activeCodes.map(c => {
+    const st = statsForCode(c.id)
+    const activity = regs.filter(r => r.promoterCodeId === c.id).slice(0, 20).map(r => {
+      const buyer = getUserById(r.userId)
+      const ev = getEvent(r.compId)
+      return {
+        regId: r.id,
+        buyerTag: buyer?.tag ?? '?',
+        buyerName: buyer?.name ?? '?',
+        eventTitle: ev?.title ?? r.compId,
+        status: r.status as 'pending' | 'approved' | 'rejected',
+        attempts: r.attempts,
+        createdAt: r.createdAt,
+      }
+    })
     return {
-      regId: r.id,
-      buyerTag: buyer?.tag ?? '?',
-      buyerName: buyer?.name ?? '?',
-      eventTitle: ev?.title ?? r.compId,
-      status: r.status,
-      attempts: r.attempts,
-      createdAt: r.createdAt,
+      id: c.id,
+      code: c.code,
+      discountPercent: c.discountPercent,
+      commissionPercent: c.commissionPercent,
+      shareLink: `https://gamelandteam.ir/?code=${encodeURIComponent(c.code)}`,
+      ...st,
+      activity,
     }
   })
 
+  const myRequests = requestsForPromoter(userId)
+  const pendingRequest = myRequests.find(r => r.status === 'pending') ?? null
+  const lastRejected = myRequests.find(r => r.status === 'rejected') ?? null
+  const canRequestNew = activeCodes.length < MAX_CODES_PER_PROMOTER && !pendingRequest
+
   return {
-    code: code?.code ?? '',
-    discountPercent: u.promoterDiscountPercent ?? code?.discountPercent ?? 0,
-    commissionPercent: u.promoterCommissionPercent ?? code?.commissionPercent ?? 0,
-    useCount: code?.useCount ?? 0,
-    shareLink: code ? `https://gamelandteam.ir/?code=${encodeURIComponent(code.code)}` : '',
+    discountPercent: u.promoterDiscountPercent ?? 0,
+    commissionPercent: u.promoterCommissionPercent ?? 0,
+    codes,
     totalUses,
     approved,
     pending,
     conversionPercent,
     pendingCommission,
     paidCommission,
-    activity,
+    pendingRequest: pendingRequest ? {
+      id: pendingRequest.id,
+      requestedCode: pendingRequest.requestedCode,
+      note: pendingRequest.note,
+      createdAt: pendingRequest.createdAt,
+    } : null,
+    lastRejected: lastRejected?.status === 'rejected' && lastRejected.reviewedAt && lastRejected.reviewedAt > Date.now() - 7 * 86400000
+      ? { reason: lastRejected.rejectReason, at: lastRejected.reviewedAt }
+      : null,
+    canRequestNew,
+    maxCodes: MAX_CODES_PER_PROMOTER,
   }
 }
 
@@ -480,4 +651,66 @@ export function markEarningPaid(earningId: string, note?: string) {
 
 export function allPromoterEarnings(): PromoterEarning[] {
   return [...earnings.values()].sort((a, b) => b.createdAt - a.createdAt)
+}
+
+export interface PromoterAnalyticsRow {
+  at: number
+  status: 'pending' | 'approved' | 'rejected'
+  promoterUserId: string
+  promoterName: string
+  promoterTag: string
+  codeId: string
+  code: string
+  attempts: number
+  revenue: number
+  commission: number
+  commissionStatus?: EarningStatus
+}
+
+export interface PromoterAnalyticsRequestRow {
+  at: number
+  status: CodeRequestStatus
+  promoterUserId: string
+}
+
+/** Admin analytics — serializable rows for client-side filtering. */
+export function promoterAnalyticsSnap() {
+  const partners = listActivePromoters()
+  const activeCodes = allPromoterCodes().filter(c => c.active)
+  const promoRegs = allRegistrations().filter(r => r.promoterCodeId)
+  const allEarn = allPromoterEarnings()
+
+  const rows: PromoterAnalyticsRow[] = promoRegs.map(r => {
+    const code = codes.get(r.promoterCodeId!)
+    const promoter = code ? getUserById(code.promoterUserId) : undefined
+    const review = regAdminReview(r)
+    const earning = allEarn.find(e => e.regId === r.id)
+    return {
+      at: r.createdAt,
+      status: r.status,
+      promoterUserId: code?.promoterUserId ?? '',
+      promoterName: promoter?.name ?? '?',
+      promoterTag: promoter?.tag ?? '?',
+      codeId: r.promoterCodeId!,
+      code: code?.code ?? '?',
+      attempts: r.attempts,
+      revenue: r.status === 'approved' ? review.revenueTotal : 0,
+      commission: earning?.commissionAmount ?? 0,
+      commissionStatus: earning?.status,
+    }
+  })
+
+  const requestRows: PromoterAnalyticsRequestRow[] = [...codeRequests.values()].map(r => ({
+    at: r.createdAt,
+    status: r.status,
+    promoterUserId: r.promoterUserId,
+  }))
+
+  return {
+    activePromoters: partners.length,
+    activeCodes: activeCodes.length,
+    pendingCodeRequests: pendingCodeRequests().length,
+    rows,
+    requestRows,
+  }
 }

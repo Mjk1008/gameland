@@ -8,7 +8,9 @@ import HubTabs from '@/components/admin-tabs'
 import AnalyticsClient, { type RegRec, type UserRec } from './client'
 import BehaviorContent, { type BehaviorBusiness } from '../behavior/content'
 import MonitorContent from '../ai/monitor-content'
+import PromoterAnalyticsContent from './promoter-content'
 import { parseBehaviorRange } from '@/lib/behavior-range'
+import { promoterAnalyticsSnap } from '@/lib/promoter'
 import type { BehaviorView } from '../behavior/view-tabs'
 
 export const dynamic = 'force-dynamic'
@@ -77,6 +79,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
   const bdisc = searchParams.bdisc ?? 'all'
   const bview = (VIEWS.includes(searchParams.bview as BehaviorView) ? searchParams.bview : 'overview') as BehaviorView
   const business = behaviorBusiness(regs, range, bcity, bdisc)
+  const promoterSnap = promoterAnalyticsSnap()
 
   return (
     <div className="animate-fade-up">
@@ -85,6 +88,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
         <HubTabs tabs={[
           { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
           { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} referral={referral} showHeader={false} /> },
+          { key: 'promoter', label: 'پروموتر', content: <PromoterAnalyticsContent snap={promoterSnap} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },
         ]} />
       </Suspense>

@@ -1,4 +1,5 @@
 import { allUsers } from '@/lib/store'
+import { isPromoter } from '@/lib/promoter'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export default function GamersAdmin() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{u.name}</span>
                   {u.role !== 'gamer' && <span style={{ fontSize: 9, fontWeight: 700, color: C.gold, background: C.goldSoft, padding: '2px 6px', borderRadius: 5 }}>{u.role}</span>}
+                  {isPromoter(u.id) && <span style={{ fontSize: 9, fontWeight: 700, color: C.accent, background: C.accentSoft, padding: '2px 6px', borderRadius: 5 }}>پروموتر</span>}
                 </div>
                 <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11, color: C.tmut, marginTop: 2 }}>@{u.tag}{u.city ? ` · ${u.city}` : ''}</div>
               </div>

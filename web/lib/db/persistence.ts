@@ -49,6 +49,7 @@ export function startHydration(loaders: {
   loadPlayMatch?: (m: any) => void
   loadPromoterCode?: (c: any) => void
   loadPromoterEarning?: (e: any) => void
+  loadPromoterCodeRequest?: (r: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -145,6 +146,13 @@ export function startHydration(loaders: {
           status TEXT NOT NULL DEFAULT 'pending', paid_at TIMESTAMPTZ, paid_note TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS promoter_earn_user_idx ON app_promoter_earnings (promoter_user_id, status)`,
+        `CREATE TABLE IF NOT EXISTS app_promoter_code_requests (
+          id TEXT PRIMARY KEY, promoter_user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          requested_code TEXT, comp_id TEXT, note TEXT,
+          status TEXT NOT NULL DEFAULT 'pending', reject_reason TEXT,
+          reviewed_by TEXT, reviewed_at TIMESTAMPTZ, approved_code_id TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS promoter_code_req_status_idx ON app_promoter_code_requests (status, created_at)`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_active BOOLEAN DEFAULT FALSE`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_discount_percent INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_commission_percent INTEGER`,
@@ -374,6 +382,16 @@ export function startHydration(loaders: {
           paidAt: row.paid_at, paidNote: row.paid_note, createdAt: row.created_at,
         })
       } catch (e) { console.error('[db] load promoter earnings:', e) }
+
+      try {
+        const pcr = await d.execute(sql.raw('SELECT * FROM app_promoter_code_requests ORDER BY created_at'))
+        for (const row of pcr as any as Record<string, unknown>[]) loaders.loadPromoterCodeRequest?.({
+          id: row.id, promoterUserId: row.promoter_user_id,
+          requestedCode: row.requested_code, compId: row.comp_id, note: row.note,
+          status: row.status, rejectReason: row.reject_reason, reviewedBy: row.reviewed_by,
+          reviewedAt: row.reviewed_at, approvedCodeId: row.approved_code_id, createdAt: row.created_at,
+        })
+      } catch (e) { console.error('[db] load promoter code requests:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -1109,6 +1127,18 @@ export const persist = {
     update(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`))
+    },
+  },
+  promoterCodeRequest: {
+    insert(r: { id: string; promoterUserId: string; requestedCode?: string; compId?: string; note?: string; status: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`INSERT INTO app_promoter_code_requests (id, promoter_user_id, requested_code, comp_id, note, status, created_at)
+        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${new Date(r.createdAt)})
+        ON CONFLICT (id) DO NOTHING`))
+    },
+    update(r: { id: string; status: string; rejectReason?: string; reviewedBy?: string; reviewedAt?: number; approvedCodeId?: string }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${r.reviewedAt ? new Date(r.reviewedAt) : null}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`))
     },
   },
 }
