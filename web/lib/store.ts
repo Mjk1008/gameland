@@ -165,15 +165,9 @@ export function resolveEventCardCover(eventId: string, disc: string): string | u
   return eventCoverUrl(eventId) ?? defaultDiscBanner(disc)
 }
 
-/** Card cover for a رویداد: own upload → first child → bundled banner of first disc. */
-export function resolveCompetitionCardCover(compId: string, childEvents: { id: string; disc: string }[]): string | undefined {
-  const own = competitionCoverUrl(compId)
-  if (own) return own
-  for (const e of childEvents) {
-    const c = resolveEventCardCover(e.id, e.disc)
-    if (c) return c
-  }
-  return childEvents[0] ? defaultDiscBanner(childEvents[0].disc) : undefined
+/** Card cover for a رویداد — uploaded competition blob only; one source for list + detail. */
+export function resolveCompetitionCardCover(compId: string): string | undefined {
+  return competitionCoverUrl(compId)
 }
 export async function setCompetitionCover(id: string, dataUrl: string): Promise<void> {
   if (!competitions.has(id)) throw new Error('COMPETITION_NOT_FOUND')

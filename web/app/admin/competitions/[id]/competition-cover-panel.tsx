@@ -28,8 +28,8 @@ export default function CompetitionCoverPanel({ id, hasCover }: { id: string; ha
 
   return (
     <CoverUploader
-      label="کاور رویداد — روی کارت مسابقه در صفحهٔ اول و لیست مسابقات"
-      hint="۱۶:۹ · مثلاً پوستر رویداد یا بنر اسپانسری"
+      label="کاور رویداد — صفحهٔ اول، لیست مسابقات و بالای صفحهٔ رویداد"
+      hint="۱۶:۹ · یک منبع برای همهٔ جاها — پوستر رشته‌ها جداگانه از پنل هر رشته"
       previewSrc={preview}
       onUpload={upload}
       onRemove={hasCover ? remove : undefined}

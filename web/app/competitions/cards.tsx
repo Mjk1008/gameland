@@ -61,7 +61,7 @@ export function DisciplineCard({ ev, reg, coverSrc }: { ev: Event; reg?: Registr
   )
 }
 
-// Mother competition (رویداد) — custom cover or first discipline fallback.
+// Mother competition (رویداد) — competition cover upload only (see resolveCompetitionCardCover).
 export function CompetitionCard({ href, title, sub, coverDisc, coverSrc, discCount, prizeSum, status }: {
   href: string; title: string; sub?: string; coverDisc?: string; coverSrc?: string; discCount: number; prizeSum: number; status?: string
 }) {
