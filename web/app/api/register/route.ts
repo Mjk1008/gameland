@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, getRegistration } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
+import { validatePromoCode, attachPromoToRegistration, promoErrorMessage } from '@/lib/promoter'
 
 function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserById>>, c: NonNullable<ReturnType<typeof getEvent>>, attempts: number) {
   trackServer({
@@ -38,6 +39,17 @@ export async function POST(req: Request) {
   // enters/confirms the code here; set once, immutable, self-referral blocked.
   const ref = (body.ref ?? '').toString().trim()
   if (ref && !u.referredBy) setReferrerByTag(uid, ref)
+
+  const promoRaw = (body.promoCode ?? '').toString().trim()
+  const existingBefore = getRegistration(uid, compId)
+  const isTopUp = !!(existingBefore && existingBefore.status !== 'rejected' && existingBefore.attempts > 0)
+  let promo: ReturnType<typeof validatePromoCode> | undefined
+  if (promoRaw) {
+    if (isTopUp) return NextResponse.json({ error: promoErrorMessage('PROMO_TOPUP') }, { status: 400 })
+    try { promo = validatePromoCode(promoRaw, uid, compId) }
+    catch (e: any) { return NextResponse.json({ error: promoErrorMessage(e.message) }, { status: 400 }) }
+  }
+
   // V1: registration is free (sponsor-funded prizes). Only open events accept it.
   if (c.status !== 'open') {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'
@@ -63,6 +75,7 @@ export async function POST(req: Request) {
     if (!partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
+      if (promo) attachPromoToRegistration(r, promo)
       const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
       await persist.user.insertAsync(u)
@@ -79,6 +92,7 @@ export async function POST(req: Request) {
 
   try {
     const r = createRegistration(uid, compId, attempts)
+    if (promo) attachPromoToRegistration(r, promo)
     // referral-reward tickets cover part (or all) of this purchase automatically
     const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)

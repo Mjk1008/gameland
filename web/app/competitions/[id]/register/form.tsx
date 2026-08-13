@@ -5,9 +5,9 @@ import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { toman } from '@/lib/payment'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean }
 
-export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTickets = 0, price, isTeamEvent }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
@@ -15,26 +15,84 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
   const [ref, setRef] = useState('')
   const [teamName, setTeamName] = useState('')
   const [partnerTag, setPartnerTag] = useState('')
-  // prefill from the invite link (?ref=) caught anywhere in the app
-  useEffect(() => {
-    if (!canSetRef) return
-    try {
-      const fromUrl = new URLSearchParams(window.location.search).get('ref')
-      const v = (fromUrl || localStorage.getItem('gl_ref') || '').trim()
-      if (v) setRef(v.replace(/^@/, ''))
-    } catch {}
-  }, [canSetRef])
+  const [promoCode, setPromoCode] = useState('')
+  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoUnitPrice, setPromoUnitPrice] = useState(price.price)
+  const [promoLabel, setPromoLabel] = useState('')
+  const [promoErr, setPromoErr] = useState<string | null>(null)
+  const [promoOk, setPromoOk] = useState(false)
+  const [promoBusy, setPromoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!canSetRef) return
+    try {
+      const v = (new URLSearchParams(window.location.search).get('ref') || localStorage.getItem('gl_ref') || '').trim()
+      if (v) setRef(v.replace(/^@/, ''))
+    } catch {}
+  }, [canSetRef])
+
+  useEffect(() => {
+    if (!canUsePromo) return
+    try {
+      const v = (new URLSearchParams(window.location.search).get('code') || localStorage.getItem('gl_code') || '').trim()
+      if (v) setPromoCode(v.toUpperCase())
+    } catch {}
+  }, [canUsePromo])
+
+  async function validatePromo(): Promise<string | null> {
+    const raw = promoCode.trim()
+    if (!raw) {
+      setPromoDiscount(0); setPromoUnitPrice(price.price); setPromoLabel(''); setPromoOk(false); setPromoErr(null)
+      return null
+    }
+    setPromoBusy(true); setPromoErr(null)
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: raw, compId: comp.id }),
+      })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || 'کد تخفیف معتبر نیست')
+      setPromoDiscount(j.discountPercent)
+      setPromoUnitPrice(j.unitPrice)
+      setPromoLabel(j.code)
+      setPromoOk(true)
+      return j.code as string
+    } catch (e: any) {
+      setPromoDiscount(0); setPromoUnitPrice(price.price); setPromoLabel(''); setPromoOk(false)
+      setPromoErr(e.message)
+      return null
+    } finally { setPromoBusy(false) }
+  }
+
+  useEffect(() => {
+    if (!canUsePromo || !promoCode.trim()) return
+    const t = setTimeout(() => { validatePromo() }, 350)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promoCode, canUsePromo, comp.id])
+
   async function submit() {
     if (isTeamEvent && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
+    let codeForSubmit = promoOk ? promoLabel : ''
+    if (canUsePromo && promoCode.trim()) {
+      if (!promoOk) {
+        const validated = await validatePromo()
+        if (!validated) { setErr(promoErr || 'کد تخفیف معتبر نیست'); return }
+        codeForSubmit = validated
+      } else {
+        codeForSubmit = promoLabel
+      }
+    }
     setErr(null); setBusy(true)
     try {
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           compId: comp.id, attempts, ref: ref.trim() || undefined,
+          promoCode: canUsePromo && codeForSubmit ? codeForSubmit : undefined,
           ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: partnerTag.trim() } : {}),
         }),
       })
@@ -44,12 +102,14 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
+  const paidTickets = Math.max(0, attempts - Math.min(freeTickets, attempts))
+  const payableTotal = paidTickets * promoUnitPrice
+
   return (
     <div className="animate-fade-up">
       <BackHeader title="ثبت‌نام در مسابقه" href={`/competitions/${comp.id}`} />
 
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* Summary */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[comp.disc] ?? C.tmut, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -59,7 +119,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           <StatusChip status={comp.status} />
         </div>
 
-        {/* Explainer */}
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, fontSize: 12.5, color: C.tbody, lineHeight: 1.9 }}>
           <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطوری کار می‌کنه؟</div>
           {isTeamEvent ? (
@@ -77,7 +136,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           )}
         </div>
 
-        {/* Team fields — captain names the team + names a partner by tag */}
         {isTeamEvent && (
           <>
             <div>
@@ -94,22 +152,24 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           </>
         )}
 
-        {/* Price + FOMO */}
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: C.tmut }}>قیمت هر بلیط</span>
-              {price.offPercent > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: C.accent, background: C.accentSoft, borderRadius: 6, padding: '2px 7px' }}>٪{price.offPercent} تخفیف</span>}
+              {(price.offPercent > 0 || promoDiscount > 0) && (
+                <span style={{ fontSize: 10, fontWeight: 800, color: C.accent, background: C.accentSoft, borderRadius: 6, padding: '2px 7px' }}>
+                  ٪{promoDiscount || price.offPercent} تخفیف
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}><span className="gl-num" style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{toman(price.price)}</span><span style={{ fontSize: 11, color: C.tbody }}>تومان</span></span>
-              {price.offPercent > 0 && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(price.original)}</span>}
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}><span className="gl-num" style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{toman(promoUnitPrice)}</span><span style={{ fontSize: 11, color: C.tbody }}>تومان</span></span>
+              {(price.offPercent > 0 || promoDiscount > 0) && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(price.original > price.price ? price.original : price.price)}</span>}
             </div>
           </div>
           <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, textAlign: 'center', lineHeight: 1.5 }}>پیشنهاد<br />محدود</div>
         </div>
 
-        {/* quota — how many tickets you already hold + how many more you can buy */}
         {owned > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: C.thi, lineHeight: 1.8 }}>
             <span style={{ fontWeight: 700 }}>الان <span className="gl-num" style={{ color: C.accent }}>{owned}</span> سهم داری.</span>
@@ -117,7 +177,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           </div>
         )}
 
-        {/* Ticket picker (capped at the remaining quota) */}
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>{owned > 0 ? 'چند سهمِ دیگه؟' : 'تعداد سهم'}</div>
           <div style={{ display: 'flex', gap: 7 }}>
@@ -133,14 +192,25 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           </div>
         </div>
 
-        {/* free referral tickets get applied automatically */}
         {freeTickets > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, fontWeight: 700, color: C.gold }}>
             🎟 <span className="gl-num">{Math.min(freeTickets, attempts)}</span> سهم از این ثبت‌نام با جایزهٔ دعوتت رایگان حساب می‌شه.
           </div>
         )}
 
-        {/* referral code — attribution happens here, at purchase */}
+        {canUsePromo && (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کد تخفیف (اختیاری)</div>
+            <input dir="ltr" value={promoCode}
+              onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoOk(false); setPromoErr(null) }}
+              onBlur={validatePromo} placeholder="PROMO20"
+              style={{ background: C.sf2, border: `1px solid ${promoOk ? C.win : promoErr ? C.live : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
+            {promoBusy && <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 5 }}>در حال بررسی…</div>}
+            {promoOk && <div style={{ fontSize: 10.5, color: C.win, marginTop: 5 }}>✓ کد {promoLabel} — ٪{promoDiscount} تخفیف</div>}
+            {promoErr && <div style={{ fontSize: 10.5, color: C.live, marginTop: 5 }}>{promoErr}</div>}
+          </div>
+        )}
+
         {canSetRef && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ دعوت (اختیاری) — اگه رفیقی معرفیت کرده، تگش رو بزن</div>
@@ -150,11 +220,10 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, freeTi
           </div>
         )}
 
-        {/* Total */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: '13px 15px' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>مبلغ قابل پرداخت</span>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
-            <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(Math.max(0, attempts - Math.min(freeTickets, attempts)) * price.price)}</span>
+            <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(payableTotal)}</span>
             <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
           </span>
         </div>

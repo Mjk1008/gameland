@@ -28,7 +28,7 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-export default function PayView({ compId, title, attempts, payable, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, price, disc, city }: { compId: string; title: string; attempts: number; payable: number; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; price: number; disc: string; city: string }) {
+export default function PayView({ compId, title, attempts, ticketCount, unitPrice, total, discountPercent = 0, promoCode, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, disc, city }: { compId: string; title: string; attempts: number; ticketCount: number; unitPrice: number; total: number; discountPercent?: number; promoCode?: string; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; disc: string; city: string }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const links = paymentLinks()
@@ -77,11 +77,11 @@ export default function PayView({ compId, title, attempts, payable, alreadyPaid 
         {/* Amount to pay */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 14, padding: '14px 16px' }}>
           <div>
-            <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت</div>
-            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{payable} × {toman(price)}{alreadyPaid > 0 ? ` · ${alreadyPaid} سهم قبلاً پرداخت‌شده` : ''}{freeAttempts > 0 ? ` · ${freeAttempts} رایگان` : ''}</div>
+            <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت{promoCode ? ` · کد ${promoCode}` : ''}{discountPercent > 0 ? ` · ٪${discountPercent} تخفیف` : ''}</div>
+            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{ticketCount} × {toman(unitPrice)}{alreadyPaid > 0 ? ` · ${alreadyPaid} سهم قبلاً پرداخت‌شده` : ''}{freeAttempts > 0 ? ` · ${freeAttempts} رایگان` : ''}</div>
           </div>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-            <Num size={28} color={C.accent}>{toman(payable * price)}</Num>
+            <Num size={28} color={C.accent}>{toman(total)}</Num>
             <span style={{ fontSize: 12, color: C.tbody }}>تومان</span>
           </span>
         </div>

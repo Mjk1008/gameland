@@ -21,6 +21,7 @@ export default function AdminHome() {
     { href: '/admin/requests',    label: 'درخواست‌ها', sub: pending ? `${pending} منتظر` : 'همه رسیدگی‌شده', icon: <IconInbox />, badge: pending },
     { href: '/admin/gamers',      label: 'گیمرها',     sub: `${userCount} کاربر`,        icon: <IconUsers /> },
     { href: '/admin/gamenets',    label: 'گیم‌نت‌ها',  sub: 'تأیید و مدیریت',            icon: <IconPin /> },
+    { href: '/admin/promoters',   label: 'پروموتر',    sub: 'کد تخفیف · کمیسیون',        icon: <IconGift /> },
     { href: '/admin/arena',       label: 'میدون',      sub: 'نسبت درخواست/تأیید',        icon: <IconPin /> },
     { href: '/admin/notify',      label: 'اعلان',      sub: 'ارسال پیام همگانی',         icon: <IconBell /> },
   ]
@@ -85,5 +86,6 @@ const IconImage  = () => svg(<><rect x="3" y="4" width="18" height="16" rx="2" /
 const IconInbox  = () => svg(<><path d="M3 12h5l2 3h4l2-3h5M4 4h16v16H4z" /></>)
 const IconUsers  = () => svg(<><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0M16 6a3 3 0 0 1 0 6M21 20a5 5 0 0 0-4-5" /></>)
 const IconPin    = () => svg(<><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></>)
+const IconGift   = () => svg(<><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8" /></>)
 const IconBell   = () => svg(<><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0" /></>)
 const IconChart  = () => svg(<><path d="M3 3v18h18M8 15v3M13 9v9M18 5v13" /></>)

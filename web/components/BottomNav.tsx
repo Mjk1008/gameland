@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
+import { isArenaEnabled } from '@/lib/arena-enabled'
 
 const ACCENT = '#A855F7', MUT = '#6E6252', INK = '#14110D', LINE = '#322A1F', GOLD = '#F5A623'
 
@@ -20,7 +21,7 @@ function Icon({ d }: { d: React.ReactNode }) {
   return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 }
 
-const ARENA_ON = process.env.NEXT_PUBLIC_ARENA_ENABLED === 'true'
+const ARENA_ON = isArenaEnabled()
 
 const TABS = [
   { href: '/', label: 'خانه', icon: icons.home },
@@ -34,12 +35,14 @@ const TABS = [
 export default function BottomNav() {
   const path = usePathname()
 
-  // catch ?ref=<tag> from invite links anywhere in the app and keep it until
-  // signup reads it — invited users rarely land straight on /signup
+  // catch ?ref=<tag> and ?code=<promo> from links anywhere in the app
   useEffect(() => {
     try {
-      const ref = new URLSearchParams(window.location.search).get('ref')
+      const qs = new URLSearchParams(window.location.search)
+      const ref = qs.get('ref')
       if (ref) localStorage.setItem('gl_ref', ref)
+      const code = qs.get('code')
+      if (code) localStorage.setItem('gl_code', code)
     } catch {}
   }, [path])
   const { status } = useSession()

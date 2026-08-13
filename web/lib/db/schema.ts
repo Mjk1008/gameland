@@ -78,6 +78,10 @@ export const users = pgTable('app_users', {
   referredBy:  text('referred_by'),       // user id of the referrer (set once at signup)
   freeTickets: integer('free_tickets'),   // referral-reward ticket balance
   referralMilestone: integer('referral_milestone'), // last milestone granted (0|2|5) — idempotency
+  promoterActive: boolean('promoter_active'),
+  promoterDiscountPercent: integer('promoter_discount_percent'),
+  promoterCommissionPercent: integer('promoter_commission_percent'),
+  promoterActivatedAt: timestamp('promoter_activated_at', { withTimezone: true }),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:   timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({
@@ -123,6 +127,8 @@ export const registrations = pgTable('app_registrations', {
   seedsEarned:      integer('seeds_earned').notNull().default(0),
   prelimsCompleted: integer('prelims_completed').notNull().default(0),
   teamId:           text('team_id'),   // 2v2 events only — → app_teams(id). No FK yet (mirrors app_matches team columns).
+  promoterCodeId:   text('promoter_code_id'),
+  discountPercent:  integer('discount_percent'),
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniqByUserComp: uniqueIndex('reg_user_comp_idx').on(t.userId, t.compId),

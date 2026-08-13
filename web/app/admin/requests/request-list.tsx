@@ -4,8 +4,16 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 import { toman } from '@/lib/payment'
+import type { TicketSlot } from '@/lib/promoter'
 
-interface Row { regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number; referrerTag?: string; name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean; price: number }
+interface Row {
+  regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number
+  referrerTag?: string; promoCode?: string; discountPercent?: number
+  promoterName?: string; promoterTag?: string
+  name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean
+  unitPrice: number; fullUnitPrice: number; expectedTotal: number; revenueTotal: number
+  slots: TicketSlot[]
+}
 
 const REJECT_REASONS = [
   'فیش پرداخت ارسال نشده',
@@ -13,6 +21,31 @@ const REJECT_REASONS = [
   'رسید نامعتبر یا ناخوانا',
   'اطلاعات ناقص',
 ]
+
+function slotsFor(tickets: number, row: Row): TicketSlot[] {
+  const paid = row.paidAttempts ?? 0
+  const free = row.freeAttempts ?? 0
+  const hasPromo = (row.discountPercent ?? 0) > 0
+  const slots: TicketSlot[] = []
+  for (let i = 1; i <= tickets; i++) {
+    if (i <= paid) slots.push({ n: i, kind: 'settled', unitPrice: row.unitPrice, fullPrice: row.fullUnitPrice })
+    else if (i <= paid + free) slots.push({ n: i, kind: 'free', unitPrice: 0, fullPrice: row.fullUnitPrice })
+    else if (hasPromo) slots.push({ n: i, kind: 'promo', unitPrice: row.unitPrice, fullPrice: row.fullUnitPrice })
+    else slots.push({ n: i, kind: 'full', unitPrice: row.fullUnitPrice, fullPrice: row.fullUnitPrice })
+  }
+  return slots
+}
+
+function expectedFromSlots(slots: TicketSlot[]) {
+  return slots.filter(s => s.kind === 'promo' || s.kind === 'full').reduce((sum, s) => sum + s.unitPrice, 0)
+}
+
+const SLOT_STYLE: Record<TicketSlot['kind'], { label: string; bg: string; color: string; border: string }> = {
+  settled: { label: 'تأییدشده', bg: C.sf2, color: C.tmut, border: C.line },
+  free: { label: 'رایگان', bg: C.winSoft, color: C.win, border: C.win + '55' },
+  promo: { label: 'تخفیف', bg: C.goldSoft, color: C.gold, border: C.gold + '66' },
+  full: { label: 'عادی', bg: C.accentSoft, color: C.accent, border: C.accent + '55' },
+}
 
 // Review flow is modal-only by design: list cards carry NO action buttons, so
 // a stray double-tap can never approve/reject the wrong person. Tap a card →
@@ -72,12 +105,19 @@ export default function RequestList({ rows }: { rows: Row[] }) {
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="درخواست منتظری نداری — همه رسیدگی شدن." /></div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {rows.map(r => (
+          {rows.map(r => {
+            const hasPromo = !!r.promoCode && (r.discountPercent ?? 0) > 0
+            const hasFree = (r.freeAttempts ?? 0) > 0
+            return (
             <button key={r.regId} onClick={() => openRow(r)}
-              style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 13, padding: '13px 14px' }}>
+              style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%', background: C.sf1, border: `1px solid ${hasPromo ? C.gold + '66' : C.line}`, borderRight: hasPromo ? `3px solid ${C.gold}` : undefined, borderRadius: 13, padding: '13px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{r.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{r.name}</span>
+                    {hasPromo && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 6, padding: '2px 7px' }}>{r.promoCode} · {r.discountPercent}٪</span>}
+                    {hasFree && !hasPromo && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 6, padding: '2px 7px' }}>رایگان</span>}
+                  </div>
                   <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.event}</div>
                 </div>
                 <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -90,7 +130,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                 <span style={{ color: C.tmut, fontSize: 15, flexShrink: 0 }}>‹</span>
               </div>
             </button>
-          ))}
+          )})}
         </div>
       )}
 
@@ -111,6 +151,19 @@ export default function RequestList({ rows }: { rows: Row[] }) {
 
             <div style={{ fontSize: 12.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 13px' }}>{sel.event}</div>
 
+            {!!sel.promoCode && (sel.discountPercent ?? 0) > 0 && (
+              <div style={{ marginTop: 9, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 11, padding: '10px 13px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.gold, marginBottom: 4 }}>ثبت‌نام با پروموشن</div>
+                <div style={{ fontSize: 12.5, color: C.thi }}>
+                  پروموتر: <b>{sel.promoterName ?? '—'}</b>
+                  {sel.promoterTag && <span dir="ltr" style={{ fontFamily: DISP, color: C.tmut }}> @{sel.promoterTag}</span>}
+                </div>
+                <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.gold, marginTop: 4, textAlign: 'right' }}>
+                  کد {sel.promoCode} · تخفیف {sel.discountPercent}٪ · هر سهم {toman(sel.unitPrice)} (به‌جای {toman(sel.fullUnitPrice)})
+                </div>
+              </div>
+            )}
+
             {!!sel.paidAttempts && sel.paidAttempts < sel.attempts && (
               <div style={{ marginTop: 9, fontSize: 11.5, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}44`, borderRadius: 9, padding: '8px 11px' }}>
                 ↑ خریدِ مجدد — <span className="gl-num">{sel.paidAttempts}</span> سهم قبلاً تایید شده، الان <span className="gl-num">{sel.attempts - sel.paidAttempts}</span> سهمِ جدید اضافه کرده
@@ -118,10 +171,38 @@ export default function RequestList({ rows }: { rows: Row[] }) {
             )}
             {(!!sel.freeAttempts || sel.referrerTag) && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
-                {!!sel.freeAttempts && <span style={{ fontSize: 10.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 7, padding: '3px 9px' }}>🎟 {sel.freeAttempts} سهمِ جایزهٔ دعوت (بدون فیش)</span>}
+                {!!sel.freeAttempts && <span style={{ fontSize: 10.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 7, padding: '3px 9px' }}>🎟 {sel.freeAttempts} سهم رایگان{sel.referrerTag ? ' (جایزهٔ دعوت)' : ''} — درآمد نیست</span>}
                 {sel.referrerTag && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 10.5, fontWeight: 700, color: C.tbody, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 7, padding: '3px 9px' }}>ref: @{sel.referrerTag}</span>}
               </div>
             )}
+
+            {/* per-seat breakdown */}
+            {(() => {
+              const liveSlots = slotsFor(tickets, sel)
+              const expected = expectedFromSlots(liveSlots)
+              const newPaid = liveSlots.filter(s => s.kind === 'promo' || s.kind === 'full').length
+              return (
+                <>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.tmut, marginBottom: 7 }}>جزئیات سهم‌ها</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {liveSlots.map(s => {
+                        const st = SLOT_STYLE[s.kind]
+                        return (
+                          <div key={s.n} style={{ minWidth: 72, textAlign: 'center', background: st.bg, border: `1px solid ${st.border}`, borderRadius: 9, padding: '7px 8px' }}>
+                            <div style={{ fontFamily: DISP, fontSize: 10, fontWeight: 800, color: st.color }}>#{s.n}</div>
+                            <div style={{ fontSize: 9.5, fontWeight: 700, color: st.color, marginTop: 2 }}>{st.label}</div>
+                            {(s.kind === 'promo' || s.kind === 'full') && (
+                              <div className="gl-num" style={{ fontSize: 9, color: C.tmut, marginTop: 2 }}>{toman(s.unitPrice)}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 7, lineHeight: 1.7 }}>
+                      <span style={{ color: C.gold }}>● تخفیف</span> = پروموتر · <span style={{ color: C.accent }}>● عادی</span> = قیمت کامل · <span style={{ color: C.win }}>● رایگان</span> = بدون درآمد · <span style={{ color: C.tmut }}>● تأییدشده</span> = قبلاً تسویه
+                    </div>
+                  </div>
 
             {/* tickets stepper */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 13px' }}>
@@ -133,14 +214,23 @@ export default function RequestList({ rows }: { rows: Row[] }) {
               </div>
             </div>
 
-            {/* expected payment — per-event price, never assume a global constant */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11, padding: '10px 13px' }}>
-              <span style={{ fontSize: 12, color: C.tbody }}>مبلغِ موردِ انتظار <span className="gl-num" style={{ fontSize: 10.5, color: C.tmut }}>({Math.max(0, tickets - (sel.paidAttempts ?? 0))} × {toman(sel.price)})</span></span>
+            {/* expected payment — per-event price + promo snapshot */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, background: sel.promoCode ? C.goldSoft : C.sf1, border: `1px solid ${sel.promoCode ? C.gold + '55' : C.line}`, borderRadius: 11, padding: '10px 13px' }}>
+              <span style={{ fontSize: 12, color: C.tbody }}>
+                مبلغِ موردِ انتظار
+                <span className="gl-num" style={{ display: 'block', fontSize: 10.5, color: C.tmut, marginTop: 2 }}>
+                  {newPaid > 0 ? `${newPaid} سهم پولی` : 'بدون سهم پولی جدید'}
+                  {sel.freeAttempts ? ` · ${sel.freeAttempts} رایگان` : ''}
+                </span>
+              </span>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <Num size={16} color={C.thi}>{toman(Math.max(0, tickets - (sel.paidAttempts ?? 0)) * sel.price)}</Num>
+                <Num size={16} color={sel.promoCode ? C.gold : C.thi}>{toman(expected)}</Num>
                 <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
               </span>
             </div>
+                </>
+              )
+            })()}
 
             {/* receipt */}
             {sel.hasReceipt ? (

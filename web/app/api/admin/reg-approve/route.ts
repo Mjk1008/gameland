@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards } from '@/lib/store'
 import { trackServer, trackUserProps } from '@/lib/track-server'
+import { recordPromoterEarning } from '@/lib/promoter'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -25,11 +26,15 @@ export async function POST(req: Request) {
   }
 
   const prev = r.status
+  const prevPaid = r.paidAttempts ?? 0
   const rsn = (reason ?? '').toString().trim().slice(0, 240)   // optional admin reason/note
   const status = action === 'approve' ? 'approved' : 'rejected'
   if (prev === status) return NextResponse.json({ ok: true, status })   // no-op, no duplicate notif
   setRegistrationStatus(regId, status, action === 'reject' ? rsn || undefined : undefined)
-  if (status === 'approved') grantReferralRewards(r.userId)   // referral milestones count only approved regs
+  if (status === 'approved') {
+    grantReferralRewards(r.userId)
+    recordPromoterEarning(r, prevPaid)
+  }
 
   // Server-fired funnel event — no client dependency, free coverage of the
   // approve/reject step for the /admin/behavior funnel view.

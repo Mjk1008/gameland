@@ -46,6 +46,10 @@ export interface User {
   referredBy?: string          // referrer's user id — set once at signup, immutable
   freeTickets?: number         // referral-reward ticket balance (redeemed at registration)
   referralMilestone?: number   // last reward milestone granted (0|2|5) — idempotency guard
+  promoterActive?: boolean
+  promoterDiscountPercent?: number
+  promoterCommissionPercent?: number
+  promoterActivatedAt?: number
 }
 
 const users = new Map<string, User>()
@@ -107,6 +111,8 @@ function ensureHydrated() {
     },
     loadPlayRequest: (r: unknown) => { require('./arena').hydratePlayRequest(r as any) },
     loadPlayMatch: (m: unknown) => { require('./arena').hydratePlayMatch(m as any) },
+    loadPromoterCode: (c: unknown) => { require('./promoter').hydratePromoterCode(c as any) },
+    loadPromoterEarning: (e: unknown) => { require('./promoter').hydratePromoterEarning(e as any) },
   }).then(() => {
     reconcileDefaultPromos()
     seedRankingIfEmpty()
@@ -220,10 +226,10 @@ export function activityPointsOf(u: User): number {
 }
 
 // ─── Referral campaign («رفیقتو بیار») ──────────────────────────────────────
-// Code = the user's own @tag. Attribution is set ONCE at signup and never
+// Code = the user's own @tag. Attribution is set ONCE at ticket purchase and never
 // changes. Rewards count only APPROVED (paid + admin-verified) registrations,
-// which is the anti-fraud gate. Milestones: 2 approved referrals → 1 free
-// ticket, 5 → 2 more. Free tickets are redeemed inside a normal registration.
+// which is the anti-fraud gate. Milestones: 3 approved referral tickets → 1 free
+// ticket, 6 → 3 total. Free tickets are redeemed inside a normal registration.
 
 export function setReferrerByTag(userId: string, refTag: string): boolean {
   const u = users.get(userId)
@@ -699,6 +705,8 @@ export interface Registration {
   seedsEarned: number       // 0-3 (advances to final)
   prelimsCompleted: number  // 0-attempts
   teamId?: string           // 2v2 events only — set for both members' rows, same team
+  promoterCodeId?: string   // affiliate code used at first registration
+  discountPercent?: number  // snapshot — buyer pays ticketPrice × (1 − this/100)
   createdAt: number
 }
 

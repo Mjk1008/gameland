@@ -47,6 +47,8 @@ export function startHydration(loaders: {
   loadGamenetPhotoId?: (gamenetId: string, photoId: string) => void
   loadPlayRequest?: (r: any) => void
   loadPlayMatch?: (m: any) => void
+  loadPromoterCode?: (c: any) => void
+  loadPromoterEarning?: (e: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   const d = db()
@@ -128,6 +130,25 @@ export function startHydration(loaders: {
           CHECK (requester_id <> acceptor_id))`,
         `CREATE INDEX IF NOT EXISTS play_match_req_idx ON app_play_matches (requester_id, created_at DESC)`,
         `CREATE INDEX IF NOT EXISTS play_match_acc_idx ON app_play_matches (acceptor_id, created_at DESC)`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS promoter_code_id TEXT`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS discount_percent INTEGER`,
+        `CREATE TABLE IF NOT EXISTS app_promoter_codes (
+          id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, promoter_user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          discount_percent INTEGER NOT NULL, commission_percent INTEGER NOT NULL,
+          comp_id TEXT, max_uses INTEGER, use_count INTEGER NOT NULL DEFAULT 0,
+          active BOOLEAN NOT NULL DEFAULT true, expires_at TIMESTAMPTZ, note TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS promoter_code_user_idx ON app_promoter_codes (promoter_user_id)`,
+        `CREATE TABLE IF NOT EXISTS app_promoter_earnings (
+          id TEXT PRIMARY KEY, code_id TEXT NOT NULL, reg_id TEXT NOT NULL, promoter_user_id TEXT NOT NULL,
+          paid_tickets INTEGER NOT NULL, buyer_paid_total INTEGER NOT NULL, commission_amount INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending', paid_at TIMESTAMPTZ, paid_note TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS promoter_earn_user_idx ON app_promoter_earnings (promoter_user_id, status)`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_active BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_discount_percent INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_commission_percent INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS promoter_activated_at TIMESTAMPTZ`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p1_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p2_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS winner_team_id TEXT`,
@@ -164,6 +185,10 @@ export function startHydration(loaders: {
         referredBy: (u as any).referredBy ?? undefined,
         freeTickets: (u as any).freeTickets ?? undefined,
         referralMilestone: (u as any).referralMilestone ?? undefined,
+        promoterActive: u.promoterActive ?? undefined,
+        promoterDiscountPercent: u.promoterDiscountPercent ?? undefined,
+        promoterCommissionPercent: u.promoterCommissionPercent ?? undefined,
+        promoterActivatedAt: u.promoterActivatedAt ? ms(u.promoterActivatedAt) : undefined,
       })
 
       authReadyDone = true
@@ -193,6 +218,8 @@ export function startHydration(loaders: {
         paidAttempts: (r as any).paidAttempts ?? undefined,
         seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted,
         teamId: (r as any).teamId ?? undefined,
+        promoterCodeId: (r as any).promoterCodeId ?? undefined,
+        discountPercent: (r as any).discountPercent ?? undefined,
         createdAt: ms(r.createdAt),
       })
 
@@ -328,6 +355,26 @@ export function startHydration(loaders: {
         })
       } catch (e) { console.error('[db] load play matches:', e) }
 
+      try {
+        const pc = await d.execute(sql.raw('SELECT * FROM app_promoter_codes ORDER BY created_at'))
+        for (const row of pc as any as Record<string, unknown>[]) loaders.loadPromoterCode?.({
+          id: row.id, code: row.code, promoterUserId: row.promoter_user_id,
+          discountPercent: row.discount_percent, commissionPercent: row.commission_percent,
+          compId: row.comp_id, maxUses: row.max_uses, useCount: row.use_count,
+          active: row.active, expiresAt: row.expires_at, note: row.note, createdAt: row.created_at,
+        })
+      } catch (e) { console.error('[db] load promoter codes:', e) }
+
+      try {
+        const pe = await d.execute(sql.raw('SELECT * FROM app_promoter_earnings ORDER BY created_at'))
+        for (const row of pe as any as Record<string, unknown>[]) loaders.loadPromoterEarning?.({
+          id: row.id, codeId: row.code_id, regId: row.reg_id, promoterUserId: row.promoter_user_id,
+          paidTickets: row.paid_tickets, buyerPaidTotal: row.buyer_paid_total,
+          commissionAmount: row.commission_amount, status: row.status,
+          paidAt: row.paid_at, paidNote: row.paid_note, createdAt: row.created_at,
+        })
+      } catch (e) { console.error('[db] load promoter earnings:', e) }
+
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
       console.error('[db] hydration failed; continuing in-memory:', err)
@@ -377,6 +424,9 @@ function userValues(u: User) {
     role: u.role, coinBalance: u.coinBalance ?? 0,
     playerId: u.playerId, bonusPoints: u.bonusPoints,
     referredBy: u.referredBy, freeTickets: u.freeTickets, referralMilestone: u.referralMilestone,
+    promoterActive: u.promoterActive, promoterDiscountPercent: u.promoterDiscountPercent,
+    promoterCommissionPercent: u.promoterCommissionPercent,
+    promoterActivatedAt: u.promoterActivatedAt ? new Date(u.promoterActivatedAt) : undefined,
   }
 }
 
@@ -433,6 +483,10 @@ export const persist = {
       if (patch.referredBy !== undefined)  set.referredBy = patch.referredBy
       if (patch.freeTickets !== undefined) set.freeTickets = patch.freeTickets
       if (patch.referralMilestone !== undefined) set.referralMilestone = patch.referralMilestone
+      if (patch.promoterActive !== undefined) set.promoterActive = patch.promoterActive
+      if (patch.promoterDiscountPercent !== undefined) set.promoterDiscountPercent = patch.promoterDiscountPercent
+      if (patch.promoterCommissionPercent !== undefined) set.promoterCommissionPercent = patch.promoterCommissionPercent
+      if (patch.promoterActivatedAt !== undefined) set.promoterActivatedAt = patch.promoterActivatedAt ? new Date(patch.promoterActivatedAt) : null
       if (patch.email !== undefined)       set.email = patch.email
       if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
       if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
@@ -512,6 +566,7 @@ export const persist = {
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -521,7 +576,8 @@ export const persist = {
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId } })
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -534,6 +590,8 @@ export const persist = {
       if ((patch as any).paidAttempts !== undefined) set.paidAttempts = (patch as any).paidAttempts
       if ((patch as any).status !== undefined)  set.status = (patch as any).status
       if ((patch as any).teamId !== undefined)  set.teamId = (patch as any).teamId
+      if ((patch as any).promoterCodeId !== undefined) set.promoterCodeId = (patch as any).promoterCodeId
+      if ((patch as any).discountPercent !== undefined) set.discountPercent = (patch as any).discountPercent
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
     },
@@ -1027,6 +1085,30 @@ export const persist = {
       const d = db(); if (!d) return
       await d.execute(sql.raw(`DELETE FROM app_play_matches WHERE id LIKE 'demo_pm_%'`))
       await d.execute(sql.raw(`DELETE FROM app_play_requests WHERE id LIKE 'demo_pr_%'`))
+    },
+  },
+  promoterCode: {
+    insert(c: { id: string; code: string; promoterUserId: string; discountPercent: number; commissionPercent: number; compId?: string; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`INSERT INTO app_promoter_codes (id, code, promoter_user_id, discount_percent, commission_percent, comp_id, max_uses, use_count, active, expires_at, note, created_at)
+        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${c.expiresAt ? new Date(c.expiresAt) : null}, ${c.note ?? null}, ${new Date(c.createdAt)})
+        ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, discount_percent = EXCLUDED.discount_percent, commission_percent = EXCLUDED.commission_percent, comp_id = EXCLUDED.comp_id, max_uses = EXCLUDED.max_uses, use_count = EXCLUDED.use_count, active = EXCLUDED.active, expires_at = EXCLUDED.expires_at, note = EXCLUDED.note`))
+    },
+    update(id: string, c: { discountPercent: number; commissionPercent: number; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${c.expiresAt ? new Date(c.expiresAt) : null}, note = ${c.note ?? null} WHERE id = ${id}`))
+    },
+  },
+  promoterEarning: {
+    insert(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at)
+        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${new Date(e.createdAt)})
+        ON CONFLICT (id) DO NOTHING`))
+    },
+    update(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
+      const d = db(); if (!d) return
+      fire(d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`))
     },
   },
 }

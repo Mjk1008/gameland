@@ -6,7 +6,7 @@ import { C, DISP, GameBadge, EmptyState } from '@/components/ui'
 export const dynamic = 'force-dynamic'
 
 export default function GamenetsPage() {
-  const list = allGamenets()
+  const list = allGamenets().filter(g => g.status === 'verified')
 
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px' }}>

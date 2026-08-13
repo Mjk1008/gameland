@@ -25,10 +25,22 @@
 | Play Arena (میدون) | `web/lib/arena.ts` · pages: `web/app/arena/` |
 | Gamenet platform | `web/app/gamenets/` · owner: `web/app/gamenet/` |
 | Referral campaign | `setReferrerByTag()` in store · UI: `/invite` |
+| Promoter / affiliate | `web/lib/promoter.ts` · PRD: [`docs/31-promoter-platform-prd.md`](31-promoter-platform-prd.md) · admin: `/admin/promoters` · dashboard: `/me/promoter` (planned) |
 | Honorary arcade (gated) | `web/app/arcade/` · `web/lib/honor.ts` |
 | Jalali dates in admin | `web/components/Jalali*.tsx` · `web/lib/jalali.ts` |
 | Shared UI primitives | `web/components/ui.tsx` |
 | Deploy | `npm run ship -- "msg"` from repo root (see CLAUDE.md) |
+| Founder analytics SQL (Phase 0) | [`docs/30-saved-queries.md`](30-saved-queries.md) · read-only role: [`scripts/setup-readonly-analytics-role.sql`](../scripts/setup-readonly-analytics-role.sql) |
+
+---
+
+## Analytics / MCP (Phase 0 → 1)
+
+| Artifact | Purpose |
+|---|---|
+| [`docs/30-saved-queries.md`](30-saved-queries.md) | ~15 canonical Persian-friendly SQL queries for founder analytics |
+| [`scripts/setup-readonly-analytics-role.sql`](../scripts/setup-readonly-analytics-role.sql) | Idempotent `gameland_readonly` role — SELECT on analytics tables, REVOKE on blob/PII, 10s timeout |
+| Phase 1 (not built) | MCP server wrapping saved queries — do not add until requested |
 
 ---
 

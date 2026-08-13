@@ -4,6 +4,8 @@ import {
   remainingTickets, getSetting, AI_KNOWLEDGE_KEY, approvedRegistrationsForComp,
   activeNews,
 } from '@/lib/store'
+import { challengePointsOf } from '@/lib/arena'
+import { isArenaEnabled } from '@/lib/arena-enabled'
 import { DISC } from '@/lib/mock-data'
 import { prizeMillionLabel, tomanFull } from '@/lib/payment'
 import { ticketPriceFor } from '@/lib/ticket-price'
@@ -78,7 +80,11 @@ export function buildAssistantEntities(uid: string): AssistantEntities {
 
 export function userRankLine(uid: string): string {
   const gamers = allUsers().filter(x => x.role === 'gamer')
-  const pts = new Map(gamers.map(g => [g.id, (g.bonusPoints ?? 0) + activityPointsOf(g)]))
+  const pts = new Map(gamers.map(g => {
+    let p = (g.bonusPoints ?? 0) + activityPointsOf(g)
+    if (isArenaEnabled()) p += challengePointsOf(g.id)
+    return [g.id, p]
+  }))
   const order = [...gamers].sort((a, b) => (pts.get(b.id) ?? 0) - (pts.get(a.id) ?? 0))
   const rankIdx = order.findIndex(g => g.id === uid)
   if (rankIdx < 0) return 'رتبهٔ ملی: این حساب گیمر نیست.'

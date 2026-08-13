@@ -34,7 +34,12 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const finalMatches = allMatches.filter(m => m.stage === 'final')
   const prelimGroups = Array.from(new Set(prelimMatches.map(m => m.groupKey)))
   const finalSize = c.finalSize ?? 128
-  const myMatch = uid ? allMatches.find(m => m.p1UserId === uid || m.p2UserId === uid) : undefined
+  const isTeamEvent = cfg.teamSize === 2
+  const myTeamId = myTeam?.id
+  const myMatch = uid ? allMatches.find(m => {
+    if (isTeamEvent && myTeamId) return m.p1TeamId === myTeamId || m.p2TeamId === myTeamId
+    return m.p1UserId === uid || m.p2UserId === uid
+  }) : undefined
   const myGroupLabel = myMatch && myMatch.stage === 'prelim' ? (myMatch.groupKey.split(':')[1] || myMatch.groupKey) : undefined
 
   const disc = DISC[c.disc as keyof typeof DISC] ?? { name: c.disc, short: c.disc.slice(0, 4).toUpperCase(), color: C.tmut }

@@ -63,5 +63,5 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   }
 
   const price = ticketPriceFor(c.id)
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo={owned === 0} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} />
 }
