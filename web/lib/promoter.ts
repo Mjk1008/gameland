@@ -163,23 +163,32 @@ export function pendingEarningsTotal(userId?: string): number {
     .reduce((s, e) => s + e.commissionAmount, 0)
 }
 
+/** Buyer-facing price — promo stacks on ticketPriceFor().price; totalOffPercent vs original. */
+export function buyerTicketPricing(compId: string, promoDiscountPercent = 0) {
+  const { price, original, offPercent } = ticketPriceFor(compId)
+  const promo = Math.max(0, Math.round(promoDiscountPercent))
+  const unitPrice = promo > 0 ? Math.round(price * (1 - promo / 100)) : price
+  const totalOffPercent = original > unitPrice ? Math.round((1 - unitPrice / original) * 100) : 0
+  return { listPrice: price, original, baseOffPercent: offPercent, promoDiscountPercent: promo, unitPrice, totalOffPercent }
+}
+
 /** Per-ticket price after promo snapshot on the registration row. */
 export function unitPriceForReg(reg: Registration): number {
-  const base = ticketPriceFor(reg.compId).price
-  const discount = reg.discountPercent ?? 0
-  return Math.round(base * (1 - discount / 100))
+  return buyerTicketPricing(reg.compId, reg.discountPercent ?? 0).unitPrice
 }
 
 /** Single pricing source — register, pay, admin requests must all use this. */
 export function regPayableAmount(reg: Registration) {
   const ticketCount = unpaidAttempts(reg)
-  const unitPrice = unitPriceForReg(reg)
+  const pricing = buyerTicketPricing(reg.compId, reg.discountPercent ?? 0)
   const code = reg.promoterCodeId ? codes.get(reg.promoterCodeId) : undefined
   return {
     ticketCount,
-    unitPrice,
-    total: ticketCount * unitPrice,
+    unitPrice: pricing.unitPrice,
+    total: ticketCount * pricing.unitPrice,
     discountPercent: reg.discountPercent ?? 0,
+    totalOffPercent: pricing.totalOffPercent,
+    originalUnitPrice: pricing.original,
     codeLabel: code?.code,
     commissionPercent: code?.commissionPercent,
   }
@@ -399,6 +408,20 @@ export function rejectCodeRequest(requestId: string, adminId: string, reason?: s
   return req
 }
 
+export function deactivatePromoterCode(codeId: string) {
+  const c = codes.get(codeId)
+  if (!c) throw new Error('NOT_FOUND')
+  return updatePromoterCode(codeId, { active: false })
+}
+
+export function reactivatePromoterCode(codeId: string) {
+  const c = codes.get(codeId)
+  if (!c) throw new Error('NOT_FOUND')
+  if (c.active) return c
+  assertCanAddCode(c.promoterUserId)
+  return updatePromoterCode(codeId, { active: true })
+}
+
 export function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
   const u = getUserById(userId)
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
@@ -430,8 +453,9 @@ export function promoterDashboard(userId: string) {
   const u = getUserById(userId)
   if (!u?.promoterActive) return null
 
-  const myCodes = allPromoterCodes().filter(c => c.promoterUserId === userId).sort((a, b) => b.createdAt - a.createdAt)
+  const myCodes = allPromoterCodes().filter(c => c.promoterUserId === userId).sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
   const activeCodes = myCodes.filter(c => c.active)
+  const inactiveCodes = myCodes.filter(c => !c.active)
   const codeIds = new Set(myCodes.map(c => c.id))
   const regs = allRegistrations()
     .filter(r => r.promoterCodeId && codeIds.has(r.promoterCodeId) && r.status !== 'rejected')
@@ -446,7 +470,7 @@ export function promoterDashboard(userId: string) {
   const pendingCommission = mine.filter(e => e.status === 'pending').reduce((s, e) => s + e.commissionAmount, 0)
   const paidCommission = mine.filter(e => e.status === 'paid').reduce((s, e) => s + e.commissionAmount, 0)
 
-  const codes = activeCodes.map(c => {
+  const mapCode = (c: PromoterCode) => {
     const st = statsForCode(c.id)
     const activity = regs.filter(r => r.promoterCodeId === c.id).slice(0, 20).map(r => {
       const buyer = getUserById(r.userId)
@@ -464,13 +488,17 @@ export function promoterDashboard(userId: string) {
     return {
       id: c.id,
       code: c.code,
+      active: c.active,
       discountPercent: c.discountPercent,
       commissionPercent: c.commissionPercent,
       shareLink: `https://gamelandteam.ir/?code=${encodeURIComponent(c.code)}`,
       ...st,
       activity,
     }
-  })
+  }
+
+  const codes = activeCodes.map(mapCode)
+  const inactive = inactiveCodes.map(mapCode)
 
   const myRequests = requestsForPromoter(userId)
   const pendingRequest = myRequests.find(r => r.status === 'pending') ?? null
@@ -481,6 +509,8 @@ export function promoterDashboard(userId: string) {
     discountPercent: u.promoterDiscountPercent ?? 0,
     commissionPercent: u.promoterCommissionPercent ?? 0,
     codes,
+    inactiveCodes: inactive,
+    primaryCodeId: codes[0]?.id ?? inactive[0]?.id,
     totalUses,
     approved,
     pending,

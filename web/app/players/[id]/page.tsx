@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
-import { getUserByTag, allEvents, placementsForUser, allUsers, allPlacements, hasAvatar, activityPointsOf } from '@/lib/store'
+import { getUserByTag, allEvents, placementsForUser, hasAvatar } from '@/lib/store'
 import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
-import { pointsForPlacement } from '@/lib/ranking'
-import type { EventTier } from '@/lib/schema'
+import { queryUserRank, queryGamerCount } from '@/lib/ranking-store'
 import { DISC } from '@/lib/mock-data'
 import { C, DISP, Num, BackHeader, EmptyState, DISC_DOT } from '@/components/ui'
 
@@ -11,27 +10,20 @@ export const dynamic = 'force-dynamic'
 
 const TIER_LABEL: Record<string, string> = { S: 'ماژور', A: 'گیم‌لند', B: 'آل‌استار', C: 'محلی' }
 
-export default function PlayerPage({ params }: { params: { id: string } }) {
+export default async function PlayerPage({ params }: { params: { id: string } }) {
   const u = getUserByTag(params.id)
   if (!u || u.role === 'admin') return notFound()
 
   const disc = u.primaryDisc ? DISC[u.primaryDisc as keyof typeof DISC] : null
 
-  const gamers = allUsers().filter(x => x.role === 'gamer')
+  const [{ rank: nationalRank, points }, gamerTotal] = await Promise.all([
+    queryUserRank(u.id),
+    queryGamerCount(),
+  ])
+  const rank = nationalRank ?? 0
   const events = allEvents()
   const eventMap = new Map(events.map(e => [e.id, e]))
-  const pointsAcc = new Map<string, number>()
-  // admin-set base + live activity points — same formula as home/leaderboard
-  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
-  for (const pl of allPlacements()) {
-    const ev = eventMap.get(pl.compId)
-    if (!ev) continue
-    pointsAcc.set(pl.userId, (pointsAcc.get(pl.userId) ?? 0) + pointsForPlacement(pl.rank, (ev.tier ?? 'A') as EventTier))
-  }
-  const sorted = [...gamers].sort((a, b) => (pointsAcc.get(b.id) ?? 0) - (pointsAcc.get(a.id) ?? 0))
-  const rank = sorted.findIndex(x => x.id === u.id) + 1
   const myPlacements = placementsForUser(u.id)
-  const points = pointsAcc.get(u.id) ?? 0
   const arenaPts = challengePointsOf(u.id)
   const top3 = rank >= 1 && rank <= 3
   const card = playerCard(u.tag)
@@ -71,7 +63,7 @@ export default function PlayerPage({ params }: { params: { id: string } }) {
           <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: top3 ? C.gold : C.accent }} />
           <div>
             <div style={{ fontSize: 12, color: C.tbody }}>رتبهٔ ملی</div>
-            <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>از میان {gamers.length} گیمر</div>
+            <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>از میان {gamerTotal} گیمر</div>
           </div>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
             <span className="gl-num" style={{ fontSize: 18, fontWeight: 800, color: top3 ? C.gold : C.accent }}>#</span>

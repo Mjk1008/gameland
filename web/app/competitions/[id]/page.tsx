@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown } from '@/lib/mock-data'
-import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, teamMemberOf } from '@/lib/store'
+import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, teamMemberOf, getCompetition } from '@/lib/store'
 import { prelimVenueForUser } from '@/lib/prelim-venue'
 import { rulesForDisc } from '@/lib/discipline-rules'
+import { disciplineDisplayName, formatModeLabel } from '@/lib/discipline-format'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 import TeamInviteBanner from './team-invite-banner'
 
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function CompetitionPage({ params }: { params: { id: string } }) {
   const c = getEvent(params.id)
   if (!c) return notFound()
+  const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
 
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid as string | undefined
@@ -56,7 +58,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="جزئیات مسابقه" href="/competitions" />
+      <BackHeader title={parent ? parent.title : 'جزئیات مسابقه'} href={parent ? `/competitions/e/${parent.id}` : '/competitions'} />
 
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Hero */}
@@ -64,8 +66,11 @@ export default async function CompetitionPage({ params }: { params: { id: string
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <GameBadge disc={c.disc} size={38} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>{c.title}</div>
-              <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 3 }}>{disc.name}{c.season ? ` · ${c.season}` : ''}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.thi }}>{disciplineDisplayName(disc.name, cfg.teamSize)}</div>
+              <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 3 }}>
+                {parent ? parent.title : (c.season || disc.name)}
+                {' · '}{formatModeLabel(cfg.teamSize)}
+              </div>
             </div>
             <StatusChip status={c.status} />
           </div>

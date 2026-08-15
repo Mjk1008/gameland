@@ -1,11 +1,10 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allUsers, allEvents, allPlacements, getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, hasAvatar, activityPointsOf, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, type Event } from '@/lib/store'
-import { challengePointsOf } from '@/lib/arena'
+import { getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, getEventConfig, allEvents, allUsers, type Event } from '@/lib/store'
+import { queryTopGamers, queryUserRank, queryGamerCount, queryLeaderboard } from '@/lib/ranking-store'
 import { playerCard } from '@/lib/player-cards'
-import { pointsForPlacement } from '@/lib/ranking'
-import type { EventTier } from '@/lib/schema'
+import { hasAvatar } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
 import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT, GamerAvatar } from '@/components/ui'
 import PromoSlider from './promo-slider'
@@ -21,25 +20,14 @@ export default async function HomePage() {
   const uid = (session as any)?.uid as string | undefined
   const signedIn = !!uid
 
-  const gamers = allUsers().filter(u => u.role === 'gamer')
+  const topRows = await queryTopGamers(3)
+  const top = topRows.map(r => ({
+    rank: r.rank, id: r.uid, name: r.name, tag: r.tag, city: r.city, disc: r.disc,
+    points: r.points, hasPhoto: r.hasAvatar, card: r.card,
+  }))
   const events = allEvents()
-  const placements = allPlacements()
-  const eventMap = new Map(events.map(e => [e.id, e]))
-
-  const pointsAcc = new Map<string, number>()
-  // admin-set base + live activity points — same formula as the leaderboard
-  for (const g of gamers) pointsAcc.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
-  for (const pl of placements) {
-    const ev = eventMap.get(pl.compId)
-    if (!ev) continue
-    pointsAcc.set(pl.userId, (pointsAcc.get(pl.userId) ?? 0) + pointsForPlacement(pl.rank, (ev.tier ?? 'A') as EventTier))
-  }
-
-  const ranked = [...gamers]
-    .sort((a, b) => (pointsAcc.get(b.id) ?? 0) - (pointsAcc.get(a.id) ?? 0))
-    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, tag: u.tag, city: u.city, disc: u.primaryDisc, points: pointsAcc.get(u.id) ?? 0, hasPhoto: hasAvatar(u.id), card: playerCard(u.tag) }))
-
-  const top = ranked.slice(0, 3)
+  const meRankInfo = uid ? await queryUserRank(uid) : null
+  const rankedCount = await queryGamerCount()
 
   // group into mother competitions (رویداد) + standalone events for the home cards
   const ACTIVE = new Set(['live', 'open', 'soon'])
@@ -58,15 +46,27 @@ export default async function HomePage() {
 
   // the signed-in gamer's own overview (rank, points, competitions entered)
   const me = uid ? getUserById(uid) : null
-  const myEntry = me ? ranked.find(r => r.id === me.id) : null
-  // nearest rival — the player one step above (the chase is the excitement)
-  const rival = myEntry && myEntry.rank > 1 ? ranked[myEntry.rank - 2] : null
+  let rival: typeof top[number] | null = null
+  const myEntry = me && meRankInfo && meRankInfo.points > 0 && meRankInfo.rank
+    ? {
+        rank: meRankInfo.rank, id: me.id, name: me.name, tag: me.tag, city: me.city, disc: me.primaryDisc,
+        points: meRankInfo.points, hasPhoto: hasAvatar(me.id), card: playerCard(me.tag),
+      }
+    : null
+  if (myEntry && myEntry.rank > 1) {
+    const { rows } = await queryLeaderboard({ limit: 1, offset: myEntry.rank - 2 })
+    if (rows[0]) {
+      rival = {
+        rank: rows[0].rank, id: rows[0].uid, name: rows[0].name, tag: rows[0].tag, city: rows[0].city,
+        disc: rows[0].disc, points: rows[0].points, hasPhoto: rows[0].hasAvatar, card: rows[0].card,
+      }
+    }
+  }
   const myRegs = uid ? registrationsForUser(uid).length : 0
-  const rankedCount = ranked.length
 
-  // "today on Gameland" — live pulse derived from existing data (7-day window)
+  // "today on Gameland"
   const weekAgo = Date.now() - 7 * 86400000
-  const newGamersWeek = gamers.filter(g => g.createdAt >= weekAgo).length
+  const newGamersWeek = allUsers().filter(u => u.role === 'gamer' && u.createdAt >= weekAgo).length
   const nextDeadline = events
     .filter(e => e.status === 'open' && e.regDeadline && e.regDeadline > Date.now())
     .sort((a, b) => (a.regDeadline ?? 0) - (b.regDeadline ?? 0))[0]
@@ -198,7 +198,7 @@ export default async function HomePage() {
                   coverDisc={eventsForCompetition(c.id)[0]?.disc} discCount={evs.length} prizeSum={evs.reduce((s, e) => s + (e.prize || 0), 0)} status={motherStatus(evs)} />
               )
             })}
-            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} coverSrc={resolveEventCardCover(e.id, e.disc)} />)}
+            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} coverSrc={resolveEventCardCover(e.id, e.disc)} teamSize={getEventConfig(e.id).teamSize} />)}
           </div>
         )}
       </div>

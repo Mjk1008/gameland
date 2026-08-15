@@ -82,10 +82,13 @@ export const users = pgTable('app_users', {
   promoterDiscountPercent: integer('promoter_discount_percent'),
   promoterCommissionPercent: integer('promoter_commission_percent'),
   promoterActivatedAt: timestamp('promoter_activated_at', { withTimezone: true }),
+  rankingPoints: integer('ranking_points').notNull().default(0),
+  rankingEvents: integer('ranking_events').notNull().default(0),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:   timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({
   activeCity: index('users_active_city_idx').on(t.city),
+  ranking: index('users_ranking_idx').on(t.rankingPoints, t.rankingEvents),
 }))
 
 // ─── Events ──────────────────────────────────────────────────

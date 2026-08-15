@@ -156,15 +156,15 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: C.tmut }}>قیمت هر بلیط</span>
-              {(price.offPercent > 0 || promoDiscount > 0) && (
+              {(price.offPercent > 0 || promoOk) && (
                 <span style={{ fontSize: 10, fontWeight: 800, color: C.accent, background: C.accentSoft, borderRadius: 6, padding: '2px 7px' }}>
-                  ٪{promoDiscount || price.offPercent} تخفیف
+                  ٪{promoOk ? promoDiscount : price.offPercent} تخفیف
                 </span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
               <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}><span className="gl-num" style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{toman(promoUnitPrice)}</span><span style={{ fontSize: 11, color: C.tbody }}>تومان</span></span>
-              {(price.offPercent > 0 || promoDiscount > 0) && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(price.original > price.price ? price.original : price.price)}</span>}
+              {(price.offPercent > 0 || promoOk) && price.original > promoUnitPrice && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(price.original)}</span>}
             </div>
           </div>
           <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, textAlign: 'center', lineHeight: 1.5 }}>پیشنهاد<br />محدود</div>

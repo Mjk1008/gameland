@@ -66,6 +66,18 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
 
 @keyframes glTick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
+/* Navigation progress — shows instantly on in-app link tap */
+.gl-nav-progress {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: glNavProgress 0.9s ease-in-out infinite;
+}
+@keyframes glNavProgress {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up, .gl-skel { animation: none; }
 }

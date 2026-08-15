@@ -1,14 +1,21 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { DISC } from '@/lib/mock-data'
+import { buildDisciplineTitle, disciplineSlotKey } from '@/lib/discipline-format'
 import { C, Button, GameBadge, inp, Field } from '@/components/ui'
 import JalaliRangePicker from '@/components/JalaliRangePicker'
 
-export default function NewEventForm() {
+type CompOption = { id: string; title: string; date: string; slots: string[] }
+
+export default function NewEventForm({ competitions }: { competitions: CompOption[] }) {
   const router = useRouter()
+  const [competitionId, setCompetitionId] = useState('')
+  const parent = competitions.find(c => c.id === competitionId)
+  const taken = new Set(parent?.slots ?? [])
   const [title, setTitle] = useState('')
+  const [titleManual, setTitleManual] = useState(false)
   const [season, setSeason] = useState('فصل ۱')
   const [disc, setDisc] = useState<keyof typeof DISC>('fc26')
   const [prize, setPrize] = useState(100)
@@ -26,13 +33,32 @@ export default function NewEventForm() {
 
   const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری' }
 
+  useEffect(() => {
+    if (titleManual) return
+    if (parent) setTitle(buildDisciplineTitle(parent.title, DISC[disc].name, teamSize))
+    else if (!title) setTitle('')
+  }, [parent, disc, teamSize, titleManual, title])
+
+  useEffect(() => {
+    if (parent?.date) setDate(parent.date)
+  }, [parent?.date])
+
+  const slotTaken = parent ? taken.has(disciplineSlotKey(disc, teamSize)) : false
+
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true)
+    if (slotTaken) { setErr('این ترکیب بازی و فرمت قبلاً در این رویداد هست'); setBusy(false); return }
     try {
-      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
+      const res = await fetch('/api/admin/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        title: title || buildDisciplineTitle(parent?.title || 'مسابقه', DISC[disc].name, teamSize),
+        season: parent?.title || season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status],
+        teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined,
+        competitionId: competitionId || undefined,
+      }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ساخته نشد، دوباره امتحان کن')
-      router.push('/admin/events'); router.refresh()
+      router.push(competitionId ? `/admin/competitions/${competitionId}` : '/admin/events')
+      router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
@@ -45,15 +71,29 @@ export default function NewEventForm() {
         <span style={{ fontSize: 18, fontWeight: 800, color: C.thi }}>مسابقهٔ جدید</span>
       </div>
 
-      <Field label="عنوان"><input value={title} onChange={e => setTitle(e.target.value)} required style={inp} /></Field>
+      <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px', lineHeight: 1.85 }}>
+        برای اضافه کردن رشته به رویداد موجود (مثل THE BEST IV)، از{' '}
+        <Link href="/admin/events?tab=competitions" style={{ color: C.accent, fontWeight: 700 }}>رویدادها › افزودن رشته</Link>
+        {' '}استفاده کن — کاربر فقط یک کارت رویداد می‌بینه، نه چند مسابقهٔ جدا.
+      </div>
+
+      <Field label="عضویت در رویداد (پیشنهادی)" hint="رشته زیرمجموعهٔ همون رویداد می‌شه — روی صفحهٔ مسابقات جدا نشون داده نمی‌شه.">
+        <select value={competitionId} onChange={e => { setCompetitionId(e.target.value); setTitleManual(false) }} style={{ ...inp, appearance: 'none' as const }}>
+          <option value="">— مسابقهٔ مستقل (جدا از رویدادها) —</option>
+          {competitions.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+        </select>
+      </Field>
+
+      <Field label="عنوان"><input value={title} onChange={e => { setTitle(e.target.value); setTitleManual(true) }} required style={inp} placeholder={parent ? buildDisciplineTitle(parent.title, DISC[disc].name, teamSize) : 'عنوان مسابقه'} /></Field>
       <Field label="فصل / دوره"><input value={season} onChange={e => setSeason(e.target.value)} style={inp} /></Field>
 
       <Field label="رشته">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {(Object.keys(DISC) as (keyof typeof DISC)[]).map(k => {
             const on = disc === k
+            const used = parent ? taken.has(disciplineSlotKey(k, teamSize)) && on : false
             return (
-              <button key={k} type="button" onClick={() => { setDisc(k); setFinalSize(k === 'fc26' ? 128 : 32) }} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13 }}>
+              <button key={k} type="button" onClick={() => { setDisc(k); setFinalSize(k === 'fc26' ? 128 : 32); setTitleManual(false) }} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 13, opacity: used ? 0.85 : 1 }}>
                 <GameBadge disc={k} size={22} />{DISC[k].name}
               </button>
             )
@@ -81,7 +121,8 @@ export default function NewEventForm() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
             const on = teamSize === k
-            return <button key={k} type="button" onClick={() => setTeamSize(k)} style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
+            const used = parent ? taken.has(disciplineSlotKey(disc, k)) : false
+            return <button key={k} type="button" disabled={used} onClick={() => { setTeamSize(k); setTitleManual(false) }} style={{ all: 'unset', cursor: used ? 'default' : 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5, opacity: used ? 0.4 : 1 }}>{label}{used ? ' ✓' : ''}</button>
           })}
         </div>
       </Field>
@@ -116,9 +157,11 @@ export default function NewEventForm() {
         </div>
       </Field>
 
+      {slotTaken && <div style={{ fontSize: 12, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}55`, padding: 10, borderRadius: 10 }}>این ترکیب در رویداد انتخاب‌شده قبلاً وجود داره.</div>}
+
       {err && <div style={{ fontSize: 12.5, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-      <Button type="submit" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'در حال ساخت…' : 'ساخت مسابقه'}</Button>
+      <Button type="submit" disabled={busy || slotTaken} style={{ marginTop: 4 }}>{busy ? 'در حال ساخت…' : parent ? 'افزودن رشته به رویداد' : 'ساخت مسابقهٔ مستقل'}</Button>
     </form>
   )
 }

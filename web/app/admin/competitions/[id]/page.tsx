@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getCompetition, eventsForCompetition, approvedRegistrationsForComp, hasCompetitionCover, hasEventCover } from '@/lib/store'
+import { getCompetition, eventsForCompetition, approvedRegistrationsForComp, hasCompetitionCover, hasEventCover, getEventConfig } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
+import { disciplineDisplayName, disciplineSlotKey, formatModeLabel } from '@/lib/discipline-format'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import AddDisciplineForm from './add-discipline'
 import EditCompetition from './edit-competition'
@@ -13,7 +14,7 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
   const comp = getCompetition(params.id)
   if (!comp) return notFound()
   const discEvents = eventsForCompetition(params.id)
-  const existing = discEvents.map(e => e.disc)
+  const existingSlots = discEvents.map(e => disciplineSlotKey(e.disc, getEventConfig(e.id).teamSize))
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -47,14 +48,15 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
             {discEvents.map(e => {
               const d = DISC[e.disc as keyof typeof DISC]
+              const teamSize = getEventConfig(e.id).teamSize
               const regs = approvedRegistrationsForComp(e.id).length
               return (
                 <Link key={e.id} href={`/admin/events/${e.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
                   <GameBadge disc={e.disc} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>{d?.name ?? e.disc}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>{disciplineDisplayName(d?.name ?? e.disc, teamSize)}</div>
                     <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>
-                      {e.prize > 0 ? `${e.prize}M تومان · ` : ''}فینال {e.finalSize ?? 128} · <span className="gl-num">{regs}</span> ثبت‌نام
+                      {formatModeLabel(teamSize)}{e.prize > 0 ? ` · ${e.prize}M تومان` : ''} · فینال {e.finalSize ?? 128} · <span className="gl-num">{regs}</span> ثبت‌نام
                     </div>
                   </div>
                   <StatusChip status={e.status} />
@@ -64,7 +66,7 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
           </div>
         )}
 
-        <AddDisciplineForm compId={comp.id} compTitle={comp.title} compDate={comp.date} existing={existing} />
+        <AddDisciplineForm compId={comp.id} compTitle={comp.title} compDate={comp.date} existingSlots={existingSlots} />
       </div>
 
       <div style={{ fontSize: 11.5, color: C.tmut, lineHeight: 1.9, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px' }}>

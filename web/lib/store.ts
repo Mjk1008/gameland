@@ -7,6 +7,7 @@
 // → restart. Data persists across restarts automatically.
 
 import { Disc } from './mock-data'
+import { disciplineSlotKey } from './discipline-format'
 import { persist, startHydration, whenAuthReady as persistAuthReady } from './db/persistence'
 import { bundledBannerDataUrl } from './game-assets-server'
 import { defaultDiscBanner } from './game-assets'
@@ -50,6 +51,8 @@ export interface User {
   promoterDiscountPercent?: number
   promoterCommissionPercent?: number
   promoterActivatedAt?: number
+  rankingPoints?: number
+  rankingEvents?: number
 }
 
 const users = new Map<string, User>()
@@ -88,7 +91,7 @@ function ensureHydrated() {
   _ready = startHydration({
     loadUser:      (u: User) => upsertUserInMemory(u, /*fromDb*/ true),
     loadEvent:     (e: Event) => { events.set(e.id, e) },
-    loadReg:       (r: Registration) => { regs.set(r.userId + '|' + r.compId, r) },
+    loadReg:       (r: Registration) => { indexReg(r) },
     loadNotif:     (n: Notification) => { notifs.push(n) },
     loadPlacement: (pl: Placement) => { if (!placements.find(p => p.id === pl.id)) placements.push(pl) },
     loadMatch:     (m: Match) => { if (!matches.find(x => x.id === m.id)) matches.push(m) },
@@ -121,6 +124,7 @@ function ensureHydrated() {
     setImmediate(() => {
       reconcileDefaultEventCovers().catch(e => console.warn('[covers]', e))
       try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
+      import('./ranking-store').then(m => m.rebuildAllRankingsAsync().catch(e => console.warn('[ranking]', e)))
     })
   })
 }
@@ -146,8 +150,8 @@ async function reconcileDefaultEventCovers() {
 // and are served on demand, so this stays tiny even with 10k users).
 const avatarIds = new Set<string>()
 export function hasAvatar(userId: string): boolean { return avatarIds.has(userId) }
-export function markAvatar(userId: string): void { avatarIds.add(userId) }
-export function unmarkAvatar(userId: string): void { avatarIds.delete(userId) }
+export function markAvatar(userId: string): void { avatarIds.add(userId); bumpNationalRanking(userId) }
+export function unmarkAvatar(userId: string): void { avatarIds.delete(userId); bumpNationalRanking(userId) }
 
 // Competition / event card covers — ids only in RAM (bytes in Postgres blobs).
 const competitionCoverIds = new Set<string>()
@@ -199,6 +203,7 @@ export function setUserBonusPoints(id: string, points: number): User | undefined
   const u = users.get(id); if (!u) return
   u.bonusPoints = Math.max(0, Math.round(points))
   persist.user.update(id, { bonusPoints: u.bonusPoints })
+  bumpNationalRanking(id)
   return u
 }
 export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
@@ -233,6 +238,7 @@ export function setReferrerByTag(userId: string, refTag: string): boolean {
   if (!ref || ref.id === userId) return false             // must exist, no self-referral
   u.referredBy = ref.id
   persist.user.update(userId, { referredBy: ref.id })
+  bumpNationalRanking(userId)
   return true
 }
 
@@ -541,6 +547,7 @@ export function updateUser(id: string, patch: Partial<Omit<User, 'id' | 'created
   }
   Object.assign(u, patch)
   persist.user.update(id, patch)
+  if (u.role === 'gamer') bumpNationalRanking(id)
   return u
 }
 
@@ -635,6 +642,15 @@ export function eventsForCompetition(id: string): Event[] {
   return Array.from(events.values()).filter(e => e.competitionId === id).sort((a, b) => a.createdAt - b.createdAt)
 }
 
+/** Taken (disc, format) slots under a mother competition — fc26:1 and fc26:2 can coexist. */
+export function disciplineSlotsForCompetition(compId: string): string[] {
+  return eventsForCompetition(compId).map(e => disciplineSlotKey(e.disc, getEventConfig(e.id).teamSize))
+}
+
+export function isDisciplineSlotTaken(compId: string, disc: string, teamSize?: number): boolean {
+  return disciplineSlotsForCompetition(compId).includes(disciplineSlotKey(disc, teamSize))
+}
+
 const events = new Map<string, Event>()
 
 export function createEvent(input: Omit<Event, 'id' | 'createdAt' | 'tier'> & { tier?: Event['tier'] }): Event {
@@ -706,6 +722,23 @@ export interface Registration {
 }
 
 const regs = new Map<string, Registration>()
+const regsByUser = new Map<string, Registration[]>()
+
+function bumpNationalRanking(userId?: string) {
+  try {
+    const { touchUserRanking } = require('./ranking-store') as typeof import('./ranking-store')
+    if (userId) touchUserRanking(userId)
+  } catch { /* noop */ }
+}
+
+function indexReg(r: Registration) {
+  regs.set(r.userId + '|' + r.compId, r)
+  const list = regsByUser.get(r.userId)
+  if (!list) { regsByUser.set(r.userId, [r]); return }
+  const i = list.findIndex(x => x.compId === r.compId)
+  if (i >= 0) list[i] = r
+  else list.push(r)
+}
 
 // Register / buy tickets. Each user may hold up to 6 سهم per discipline. Buying
 // more tops up the SAME registration (never a duplicate) up to that cap; the
@@ -724,6 +757,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.attempts += attempts
     existing.status = 'pending'
     persist.reg.update(existing.id, { attempts: existing.attempts, status: 'pending' } as any)
+    bumpNationalRanking(userId)
     return existing
   }
   if (existing) {
@@ -736,6 +770,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.paidAttempts = 0   // nothing settled on a rejected row
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId } as any)
+    bumpNationalRanking(userId)
     return existing
   }
   const r: Registration = {
@@ -746,8 +781,9 @@ export function createRegistration(userId: string, compId: string, attempts: num
     teamId,
     createdAt: Date.now(),
   }
-  regs.set(key, r)
+  indexReg(r)
   persist.reg.insert(r)
+  bumpNationalRanking(userId)
   return r
 }
 
@@ -768,6 +804,7 @@ export function setRegistrationStatus(regId: string, status: RegStatus, rejectRe
   // only for the newly added سهم.
   if (status === 'approved') r.paidAttempts = r.attempts
   persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null, paidAttempts: r.paidAttempts ?? null } as any)
+  bumpNationalRanking(r.userId)
   return r
 }
 
@@ -780,6 +817,7 @@ export function setRegistrationAttempts(regId: string, attempts: number): Regist
   if (matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
   r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
   persist.reg.update(r.id, { attempts: r.attempts } as any)
+  bumpNationalRanking(r.userId)
   return r
 }
 
@@ -788,7 +826,7 @@ export function getRegistration(userId: string, compId: string): Registration | 
 }
 
 export function registrationsForUser(userId: string): Registration[] {
-  return Array.from(regs.values()).filter(r => r.userId === userId)
+  return regsByUser.get(userId) ?? []
 }
 
 export function registrationsForComp(compId: string): Registration[] {
@@ -1412,6 +1450,7 @@ export function storePlacement(userId: string, compId: string, disc: Disc, rank:
   }
   placements.push(pl)
   persist.placement.insert(pl)
+  bumpNationalRanking(userId)
   return pl
 }
 

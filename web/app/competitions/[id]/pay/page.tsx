@@ -22,7 +22,7 @@ export default async function PayPage({ params }: { params: { id: string } }) {
     <PayView
       compId={c.id} title={c.title} attempts={reg.attempts}
       ticketCount={pay.ticketCount} unitPrice={pay.unitPrice} total={pay.total}
-      discountPercent={pay.discountPercent} promoCode={pay.codeLabel}
+      discountPercent={pay.totalOffPercent} promoCode={pay.codeLabel}
       alreadyPaid={reg.paidAttempts ?? 0} freeAttempts={reg.freeAttempts ?? 0}
       status={reg.status} hasReceipt={hasReceipt(reg.id)} disc={c.disc} city={u.city ?? ''}
     />

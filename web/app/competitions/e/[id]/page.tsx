@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getCompetition, eventsForCompetition, getUserById, registrationsForUser, resolveCompetitionCardCover, resolveEventCardCover } from '@/lib/store'
+import { getCompetition, eventsForCompetition, getUserById, registrationsForUser, resolveCompetitionCardCover, resolveEventCardCover, getEventConfig } from '@/lib/store'
 import { C, BackHeader, EmptyState } from '@/components/ui'
 import { DisciplineCard } from '../../cards'
 
@@ -43,7 +43,7 @@ export default async function CompetitionSetPage({ params }: { params: { id: str
         )}
 
         <div style={{ fontSize: 12.5, color: C.tbody, lineHeight: 1.8 }}>
-          رشته‌ای که می‌خوای رو انتخاب کن و توش ثبت‌نام کن — هر رشته براکت و جایزهٔ خودش رو داره.
+          رشته و فرمت (۱به۱ یا ۲به۲) رو انتخاب کن — همه زیر همین رویدادن، ولی هر رشته براکت و جایزهٔ خودش رو داره.
         </div>
 
         {discs.length === 0 ? (
@@ -52,7 +52,7 @@ export default async function CompetitionSetPage({ params }: { params: { id: str
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {discs.map(e => <DisciplineCard key={e.id} ev={e} reg={regByComp.get(e.id)} coverSrc={resolveEventCardCover(e.id, e.disc)} />)}
+            {discs.map(e => <DisciplineCard key={e.id} ev={e} reg={regByComp.get(e.id)} coverSrc={resolveEventCardCover(e.id, e.disc)} teamSize={getEventConfig(e.id).teamSize} />)}
           </div>
         )}
       </div>

@@ -417,6 +417,7 @@ export function submitPlayResult(uid: string, matchId: string, winnerId: string)
       m.status = 'confirmed'
       m.winnerUserId = winnerId
       m.confirmedAt = Date.now()
+      try { require('./ranking-store').touchUserRanking(winnerId) } catch { /* noop */ }
       const req = playRequests.get(m.requestId)
       const bo = req?.bestOf ?? 3
       const base = bo === 1 ? ARENA_WIN_POINTS_BO1 : ARENA_WIN_POINTS_BO3

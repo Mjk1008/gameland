@@ -8,7 +8,7 @@ import type { TicketSlot } from '@/lib/promoter'
 
 interface Row {
   regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number
-  referrerTag?: string; promoCode?: string; discountPercent?: number
+  referrerTag?: string; promoCode?: string; discountPercent?: number; totalOffPercent?: number
   promoterName?: string; promoterTag?: string
   name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean
   unitPrice: number; fullUnitPrice: number; expectedTotal: number; revenueTotal: number
@@ -115,7 +115,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{r.name}</span>
-                    {hasPromo && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 6, padding: '2px 7px' }}>{r.promoCode} · {r.discountPercent}٪</span>}
+                    {hasPromo && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 6, padding: '2px 7px' }}>{r.promoCode} · {r.totalOffPercent ?? r.discountPercent}٪</span>}
                     {hasFree && !hasPromo && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 6, padding: '2px 7px' }}>رایگان</span>}
                   </div>
                   <div style={{ fontSize: 11.5, color: C.tbody, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.event}</div>
@@ -159,7 +159,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                   {sel.promoterTag && <span dir="ltr" style={{ fontFamily: DISP, color: C.tmut }}> @{sel.promoterTag}</span>}
                 </div>
                 <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.gold, marginTop: 4, textAlign: 'right' }}>
-                  کد {sel.promoCode} · تخفیف {sel.discountPercent}٪ · هر سهم {toman(sel.unitPrice)} (به‌جای {toman(sel.fullUnitPrice)})
+                  کد {sel.promoCode} · تخفیف کل {sel.totalOffPercent ?? sel.discountPercent}٪ (پروموتر {sel.discountPercent}٪) · هر سهم {toman(sel.unitPrice)} (به‌جای {toman(sel.fullUnitPrice)})
                 </div>
               </div>
             )}

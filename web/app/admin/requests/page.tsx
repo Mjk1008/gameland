@@ -12,7 +12,7 @@ export default function RequestsAdmin() {
     return {
       regId: r.id, attempts: r.attempts, freeAttempts: r.freeAttempts ?? 0, paidAttempts: r.paidAttempts ?? 0,
       referrerTag: u?.referredBy ? getUserById(u.referredBy)?.tag : undefined,
-      promoCode: review.codeLabel, discountPercent: review.discountPercent,
+      promoCode: review.codeLabel, discountPercent: review.discountPercent, totalOffPercent: review.totalOffPercent,
       promoterName: review.promoterName, promoterTag: review.promoterTag,
       name: u?.name ?? '?', tag: u?.tag ?? '?', phone: u?.phone ?? '', city: u?.city ?? '',
       event: c?.title ?? r.compId, hasReceipt: hasReceipt(r.id),

@@ -2,12 +2,11 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, allUsers, allPlacements, profileCompletion, hasAvatar, activityPointsOf, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion, hasAvatar, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
 import { challengePointsOf } from '@/lib/arena'
 import { isArenaEnabled } from '@/lib/arena-enabled'
 import { isPromoter, promoterDashboard } from '@/lib/promoter'
-import { pointsForPlacement } from '@/lib/ranking'
-import type { EventTier } from '@/lib/schema'
+import { queryUserRank, queryGamerCount } from '@/lib/ranking-store'
 import { C, DISP, Num, GameBadge } from '@/components/ui'
 import AvatarEditor from './avatar-editor'
 import ShareCard from './share-card'
@@ -36,19 +35,8 @@ export default async function MePage() {
     return { team: t, comp: getEvent(t.compId), members, needsAttention }
   }).filter(x => x.comp)
 
-  // my national rank — same formula as home/leaderboard (bonus + activity + placements)
-  const gamers = allUsers().filter(g => g.role === 'gamer')
-  const evMap = new Map(allEvents().map(e => [e.id, e]))
-  const pts = new Map<string, number>()
-  for (const g of gamers) pts.set(g.id, (g.bonusPoints ?? 0) + activityPointsOf(g) + challengePointsOf(g.id))
-  for (const pl of allPlacements()) {
-    const ev = evMap.get(pl.compId); if (!ev) continue
-    pts.set(pl.userId, (pts.get(pl.userId) ?? 0) + pointsForPlacement(pl.rank, (ev.tier ?? 'A') as EventTier))
-  }
-  const ordered = [...gamers].sort((a, b) => (pts.get(b.id) ?? 0) - (pts.get(a.id) ?? 0))
-  const myIdx = ordered.findIndex(g => g.id === uid)
-  const myRank = myIdx >= 0 && (pts.get(uid) ?? 0) > 0 ? myIdx + 1 : null
-  const myPoints = pts.get(uid) ?? 0
+  const { rank: myRank, points: myPoints } = await queryUserRank(uid)
+  const gamerTotal = await queryGamerCount()
   const myArenaPoints = challengePointsOf(uid)
   const arenaOn = isArenaEnabled()
   const promoDash = isPromoter(uid) ? promoterDashboard(uid) : null
@@ -123,7 +111,7 @@ export default async function MePage() {
       {/* shareable gamer card — identity worth showing off */}
       {u.role === 'gamer' && (
         <div style={{ marginBottom: 16 }}>
-          <ShareCard uid={uid} name={u.name} tag={u.tag} city={u.city} disc={u.primaryDisc ?? null} rank={myRank} points={myPoints} total={gamers.length} hasPhoto={hasAvatar(uid)} />
+          <ShareCard uid={uid} name={u.name} tag={u.tag} city={u.city} disc={u.primaryDisc ?? null} rank={myRank} points={myPoints} total={gamerTotal} hasPhoto={hasAvatar(uid)} />
         </div>
       )}
 

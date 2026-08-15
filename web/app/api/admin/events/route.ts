@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createEvent, updateEvent, getUserById, getEvent, setEventConfig, registrationsForComp } from '@/lib/store'
+import { createEvent, updateEvent, getUserById, getEvent, setEventConfig, registrationsForComp, isDisciplineSlotTaken } from '@/lib/store'
+import { DISC } from '@/lib/mock-data'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -16,6 +17,17 @@ export async function POST(req: Request) {
   const tier = ['S', 'A', 'B', 'C'].includes(b.tier) ? b.tier : 'A'
   // Final bracket size per discipline: FIFA/EA FC = 128, everything else = 32.
   const finalSize = b.finalSize != null && b.finalSize !== '' ? Number(b.finalSize) : (b.disc === 'fc26' ? 128 : 32)
+  const teamSize = Number(b.teamSize) === 2 ? 2 : undefined
+  const ticketPrice = b.ticketPrice != null && b.ticketPrice !== '' ? Number(b.ticketPrice) : undefined
+  const ticketOriginal = b.ticketOriginal != null && b.ticketOriginal !== '' ? Number(b.ticketOriginal) : undefined
+
+  const competitionId = b.competitionId ? String(b.competitionId) : undefined
+  if (competitionId && isDisciplineSlotTaken(competitionId, b.disc, teamSize)) {
+    const game = DISC[b.disc as keyof typeof DISC]?.name ?? b.disc
+    const fmt = teamSize === 2 ? '۲به۲' : '۱به۱'
+    return NextResponse.json({ error: `این رشته (${game} · ${fmt}) قبلاً به این رویداد اضافه شده` }, { status: 409 })
+  }
+
   const e = createEvent({
     title: b.title, season: b.season || 'فصل ۱', disc: b.disc, tier,
     prize: Number(b.prize) || 0, teams: Number(b.teams) || 32,
@@ -23,15 +35,9 @@ export async function POST(req: Request) {
     status: b.status || 'open', statusLabel: b.statusLabel || 'ثبت‌نام باز',
     format: b.format || 'حذفی تک', date: b.date || '',
     organizerId: uid,
-    competitionId: b.competitionId ? String(b.competitionId) : undefined,
+    competitionId,
     finalSize,
   })
-  // Format + per-event price live in EventConfig, not the Event row (same
-  // "undefined = platform default" idiom as ticketPrice). No immutability
-  // guard needed here — nothing has registered yet on a brand-new event.
-  const teamSize = Number(b.teamSize) === 2 ? 2 : undefined
-  const ticketPrice = b.ticketPrice != null && b.ticketPrice !== '' ? Number(b.ticketPrice) : undefined
-  const ticketOriginal = b.ticketOriginal != null && b.ticketOriginal !== '' ? Number(b.ticketOriginal) : undefined
   if (teamSize !== undefined || ticketPrice !== undefined || ticketOriginal !== undefined) {
     setEventConfig(e.id, { teamSize, ticketPrice, ticketOriginal })
   }

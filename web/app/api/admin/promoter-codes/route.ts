@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { getUserById, whenReady } from '@/lib/store'
 import {
   allPromoterCodes, updatePromoterCode, getPromoterCode,
-  pendingEarningsTotal, allPromoterEarnings, activatePromoter, deactivatePromoter,
+  pendingEarningsTotal, allPromoterEarnings, activatePromoter,
+  deactivatePromoter, deactivatePromoterCode, reactivatePromoterCode,
   updatePromoterTerms, listActivePromoters, pendingCodeRequests,
   adminIssueCode, rejectCodeRequest, statsForCode,
 } from '@/lib/promoter'
@@ -24,7 +25,7 @@ function errMsg(code: string) {
   if (code === 'NOT_ACTIVE') return 'پروموتر فعال نیست'
   if (code === 'NOT_FOUND') return 'درخواست پیدا نشد'
   if (code === 'ALREADY_REVIEWED') return 'این درخواست قبلاً بررسی شده'
-  if (code === 'CODE_LIMIT') return 'سقف کد برای این پروموتر پر است'
+  if (code === 'CODE_LIMIT') return 'سقف کد فعال برای این پروموتر پر است'
   if (code === 'DISCOUNT_RANGE') return 'تخفیف باید ۱ تا ۹۰٪ باشد'
   if (code === 'COMMISSION_RANGE') return 'کمیسیون باید ۰ تا ۵۰٪ باشد'
   if (code === 'CODE_LENGTH') return 'کد باید ۳ تا ۲۴ کاراکتر باشد'
@@ -37,11 +38,13 @@ export async function GET() {
   if (!adminId) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const partners = listActivePromoters().map(u => {
-    const codes = allPromoterCodes()
-      .filter(c => c.promoterUserId === u.id && c.active)
+    const allCodes = allPromoterCodes()
+      .filter(c => c.promoterUserId === u.id)
+      .sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
       .map(c => ({
         id: c.id,
         code: c.code,
+        active: c.active,
         discountPercent: c.discountPercent,
         commissionPercent: c.commissionPercent,
         note: c.note,
@@ -54,7 +57,8 @@ export async function GET() {
       phone: u.phone ?? '',
       discountPercent: u.promoterDiscountPercent ?? 0,
       commissionPercent: u.promoterCommissionPercent ?? 0,
-      codes,
+      codes: allCodes.filter(c => c.active),
+      inactiveCodes: allCodes.filter(c => !c.active),
       active: !!u.promoterActive,
       pendingCommission: allPromoterEarnings()
         .filter(e => e.promoterUserId === u.id && e.status === 'pending')
@@ -156,6 +160,28 @@ export async function POST(req: Request) {
     }
   }
 
+  if (action === 'deactivateCode') {
+    const codeId = (body.codeId ?? '').toString()
+    if (!codeId) return NextResponse.json({ error: 'کد نامعتبر' }, { status: 400 })
+    try {
+      deactivatePromoterCode(codeId)
+      return NextResponse.json({ ok: true })
+    } catch (e: any) {
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    }
+  }
+
+  if (action === 'reactivateCode') {
+    const codeId = (body.codeId ?? '').toString()
+    if (!codeId) return NextResponse.json({ error: 'کد نامعتبر' }, { status: 400 })
+    try {
+      reactivatePromoterCode(codeId)
+      return NextResponse.json({ ok: true })
+    } catch (e: any) {
+      return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    }
+  }
+
   if (action === 'createCode') {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
@@ -175,7 +201,13 @@ export async function POST(req: Request) {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
     activatePromoter(userId, Number(body.discountPercent), Number(body.commissionPercent))
-    return NextResponse.json({ ok: true })
+    const hasCode = allPromoterCodes().some(c => c.promoterUserId === userId && c.active)
+    let code = null
+    if (!hasCode) {
+      const c = adminIssueCode(userId, adminId, {})
+      code = { id: c.id, code: c.code }
+    }
+    return NextResponse.json({ ok: true, code })
   } catch (e: any) {
     return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
   }

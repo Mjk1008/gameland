@@ -5,6 +5,7 @@ import TrackPageview from './track-pageview'
 import BottomNav from '@/components/BottomNav'
 import AddToHome from '@/components/AddToHome'
 import AssistantFab from '@/components/AssistantFab'
+import NavProgress from '@/components/NavProgress'
 import Providers from './providers'
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fa" dir="rtl">
       <body style={{ background: '#14110D', minHeight: '100vh' }}>
         <Providers>
+          <NavProgress />
           <main style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 88, minHeight: '100vh' }}>
             {children}
           </main>

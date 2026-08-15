@@ -60,9 +60,13 @@ export function startHydration(loaders: {
     try {
       const ms = (v: any) => (v instanceof Date ? v.getTime() : Date.now())
 
-      // Idempotent schema self-heal on boot — lets new tables/columns land via
-      // deploy without a manual migration (the app can reach the DB; the
-      // sandbox can't). All guarded with IF NOT EXISTS.
+      let skipDdl = false
+      try {
+        const ver = await d.select().from(schema.settings).where(eq(schema.settings.key, 'schema_version'))
+        if (ver[0]?.value === '4') skipDdl = true
+      } catch { /* first boot */ }
+
+      if (!skipDdl) {
       for (const stmt of [
         `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_competition_covers (competition_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -164,7 +168,17 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_teams (id TEXT PRIMARY KEY, comp_id TEXT NOT NULL REFERENCES app_events(id) ON DELETE CASCADE, name TEXT NOT NULL, captain_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'forming', attempts INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS team_comp_idx ON app_teams (comp_id)`,
         `CREATE TABLE IF NOT EXISTS app_team_members (team_id TEXT NOT NULL REFERENCES app_teams(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, slot INTEGER NOT NULL, status TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (team_id, user_id))`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS ranking_points INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS ranking_events INTEGER NOT NULL DEFAULT 0`,
+        `CREATE INDEX IF NOT EXISTS users_ranking_idx ON app_users (ranking_points DESC, ranking_events DESC)`,
+        `CREATE INDEX IF NOT EXISTS registrations_user_idx ON app_registrations (user_id)`,
+        `CREATE INDEX IF NOT EXISTS placements_user_idx ON app_placements (user_id)`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
+      try {
+        await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
+          .onConflictDoUpdate({ target: schema.settings.key, set: { value: '4', updatedAt: new Date() } })
+      } catch (e) { console.error('[db] schema_version:', e) }
+      }
 
       const cps = await d.select().from(schema.competitions)
       for (const c of cps) loaders.loadCompetition?.({
@@ -197,6 +211,8 @@ export function startHydration(loaders: {
         promoterDiscountPercent: u.promoterDiscountPercent ?? undefined,
         promoterCommissionPercent: u.promoterCommissionPercent ?? undefined,
         promoterActivatedAt: u.promoterActivatedAt ? ms(u.promoterActivatedAt) : undefined,
+        rankingPoints: (u as any).rankingPoints ?? 0,
+        rankingEvents: (u as any).rankingEvents ?? 0,
       })
 
       authReadyDone = true
@@ -445,6 +461,8 @@ function userValues(u: User) {
     promoterActive: u.promoterActive, promoterDiscountPercent: u.promoterDiscountPercent,
     promoterCommissionPercent: u.promoterCommissionPercent,
     promoterActivatedAt: u.promoterActivatedAt ? new Date(u.promoterActivatedAt) : undefined,
+    rankingPoints: u.rankingPoints ?? 0,
+    rankingEvents: u.rankingEvents ?? 0,
   }
 }
 
@@ -522,6 +540,27 @@ export const persist = {
     setPassword(id: string, passwordHash: string) {
       const d = db(); if (!d) return
       fire(d.update(schema.users).set({ passwordHash }).where(eq(schema.users.id, id)))
+    },
+    setRanking(id: string, points: number, events: number) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.users).set({ rankingPoints: points, rankingEvents: events }).where(eq(schema.users.id, id)))
+    },
+    async batchSetRanking(rows: { id: string; points: number; events: number }[]) {
+      const d = db(); if (!d || rows.length === 0) return
+      const CHUNK = 200
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK)
+        const values = chunk.map(r =>
+          `('${r.id.replace(/'/g, "''")}', ${Math.round(r.points)}, ${Math.round(r.events)})`,
+        ).join(',')
+        await d.execute(sql.raw(`
+          UPDATE app_users AS u SET
+            ranking_points = v.points::int,
+            ranking_events = v.events::int
+          FROM (VALUES ${values}) AS v(id, points, events)
+          WHERE u.id = v.id
+        `))
+      }
     },
   },
   event: {
