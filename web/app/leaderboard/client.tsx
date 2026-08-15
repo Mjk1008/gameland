@@ -23,7 +23,7 @@ async function fetchRanking(params: { offset: number; q: string; disc: DiscFilte
   if (params.q.trim()) sp.set('q', params.q.trim())
   const res = await fetch(`/api/ranking?${sp}`)
   const j = await res.json()
-  if (!res.ok) throw new Error(j.error || 'بارگذاری رنkینگ ناموفق بود')
+  if (!res.ok) throw new Error(j.error || 'بارگذاری رنکینگ ناموفق بود')
   return j as {
     ranked: Row[]
     total: number
@@ -89,7 +89,7 @@ export default function LeaderboardClient() {
     <div className="animate-fade-up">
       <div style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 5, background: 'rgba(20,17,13,.94)', backdropFilter: 'blur(10px)', padding: '14px 16px 10px', borderBottom: `1px solid ${C.line}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>رنkینگ ملی</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>رنکینگ ملی</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {cities.length > 1 && (
               <div style={{ display: 'flex', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 999, padding: 2 }}>

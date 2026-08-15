@@ -108,7 +108,7 @@ export default function PromoterDashboard({ data }: { data: DashboardData }) {
         </Link>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: C.thi }}>پنل پروموتر</div>
-          <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>کد · لینk · آمار · کمیسیون</div>
+          <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>کد · لینک · آمار · کمیسیون</div>
         </div>
       </div>
 
@@ -161,7 +161,7 @@ export default function PromoterDashboard({ data }: { data: DashboardData }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
             <CopyBtn label="کپی کد" active={copied === 'primary-code'} onClick={() => copy(primary.code, 'primary-code')} />
-            <CopyBtn label="کپی لینk" accent active={copied === 'primary-link'} onClick={() => copy(primary.shareLink, 'primary-link')} />
+            <CopyBtn label="کپی لینک" accent active={copied === 'primary-link'} onClick={() => copy(primary.shareLink, 'primary-link')} />
           </div>
         </div>
       ) : !data.pendingRequest && (
@@ -249,7 +249,7 @@ function CodeAccordion({ c, expanded, onToggle, copied, onCopy }: {
         <div style={{ padding: '0 14px 14px', borderTop: `1px solid ${C.line}` }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
             <CopyBtn label="کپی کد" active={copied === c.id + '-c'} onClick={() => onCopy(c.code, c.id + '-c')} />
-            <CopyBtn label="کپی لینk" accent active={copied === c.id + '-l'} onClick={() => onCopy(c.shareLink, c.id + '-l')} />
+            <CopyBtn label="کپی لینک" accent active={copied === c.id + '-l'} onClick={() => onCopy(c.shareLink, c.id + '-l')} />
           </div>
           <ActivityBlock activity={c.activity} compact />
         </div>

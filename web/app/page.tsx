@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, getEventConfig, allEvents, allUsers, type Event } from '@/lib/store'
+import { getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, allEvents, allUsers, type Event } from '@/lib/store'
 import { queryTopGamers, queryUserRank, queryGamerCount, queryLeaderboard } from '@/lib/ranking-store'
 import { playerCard } from '@/lib/player-cards'
 import { hasAvatar } from '@/lib/store'
@@ -198,7 +198,7 @@ export default async function HomePage() {
                   coverDisc={eventsForCompetition(c.id)[0]?.disc} discCount={evs.length} prizeSum={evs.reduce((s, e) => s + (e.prize || 0), 0)} status={motherStatus(evs)} />
               )
             })}
-            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} coverSrc={resolveEventCardCover(e.id, e.disc)} teamSize={getEventConfig(e.id).teamSize} />)}
+            {activeStandalone.map(e => <DisciplineCard key={e.id} ev={e} coverSrc={resolveEventCardCover(e.id, e.disc)} />)}
           </div>
         )}
       </div>

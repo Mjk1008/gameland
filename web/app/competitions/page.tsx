@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, getEventConfig, type Event } from '@/lib/store'
+import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, type Event } from '@/lib/store'
 import { C, EmptyState } from '@/components/ui'
 import { DisciplineCard, CompetitionCard } from './cards'
 
@@ -57,7 +57,7 @@ export default async function CompetitionsPage() {
                 coverDisc={eventsForCompetition(c.id)[0]?.disc} discCount={evs.length} prizeSum={prizeSum} status={compStatus(evs)} />
             )
           })}
-          {standalone.map(e => <DisciplineCard key={e.id} ev={e} reg={regByComp.get(e.id)} coverSrc={resolveEventCardCover(e.id, e.disc)} teamSize={getEventConfig(e.id).teamSize} />)}
+          {standalone.map(e => <DisciplineCard key={e.id} ev={e} reg={regByComp.get(e.id)} coverSrc={resolveEventCardCover(e.id, e.disc)} />)}
         </div>
       )}
     </div>

@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getCompetition, eventsForCompetition, approvedRegistrationsForComp, hasCompetitionCover, hasEventCover, getEventConfig } from '@/lib/store'
-import { DISC } from '@/lib/mock-data'
-import { disciplineDisplayName, disciplineSlotKey, formatModeLabel } from '@/lib/discipline-format'
-import { C, Num, StatusChip, GameBadge } from '@/components/ui'
+import { disciplineSlotKey } from '@/lib/discipline-format'
+import { C, StatusChip, GameBadge } from '@/components/ui'
 import AddDisciplineForm from './add-discipline'
 import EditCompetition from './edit-competition'
 import CompetitionCoverPanel from './competition-cover-panel'
@@ -47,16 +46,14 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
             {discEvents.map(e => {
-              const d = DISC[e.disc as keyof typeof DISC]
-              const teamSize = getEventConfig(e.id).teamSize
               const regs = approvedRegistrationsForComp(e.id).length
               return (
                 <Link key={e.id} href={`/admin/events/${e.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
                   <GameBadge disc={e.disc} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>{disciplineDisplayName(d?.name ?? e.disc, teamSize)}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>{e.title}</div>
                     <div style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>
-                      {formatModeLabel(teamSize)}{e.prize > 0 ? ` · ${e.prize}M تومان` : ''} · فینال {e.finalSize ?? 128} · <span className="gl-num">{regs}</span> ثبت‌نام
+                      {e.prize > 0 ? `${e.prize}M تومان · ` : ''}فینال {e.finalSize ?? 128} · <span className="gl-num">{regs}</span> ثبت‌نام
                     </div>
                   </div>
                   <StatusChip status={e.status} />

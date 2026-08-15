@@ -1,6 +1,5 @@
 import Link from 'next/link'
-import { allEvents, getCompetition, getEventConfig } from '@/lib/store'
-import { formatModeLabel } from '@/lib/discipline-format'
+import { allEvents, getCompetition } from '@/lib/store'
 import { C, StatusChip, EmptyState, GameBadge } from '@/components/ui'
 
 // Discipline-events list — one tab of the tournaments hub (see ../page.tsx).
@@ -19,14 +18,13 @@ export default function EventsListContent() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {all.map(c => {
             const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
-            const fmt = formatModeLabel(getEventConfig(c.id).teamSize)
             return (
               <Link key={c.id} href={`/admin/events/${c.id}`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', background: C.sf1, border: `1px solid ${parent ? C.accent + '33' : C.line}`, borderRadius: 13 }}>
                 <GameBadge disc={c.disc} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{c.title}</div>
                   <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 3 }}>
-                    {fmt}{parent ? ` · ${parent.title}` : ' · مستقل'} · {c.prize}M · {c.maxPlayers ?? c.teams} نفر
+                    {parent ? parent.title : 'مستقل'} · {c.prize}M · {c.maxPlayers ?? c.teams} نفر
                   </div>
                 </div>
                 <StatusChip status={c.status} />
