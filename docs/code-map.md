@@ -12,7 +12,7 @@
 | Add/change business data or reads | `web/lib/store.ts` |
 | New DB table/column (ships via deploy) | `web/lib/db/persistence.ts` → `ensureSchema` |
 | Drizzle table defs | `web/lib/db/schema.ts` |
-| Auth / roles / admin allow-list | `web/lib/auth.ts` + `ADMIN_PHONES` · promote at `/admin/gamers` |
+| Auth / roles / admin allow-list | `web/lib/auth.ts` |
 | Registration approve/reject | `web/app/api/admin/reg-approve/route.ts` + `web/app/admin/requests/` |
 | Bracket draw / match results | `web/lib/bracket.ts`, `web/lib/bracket-team.ts` (2v2) |
 | Ranking / placement points | `web/lib/ranking.ts` + `activityPointsOf()` in store |
@@ -176,7 +176,7 @@ whenReady() gates auth/signup until hydration finishes.
 | محتوا | `/admin/content` | Promo slider, news |
 | آنالیتیکس | `/admin/analytics` | KPIs, behavior, AI usage |
 | درخواست‌ها | `/admin/requests` | Pending regs (**actions only in review sheet**) |
-| گیمرها | `/admin/gamers` | User list + promote/demote admin (`POST /api/admin/staff`) |
+| گیمرها | `/admin/gamers` | User list |
 | گیم‌نت‌ها | `/admin/gamenets` | Verify submissions |
 
 **Detail pages:**
@@ -198,7 +198,7 @@ whenReady() gates auth/signup until hydration finishes.
 `admin/reg-approve`, `admin/reg-attempts`, `admin/draw`, `admin/match`, `admin/result`, `admin/finalize`, `admin/assemble-final`, `admin/qualify`, `admin/prelim-venue`, `admin/prize`, `admin/event-status`, `admin/event-delete`, `admin/events`, `admin/competitions`, `admin/disciplines`
 
 ### Admin content & platform
-`admin/promos`, `admin/news`, `admin/sponsors`, `admin/notify`, `admin/staff`, `admin/competition-cover`, `admin/event-cover`, `admin/ai-knowledge`, `admin/gamenet-verify`, `admin/gamenet-review`, `admin/gamenet-delete`, `admin/behavior-export`
+`admin/promos`, `admin/news`, `admin/sponsors`, `admin/notify`, `admin/competition-cover`, `admin/event-cover`, `admin/ai-knowledge`, `admin/gamenet-verify`, `admin/gamenet-review`, `admin/gamenet-delete`, `admin/behavior-export`
 
 ### Arena
 `arena/requests`, `arena/requests/[id]/accept|cancel`, `arena/matches/[id]/*`, `arena/my`
