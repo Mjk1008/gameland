@@ -1,12 +1,33 @@
-import { allUsers } from '@/lib/store'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { allUsers, isAdminPhone } from '@/lib/store'
 import { isPromoter } from '@/lib/promoter'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
+import StaffPanel from './staff-panel'
 
 export const dynamic = 'force-dynamic'
 
-export default function GamersAdmin() {
-  const users = allUsers()
+export default async function GamersAdmin() {
+  const session = await getServerSession(authOptions)
+  const meId = (session as any)?.uid as string
+  const canManage = (session as any)?.role === 'admin'
+  const users = allUsers().filter(u => !u.deletedAt)
   const byRole = users.reduce<Record<string, number>>((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; return acc }, {})
+  const staff = users
+    .filter(u => u.role === 'admin' || u.role === 'organizer')
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === 'admin' ? -1 : 1
+      return b.createdAt - a.createdAt
+    })
+    .map(u => ({
+      id: u.id,
+      name: u.name,
+      tag: u.tag,
+      phone: u.phone ?? '',
+      city: u.city ?? '',
+      role: u.role,
+      locked: !!(u.phone && isAdminPhone(u.phone)),
+    }))
 
   return (
     <div style={{ padding: '16px 16px 28px' }}>
@@ -17,6 +38,8 @@ export default function GamersAdmin() {
         <Stat label="گیمر" value={byRole.gamer || 0} color={C.win} />
         <Stat label="کادر" value={(byRole.admin || 0) + (byRole.organizer || 0)} color={C.gold} />
       </div>
+
+      <StaffPanel initialStaff={staff} meId={meId} canManage={canManage} />
 
       {users.length === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}><EmptyState text="هنوز کاربری ثبت‌نام نکرده." /></div>

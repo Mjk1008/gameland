@@ -537,6 +537,10 @@ export const persist = {
       const d = db(); if (!d) return
       fire(d.update(schema.users).set({ role: role as any }).where(eq(schema.users.id, id)))
     },
+    async setRoleAsync(id: string, role: string) {
+      const d = db(); if (!d) return
+      await d.update(schema.users).set({ role: role as any }).where(eq(schema.users.id, id))
+    },
     setPassword(id: string, passwordHash: string) {
       const d = db(); if (!d) return
       fire(d.update(schema.users).set({ passwordHash }).where(eq(schema.users.id, id)))

@@ -518,6 +518,15 @@ export function setUserRole(id: string, role: Role): User | undefined {
   return u
 }
 
+/** Awaitable role change — admin promote/demote waits for Postgres commit. */
+export async function setUserRoleAsync(id: string, role: Role): Promise<User | undefined> {
+  const u = users.get(id)
+  if (!u) return undefined
+  u.role = role
+  await persist.user.setRoleAsync(id, role)
+  return u
+}
+
 export function setUserPassword(id: string, passwordHash: string): User | undefined {
   const u = users.get(id)
   if (!u) return undefined
