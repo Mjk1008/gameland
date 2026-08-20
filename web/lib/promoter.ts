@@ -76,9 +76,10 @@ export function hydratePromoterCode(row: {
   compId?: string | null; maxUses?: number | null; useCount?: number | null; active?: boolean | null
   expiresAt?: unknown; note?: string | null; createdAt: unknown
 }) {
+  const code = normCode(row.code)
   const c: PromoterCode = {
     id: row.id,
-    code: row.code,
+    code: code || row.code,
     promoterUserId: row.promoterUserId,
     discountPercent: row.discountPercent,
     commissionPercent: row.commissionPercent,
@@ -91,6 +92,7 @@ export function hydratePromoterCode(row: {
     createdAt: ms(row.createdAt),
   }
   codes.set(c.id, c)
+  // Index by normalized form — lookup always uses normCode(raw).
   codeByStr.set(c.code, c.id)
 }
 
@@ -282,13 +284,13 @@ export function activatePromoter(userId: string, discountPercent: number, commis
   return u
 }
 
-export function deactivatePromoter(userId: string) {
+export async function deactivatePromoter(userId: string) {
   const u = getUserById(userId)
   if (!u) throw new Error('USER_NOT_FOUND')
   u.promoterActive = false
   persistPromoterUser(u)
   for (const pc of allPromoterCodes().filter(c => c.promoterUserId === userId && c.active)) {
-    updatePromoterCode(pc.id, { active: false })
+    await updatePromoterCode(pc.id, { active: false })
   }
 }
 
@@ -326,8 +328,8 @@ function assertNoPendingRequest(promoterUserId: string) {
   if (pendingCodeRequests().some(r => r.promoterUserId === promoterUserId)) throw new Error('REQUEST_PENDING')
 }
 
-/** Promoter submits a code request — admin must approve. */
-export function submitCodeRequest(promoterUserId: string, input: { code?: string; note?: string; compId?: string }) {
+/** Promoter submits a code request — admin must approve. Durable write. */
+export async function submitCodeRequest(promoterUserId: string, input: { code?: string; note?: string; compId?: string }) {
   const u = getUserById(promoterUserId)
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
   assertCanAddCode(promoterUserId)
@@ -350,12 +352,17 @@ export function submitCodeRequest(promoterUserId: string, input: { code?: string
     createdAt: Date.now(),
   }
   codeRequests.set(r.id, r)
-  persist.promoterCodeRequest.insert(r)
+  try {
+    await persist.promoterCodeRequest.insertAsync(r)
+  } catch (e) {
+    codeRequests.delete(r.id)
+    throw e
+  }
   return r
 }
 
-/** Admin creates code directly (no request) or approves a pending request. */
-export function adminIssueCode(
+/** Admin creates code directly (no request) or approves a pending request. Durable. */
+export async function adminIssueCode(
   promoterUserId: string,
   adminId: string,
   input: { code?: string; compId?: string; note?: string; requestId?: string },
@@ -378,7 +385,7 @@ export function adminIssueCode(
       ? normCode(req.requestedCode)
       : defaultCodeForUser(u)
 
-  const c = createPromoterCode({
+  const c = await createPromoterCode({
     code: codeStr,
     promoterUserId,
     discountPercent: u.promoterDiscountPercent ?? 20,
@@ -392,29 +399,29 @@ export function adminIssueCode(
     req.reviewedBy = adminId
     req.reviewedAt = Date.now()
     req.approvedCodeId = c.id
-    persist.promoterCodeRequest.update(req)
+    await persist.promoterCodeRequest.updateAsync(req)
   }
   return c
 }
 
-export function rejectCodeRequest(requestId: string, adminId: string, reason?: string) {
+export async function rejectCodeRequest(requestId: string, adminId: string, reason?: string) {
   const req = codeRequests.get(requestId)
   if (!req || req.status !== 'pending') throw new Error('NOT_FOUND')
   req.status = 'rejected'
   req.reviewedBy = adminId
   req.reviewedAt = Date.now()
   req.rejectReason = reason?.trim() || 'رد شد'
-  persist.promoterCodeRequest.update(req)
+  await persist.promoterCodeRequest.updateAsync(req)
   return req
 }
 
-export function deactivatePromoterCode(codeId: string) {
+export async function deactivatePromoterCode(codeId: string) {
   const c = codes.get(codeId)
   if (!c) throw new Error('NOT_FOUND')
   return updatePromoterCode(codeId, { active: false })
 }
 
-export function reactivatePromoterCode(codeId: string) {
+export async function reactivatePromoterCode(codeId: string) {
   const c = codes.get(codeId)
   if (!c) throw new Error('NOT_FOUND')
   if (c.active) return c
@@ -564,7 +571,7 @@ export function promoErrorMessage(code: string): string {
   return PROMO_ERRORS[code] ?? 'کد تخفیف معتبر نیست'
 }
 
-export function createPromoterCode(input: {
+export async function createPromoterCode(input: {
   code: string
   promoterUserId: string
   discountPercent: number
@@ -573,7 +580,7 @@ export function createPromoterCode(input: {
   maxUses?: number
   expiresAt?: number
   note?: string
-}): PromoterCode {
+}): Promise<PromoterCode> {
   const u = getUserById(input.promoterUserId)
   if (!u) throw new Error('USER_NOT_FOUND')
   const code = normCode(input.code)
@@ -600,11 +607,17 @@ export function createPromoterCode(input: {
   }
   codes.set(c.id, c)
   codeByStr.set(c.code, c.id)
-  persist.promoterCode.insert(c)
+  try {
+    await persist.promoterCode.insertAsync(c)
+  } catch (e) {
+    codes.delete(c.id)
+    codeByStr.delete(c.code)
+    throw e
+  }
   return c
 }
 
-export function updatePromoterCode(id: string, patch: Partial<Pick<PromoterCode, 'active' | 'note' | 'maxUses' | 'expiresAt' | 'discountPercent' | 'commissionPercent'>>) {
+export async function updatePromoterCode(id: string, patch: Partial<Pick<PromoterCode, 'active' | 'note' | 'maxUses' | 'expiresAt' | 'discountPercent' | 'commissionPercent'>>) {
   const c = codes.get(id)
   if (!c) throw new Error('NOT_FOUND')
   if (patch.active !== undefined) c.active = patch.active
@@ -621,20 +634,20 @@ export function updatePromoterCode(id: string, patch: Partial<Pick<PromoterCode,
     if (cp < 0 || cp > 50) throw new Error('COMMISSION_RANGE')
     c.commissionPercent = cp
   }
-  persist.promoterCode.update(id, c)
+  await persist.promoterCode.updateAsync(id, c)
   return c
 }
 
-export function attachPromoToRegistration(reg: Registration, promo: PromoterCode) {
+export async function attachPromoToRegistration(reg: Registration, promo: PromoterCode) {
   reg.promoterCodeId = promo.id
   reg.discountPercent = promo.discountPercent
   promo.useCount += 1
   persist.reg.update(reg.id, { promoterCodeId: promo.id, discountPercent: promo.discountPercent } as any)
-  persist.promoterCode.update(promo.id, promo)
+  await persist.promoterCode.updateAsync(promo.id, promo)
 }
 
-/** Call on admin approve — idempotent per reg attempt total. */
-export function recordPromoterEarning(reg: Registration, prevPaidAttempts: number) {
+/** Call on admin approve — idempotent per reg attempt total. Durable earning row. */
+export async function recordPromoterEarning(reg: Registration, prevPaidAttempts: number) {
   if (!reg.promoterCodeId) return
   const earningId = `pe_${reg.id}_${reg.attempts}`
   if (earnings.has(earningId)) return
@@ -666,16 +679,21 @@ export function recordPromoterEarning(reg: Registration, prevPaidAttempts: numbe
     createdAt: Date.now(),
   }
   earnings.set(e.id, e)
-  persist.promoterEarning.insert(e)
+  try {
+    await persist.promoterEarning.insertAsync(e)
+  } catch (err) {
+    earnings.delete(e.id)
+    throw err
+  }
 }
 
-export function markEarningPaid(earningId: string, note?: string) {
+export async function markEarningPaid(earningId: string, note?: string) {
   const e = earnings.get(earningId)
   if (!e) throw new Error('NOT_FOUND')
   e.status = 'paid'
   e.paidAt = Date.now()
   e.paidNote = note?.trim() || undefined
-  persist.promoterEarning.update(e.id, e)
+  await persist.promoterEarning.updateAsync(e.id, e)
   return e
 }
 

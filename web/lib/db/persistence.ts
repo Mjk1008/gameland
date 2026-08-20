@@ -1151,9 +1151,20 @@ export const persist = {
         VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${c.expiresAt ? new Date(c.expiresAt) : null}, ${c.note ?? null}, ${new Date(c.createdAt)})
         ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, discount_percent = EXCLUDED.discount_percent, commission_percent = EXCLUDED.commission_percent, comp_id = EXCLUDED.comp_id, max_uses = EXCLUDED.max_uses, use_count = EXCLUDED.use_count, active = EXCLUDED.active, expires_at = EXCLUDED.expires_at, note = EXCLUDED.note`))
     },
+    // Awaited on activate/create/issue — codes must survive restart (fire-and-forget lost live codes).
+    async insertAsync(c: { id: string; code: string; promoterUserId: string; discountPercent: number; commissionPercent: number; compId?: string; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`INSERT INTO app_promoter_codes (id, code, promoter_user_id, discount_percent, commission_percent, comp_id, max_uses, use_count, active, expires_at, note, created_at)
+        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${c.expiresAt ? new Date(c.expiresAt) : null}, ${c.note ?? null}, ${new Date(c.createdAt)})
+        ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, discount_percent = EXCLUDED.discount_percent, commission_percent = EXCLUDED.commission_percent, comp_id = EXCLUDED.comp_id, max_uses = EXCLUDED.max_uses, use_count = EXCLUDED.use_count, active = EXCLUDED.active, expires_at = EXCLUDED.expires_at, note = EXCLUDED.note`)
+    },
     update(id: string, c: { discountPercent: number; commissionPercent: number; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${c.expiresAt ? new Date(c.expiresAt) : null}, note = ${c.note ?? null} WHERE id = ${id}`))
+    },
+    async updateAsync(id: string, c: { discountPercent: number; commissionPercent: number; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${c.expiresAt ? new Date(c.expiresAt) : null}, note = ${c.note ?? null} WHERE id = ${id}`)
     },
   },
   promoterEarning: {
@@ -1163,9 +1174,19 @@ export const persist = {
         VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${new Date(e.createdAt)})
         ON CONFLICT (id) DO NOTHING`))
     },
+    async insertAsync(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at)
+        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${new Date(e.createdAt)})
+        ON CONFLICT (id) DO NOTHING`)
+    },
     update(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`))
+    },
+    async updateAsync(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`)
     },
   },
   promoterCodeRequest: {
@@ -1175,9 +1196,19 @@ export const persist = {
         VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${new Date(r.createdAt)})
         ON CONFLICT (id) DO NOTHING`))
     },
+    async insertAsync(r: { id: string; promoterUserId: string; requestedCode?: string; compId?: string; note?: string; status: string; createdAt: number }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`INSERT INTO app_promoter_code_requests (id, promoter_user_id, requested_code, comp_id, note, status, created_at)
+        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${new Date(r.createdAt)})
+        ON CONFLICT (id) DO NOTHING`)
+    },
     update(r: { id: string; status: string; rejectReason?: string; reviewedBy?: string; reviewedAt?: number; approvedCodeId?: string }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${r.reviewedAt ? new Date(r.reviewedAt) : null}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`))
+    },
+    async updateAsync(r: { id: string; status: string; rejectReason?: string; reviewedBy?: string; reviewedAt?: number; approvedCodeId?: string }) {
+      const d = db(); if (!d) return
+      await d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${r.reviewedAt ? new Date(r.reviewedAt) : null}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`)
     },
   },
 }

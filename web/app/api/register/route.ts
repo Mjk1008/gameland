@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     if (!partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
-      if (promo) attachPromoToRegistration(r, promo)
+      if (promo) await attachPromoToRegistration(r, promo)
       const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
       await persist.user.insertAsync(u)
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
   try {
     const r = createRegistration(uid, compId, attempts)
-    if (promo) attachPromoToRegistration(r, promo)
+    if (promo) await attachPromoToRegistration(r, promo)
     // referral-reward tickets cover part (or all) of this purchase automatically
     const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)

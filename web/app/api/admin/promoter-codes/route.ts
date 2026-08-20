@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     const userId = (body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر نامعتبر' }, { status: 400 })
     try {
-      deactivatePromoter(userId)
+      await deactivatePromoter(userId)
       return NextResponse.json({ ok: true })
     } catch { return NextResponse.json({ error: 'غیرفعال نشد' }, { status: 400 }) }
   }
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
         )
       }
       if (body.note !== undefined && body.codeId) {
-        updatePromoterCode(body.codeId.toString(), { note: body.note })
+        await updatePromoterCode(body.codeId.toString(), { note: body.note })
       }
       return NextResponse.json({ ok: true })
     } catch (e: any) {
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
     try {
       const req = pendingCodeRequests().find(r => r.id === requestId)
       if (!req) return NextResponse.json({ error: 'درخواست پیدا نشد' }, { status: 404 })
-      const code = adminIssueCode(req.promoterUserId, adminId, {
+      const code = await adminIssueCode(req.promoterUserId, adminId, {
         requestId,
         code: body.code?.toString(),
         note: body.note?.toString(),
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     const requestId = (body.requestId ?? '').toString()
     if (!requestId) return NextResponse.json({ error: 'درخواست نامعتبر' }, { status: 400 })
     try {
-      rejectCodeRequest(requestId, adminId, body.reason?.toString())
+      await rejectCodeRequest(requestId, adminId, body.reason?.toString())
       return NextResponse.json({ ok: true })
     } catch (e: any) {
       return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
     const codeId = (body.codeId ?? '').toString()
     if (!codeId) return NextResponse.json({ error: 'کد نامعتبر' }, { status: 400 })
     try {
-      deactivatePromoterCode(codeId)
+      await deactivatePromoterCode(codeId)
       return NextResponse.json({ ok: true })
     } catch (e: any) {
       return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
@@ -175,7 +175,7 @@ export async function POST(req: Request) {
     const codeId = (body.codeId ?? '').toString()
     if (!codeId) return NextResponse.json({ error: 'کد نامعتبر' }, { status: 400 })
     try {
-      reactivatePromoterCode(codeId)
+      await reactivatePromoterCode(codeId)
       return NextResponse.json({ ok: true })
     } catch (e: any) {
       return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
@@ -186,7 +186,7 @@ export async function POST(req: Request) {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
     try {
-      const code = adminIssueCode(userId, adminId, {
+      const code = await adminIssueCode(userId, adminId, {
         code: body.code?.toString(),
         note: body.note?.toString(),
         compId: body.compId?.toString(),
@@ -204,8 +204,14 @@ export async function POST(req: Request) {
     const hasCode = allPromoterCodes().some(c => c.promoterUserId === userId && c.active)
     let code = null
     if (!hasCode) {
-      const c = adminIssueCode(userId, adminId, {})
-      code = { id: c.id, code: c.code }
+      try {
+        const c = await adminIssueCode(userId, adminId, {})
+        code = { id: c.id, code: c.code }
+      } catch (e) {
+        // Don't leave a "promoter" with no durable code — reverse activation.
+        await deactivatePromoter(userId)
+        throw e
+      }
     }
     return NextResponse.json({ ok: true, code })
   } catch (e: any) {

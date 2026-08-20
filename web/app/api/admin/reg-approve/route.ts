@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   setRegistrationStatus(regId, status, action === 'reject' ? rsn || undefined : undefined)
   if (status === 'approved') {
     grantReferralRewards(r.userId)
-    recordPromoterEarning(r, prevPaid)
+    await recordPromoterEarning(r, prevPaid)
   }
 
   // Server-fired funnel event — no client dependency, free coverage of the

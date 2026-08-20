@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}))
   try {
-    const r = submitCodeRequest(uid, {
+    const r = await submitCodeRequest(uid, {
       code: body.code?.toString(),
       note: body.note?.toString(),
       compId: body.compId?.toString(),

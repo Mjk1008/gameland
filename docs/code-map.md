@@ -25,7 +25,7 @@
 | Play Arena (میدون) | `web/lib/arena.ts` · pages: `web/app/arena/` |
 | Gamenet platform | `web/app/gamenets/` · owner: `web/app/gamenet/` |
 | Referral campaign | `setReferrerByTag()` in store · UI: `/invite` |
-| Promoter / affiliate | `web/lib/promoter.ts` · PRD: [`docs/31-promoter-platform-prd.md`](31-promoter-platform-prd.md) · UX: [`docs/32-promoter-ux-redesign-prd.md`](32-promoter-ux-redesign-prd.md) · admin: `/admin/promoters` · dashboard: `/me/promoter` · code requests: `app_promoter_code_requests` |
+| Promoter / affiliate | `web/lib/promoter.ts` · durable code writes (`insertAsync`) · PRD: [`docs/31-promoter-platform-prd.md`](31-promoter-platform-prd.md) · UX: [`docs/32-promoter-ux-redesign-prd.md`](32-promoter-ux-redesign-prd.md) · admin: `/admin/promoters` · dashboard: `/me/promoter` · code requests: `app_promoter_code_requests` |
 | Honorary arcade (gated) | `web/app/arcade/` · `web/lib/honor.ts` |
 | Jalali dates in admin | `web/components/Jalali*.tsx` · `web/lib/jalali.ts` |
 | Shared UI primitives | `web/components/ui.tsx` |

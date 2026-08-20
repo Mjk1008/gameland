@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!earningId) return NextResponse.json({ error: 'شناسه نامعتبر' }, { status: 400 })
 
   try {
-    markEarningPaid(String(earningId), note)
+    await markEarningPaid(String(earningId), note)
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'رکورد پیدا نشد' }, { status: 404 })
