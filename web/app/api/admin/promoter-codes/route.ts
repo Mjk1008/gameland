@@ -20,16 +20,19 @@ async function adminOnly() {
 }
 
 function errMsg(code: string) {
-  if (code === 'CODE_EXISTS') return 'کد تکراری است'
-  if (code === 'USER_NOT_FOUND') return 'کاربر پیدا نشد'
-  if (code === 'NOT_ACTIVE') return 'پروموتر فعال نیست'
-  if (code === 'NOT_FOUND') return 'درخواست پیدا نشد'
-  if (code === 'ALREADY_REVIEWED') return 'این درخواست قبلاً بررسی شده'
-  if (code === 'CODE_LIMIT') return 'سقف کد فعال برای این پروموتر پر است'
-  if (code === 'DISCOUNT_RANGE') return 'تخفیف باید ۱ تا ۹۰٪ باشد'
-  if (code === 'COMMISSION_RANGE') return 'کمیسیون باید ۰ تا ۵۰٪ باشد'
-  if (code === 'CODE_LENGTH') return 'کد باید ۳ تا ۲۴ کاراکتر باشد'
-  return 'عملیات انجام نشد'
+  const raw = (code ?? '').toString()
+  if (raw === 'CODE_EXISTS' || /unique|duplicate/i.test(raw)) return 'کد تکراری است — تگ این کاربر با کد موجود یکی است'
+  if (raw === 'USER_NOT_FOUND') return 'کاربر پیدا نشد'
+  if (raw === 'NOT_GAMER') return 'پروموتر فقط برای حساب گیمر است؛ ادمین/برگزارکننده را نمی‌شود فعال کرد'
+  if (raw === 'NOT_ACTIVE') return 'پروموتر فعال نیست'
+  if (raw === 'NOT_FOUND') return 'درخواست پیدا نشد'
+  if (raw === 'ALREADY_REVIEWED') return 'این درخواست قبلاً بررسی شده'
+  if (raw === 'CODE_LIMIT') return 'سقف کد فعال برای این پروموتر پر است'
+  if (raw === 'DISCOUNT_RANGE') return 'تخفیف باید ۱ تا ۹۰٪ باشد'
+  if (raw === 'COMMISSION_RANGE') return 'کمیسیون باید ۰ تا ۵۰٪ باشد'
+  if (raw === 'CODE_LENGTH') return 'کد باید ۳ تا ۲۴ کاراکتر باشد'
+  if (/does not exist|undefined column/i.test(raw)) return 'جدول کد پروموتر روی دیتابیس ناقص است'
+  return 'فعال‌سازی انجام نشد'
 }
 
 export async function GET() {
@@ -200,7 +203,7 @@ export async function POST(req: Request) {
   try {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
-    activatePromoter(userId, Number(body.discountPercent), Number(body.commissionPercent))
+    activatePromoter(userId, body.discountPercent, body.commissionPercent)
     const hasCode = allPromoterCodes().some(c => c.promoterUserId === userId && c.active)
     let code = null
     if (!hasCode) {
@@ -215,6 +218,8 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ ok: true, code })
   } catch (e: any) {
-    return NextResponse.json({ error: errMsg(e.message) }, { status: 400 })
+    const msg = [e?.message, e?.cause?.message, e?.code].filter(Boolean).join(' | ')
+    console.error('[promoter] activate failed', msg)
+    return NextResponse.json({ error: errMsg(e?.message || msg) }, { status: 400 })
   }
 }

@@ -63,8 +63,21 @@ function ms(v: unknown): number {
   return v instanceof Date ? v.getTime() : typeof v === 'number' ? v : Date.now()
 }
 
+/** Sanitize when *creating/storing* a code (tag → code, admin input). */
 function normCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '')
+}
+
+/**
+ * Buyer-facing parse: trim + case-fold only.
+ * Do NOT strip junk — «نیسmagic» must not become MAGIC.
+ * Returns null if anything other than A–Z / 0–9 / _ remains after trim.
+ */
+function parseBuyerCode(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  if (!/^[A-Za-z0-9_]+$/.test(t)) return null
+  return t.toUpperCase()
 }
 
 function cid(prefix: string) {
@@ -147,7 +160,9 @@ export function getPromoterCode(id: string): PromoterCode | undefined {
 }
 
 export function getPromoterCodeByStr(raw: string): PromoterCode | undefined {
-  const id = codeByStr.get(normCode(raw))
+  const key = parseBuyerCode(raw)
+  if (!key) return undefined
+  const id = codeByStr.get(key)
   return id ? codes.get(id) : undefined
 }
 
@@ -258,6 +273,14 @@ function defaultCodeForUser(u: User): string {
   throw new Error('CODE_EXISTS')
 }
 
+function parsePercent(v: unknown): number {
+  const s = String(v ?? '')
+    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0))
+    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[^\d.-]/g, '')
+  return Number(s)
+}
+
 function persistPromoterUser(u: User) {
   persist.user.update(u.id, {
     promoterActive: u.promoterActive,
@@ -268,13 +291,14 @@ function persistPromoterUser(u: User) {
 }
 
 /** Admin activates partner — terms only; codes need separate approval or admin create. */
-export function activatePromoter(userId: string, discountPercent: number, commissionPercent: number) {
+export function activatePromoter(userId: string, discountPercent: unknown, commissionPercent: unknown) {
   const u = getUserById(userId)
-  if (!u || u.role !== 'gamer') throw new Error('USER_NOT_FOUND')
-  const d = Math.round(discountPercent)
-  const c = Math.round(commissionPercent)
-  if (d < 1 || d > 90) throw new Error('DISCOUNT_RANGE')
-  if (c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
+  if (!u) throw new Error('USER_NOT_FOUND')
+  if (u.role !== 'gamer') throw new Error('NOT_GAMER')
+  const d = Math.round(parsePercent(discountPercent))
+  const c = Math.round(parsePercent(commissionPercent))
+  if (!Number.isFinite(d) || d < 1 || d > 90) throw new Error('DISCOUNT_RANGE')
+  if (!Number.isFinite(c) || c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
 
   u.promoterActive = true
   u.promoterDiscountPercent = d
@@ -612,6 +636,8 @@ export async function createPromoterCode(input: {
   } catch (e) {
     codes.delete(c.id)
     codeByStr.delete(c.code)
+    const msg = String((e as { message?: string })?.message ?? (e as { cause?: { message?: string } })?.cause?.message ?? e)
+    if (/unique|duplicate/i.test(msg)) throw new Error('CODE_EXISTS')
     throw e
   }
   return c

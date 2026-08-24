@@ -143,6 +143,10 @@ export function startHydration(loaders: {
           comp_id TEXT, max_uses INTEGER, use_count INTEGER NOT NULL DEFAULT 0,
           active BOOLEAN NOT NULL DEFAULT true, expires_at TIMESTAMPTZ, note TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `ALTER TABLE app_promoter_codes ADD COLUMN IF NOT EXISTS comp_id TEXT`,
+        `ALTER TABLE app_promoter_codes ADD COLUMN IF NOT EXISTS max_uses INTEGER`,
+        `ALTER TABLE app_promoter_codes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
+        `ALTER TABLE app_promoter_codes ADD COLUMN IF NOT EXISTS note TEXT`,
         `CREATE INDEX IF NOT EXISTS promoter_code_user_idx ON app_promoter_codes (promoter_user_id)`,
         `CREATE TABLE IF NOT EXISTS app_promoter_earnings (
           id TEXT PRIMARY KEY, code_id TEXT NOT NULL, reg_id TEXT NOT NULL, promoter_user_id TEXT NOT NULL,
@@ -381,11 +385,15 @@ export function startHydration(loaders: {
 
       try {
         const pc = await d.execute(sql.raw('SELECT * FROM app_promoter_codes ORDER BY created_at'))
-        for (const row of pc as any as Record<string, unknown>[]) loaders.loadPromoterCode?.({
-          id: row.id, code: row.code, promoterUserId: row.promoter_user_id,
-          discountPercent: row.discount_percent, commissionPercent: row.commission_percent,
-          compId: row.comp_id, maxUses: row.max_uses, useCount: row.use_count,
-          active: row.active, expiresAt: row.expires_at, note: row.note, createdAt: row.created_at,
+        const pcRows = Array.isArray(pc) ? pc : ((pc as { rows?: unknown[] })?.rows ?? [])
+        for (const row of pcRows as Record<string, unknown>[]) loaders.loadPromoterCode?.({
+          id: row.id, code: row.code, promoterUserId: row.promoter_user_id ?? row.promoterUserId,
+          discountPercent: row.discount_percent ?? row.discountPercent,
+          commissionPercent: row.commission_percent ?? row.commissionPercent,
+          compId: row.comp_id ?? row.compId, maxUses: row.max_uses ?? row.maxUses,
+          useCount: row.use_count ?? row.useCount,
+          active: row.active, expiresAt: row.expires_at ?? row.expiresAt,
+          note: row.note, createdAt: row.created_at ?? row.createdAt,
         })
       } catch (e) { console.error('[db] load promoter codes:', e) }
 

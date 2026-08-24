@@ -4,7 +4,10 @@ import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 import { toman } from '@/lib/payment'
 
-type UserOpt = { id: string; name: string; tag: string; phone: string; city: string }
+type UserOpt = {
+  id: string; name: string; tag: string; phone: string; city: string
+  role?: string; blocked?: string
+}
 type CodeRow = {
   id: string; code: string; active?: boolean; discountPercent: number; commissionPercent: number; note?: string
   useCount: number; totalUses: number; approved: number; pending: number; conversionPercent: number
@@ -88,23 +91,27 @@ export default function PromotersClient() {
     return j
   }
 
-  async function activate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedUser) return
+  async function activate(e?: React.FormEvent) {
+    e?.preventDefault()
+    if (!selectedUser) {
+      setErr('اول گیمر را از نتایج جستجو انتخاب کن')
+      return
+    }
     setErr(null); setBusy(true)
     try {
       const uid = selectedUser.id
       const j = await post({
         action: 'activate',
         promoterUserId: uid,
-        discountPercent: Number(discount),
-        commissionPercent: Number(commission),
+        discountPercent: discount,
+        commissionPercent: commission,
       })
       setSelectedUser(null)
       setExpanded(uid)
       await load()
       router.refresh()
-    } catch (ex: any) { setErr(ex.message) } finally { setBusy(false) }
+      if (j?.code?.code) setErr(null)
+    } catch (ex: any) { setErr(ex.message || 'فعال‌سازی انجام نشد') } finally { setBusy(false) }
   }
 
   const pending = earnings.filter(e => e.status === 'pending')
@@ -159,16 +166,26 @@ export default function PromotersClient() {
                   {searchResults.length > 0 && (
                     <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {searchResults.map(u => (
-                        <button key={u.id} type="button" onClick={() => { setSelectedUser(u); setPromoterQuery(''); setSearchResults([]) }}
-                          style={{ all: 'unset', cursor: 'pointer', padding: '8px 10px', borderRadius: 8, background: C.sf2, border: `1px solid ${C.line}`, fontSize: 12, color: C.thi, textAlign: 'right' }}>
-                          <div style={{ fontWeight: 700 }}>{u.name}</div>
-                          <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11, color: C.tmut, marginTop: 2 }}>@{u.tag} · {u.phone}</div>
-                        </button>
+                        u.blocked ? (
+                          <div key={u.id} style={{ padding: '8px 10px', borderRadius: 8, background: C.sf2, border: `1px solid ${C.line}`, fontSize: 12, color: C.tmut, textAlign: 'right', opacity: 0.85 }}>
+                            <div style={{ fontWeight: 700, color: C.tbody }}>{u.name}</div>
+                            <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11, marginTop: 2 }}>@{u.tag} · {u.phone}</div>
+                            <div style={{ fontSize: 10.5, color: C.live, marginTop: 4 }}>{u.blocked}</div>
+                          </div>
+                        ) : (
+                          <button key={u.id} type="button" onClick={() => { setSelectedUser(u); setPromoterQuery(''); setSearchResults([]) }}
+                            style={{ all: 'unset', cursor: 'pointer', padding: '8px 10px', borderRadius: 8, background: C.sf2, border: `1px solid ${C.line}`, fontSize: 12, color: C.thi, textAlign: 'right' }}>
+                            <div style={{ fontWeight: 700 }}>{u.name}</div>
+                            <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11, color: C.tmut, marginTop: 2 }}>@{u.tag} · {u.phone}</div>
+                          </button>
+                        )
                       ))}
                     </div>
                   )}
                   {searchReady && !searchBusy && searchResults.length === 0 && promoterQuery.trim().length >= 2 && (
-                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 5 }}>نتیجه‌ای نیست</div>
+                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 5, lineHeight: 1.7 }}>
+                      حساب گیمر با این شماره یا تگ نیست. پروموتر از صفر ساخته نمی‌شود — اول باید در گیم‌لند ثبت‌نام کرده باشند.
+                    </div>
                   )}
                 </>
               )}
@@ -182,11 +199,12 @@ export default function PromotersClient() {
                 <input type="number" min={0} max={50} value={commission} onChange={e => setCommission(e.target.value)} style={inp} />
               </Field>
             </div>
-            {err && <div style={{ fontSize: 12, color: C.live }}>{err}</div>}
-            <button type="submit" disabled={busy || !selectedUser} style={{
-              all: 'unset', cursor: selectedUser ? 'pointer' : 'default', textAlign: 'center', minHeight: 44, borderRadius: 11,
+            {err && <div style={{ fontSize: 13, fontWeight: 700, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, borderRadius: 10, padding: '10px 12px', lineHeight: 1.7 }}>{err}</div>}
+            <button type="button" disabled={busy || !selectedUser} onClick={() => void activate()} style={{
+              all: 'unset', display: 'block', width: '100%', boxSizing: 'border-box',
+              cursor: selectedUser ? 'pointer' : 'default', textAlign: 'center', minHeight: 44, borderRadius: 11,
               background: selectedUser ? C.accent : C.line, color: selectedUser ? C.ink : C.tmut, fontWeight: 800, fontSize: 14, opacity: busy ? 0.6 : 1,
-            }}>{busy ? '…' : 'فعال‌سازی و ساخت کد اول'}</button>
+            }}>{busy ? 'در حال فعال‌سازی…' : 'فعال‌سازی و ساخت کد اول'}</button>
           </form>
 
           <div style={{ fontSize: 12, fontWeight: 800, color: C.thi }}>۲. شرکای فعال</div>
