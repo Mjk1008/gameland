@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="پیشنهاد همکاری تجاری گیم‌لند · THE BEST IV — از شهرهای ایران تا ایران‌مال تا میلیون‌ها صفحه نمایش" />
+<title>گیم‌لند · THE BEST IV — پیشنهاد همکاری</title>
+<style>
+/* GAMELAND THE BEST IV — Ultra-premium sponsor proposal art direction */
+@font-face{font-family:Vazirmatn;src:url('fonts/vazirmatn-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url('fonts/vazirmatn-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url('fonts/vazirmatn-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url('fonts/vazirmatn-700.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:Vazirmatn;src:url('fonts/vazirmatn-800.woff2') format('woff2');font-weight:800;font-display:swap}
+@font-face{font-family:Saira;src:url('fonts/saira-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:Saira;src:url('fonts/saira-700.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:Saira;src:url('fonts/saira-800.woff2') format('woff2');font-weight:800;font-display:swap}
+
+:root{
+  --bg:#050507;--bg-2:#0B0B0F;--bg-3:#121218;--bg-4:#18181F;
+  --ink:#F4F2EE;--mute:#9A968C;--mute-2:#6E6A62;
+  --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
+  --purple:#8B5CF6;--purple-deep:#5B21B6;--purple-soft:rgba(139,92,246,.16);
+  --silver:#C9C5BC;--gold:#E8C36A;
+  --max:1180px;--pad:clamp(18px,4vw,40px);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--mute);
+  font-family:Vazirmatn,Tahoma,sans-serif;font-size:16.5px;line-height:1.8;
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+.en{font-family:Saira,Vazirmatn,sans-serif;letter-spacing:.04em}
+.num{font-family:Saira,Vazirmatn,sans-serif;font-weight:800;letter-spacing:-.03em;line-height:.95}
+
+/* progress */
+.progress{
+  position:fixed;top:0;right:0;left:0;height:2px;z-index:100;
+  background:transparent;pointer-events:none;
+}
+.progress>i{
+  display:block;height:100%;width:0;background:linear-gradient(90deg,var(--purple-deep),var(--purple));
+  transform-origin:right;
+}
+
+/* nav */
+.nav{
+  position:fixed;top:0;right:0;left:0;z-index:90;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px var(--pad);padding-top:max(14px,env(safe-area-inset-top));
+  background:rgba(5,5,7,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid transparent;transition:padding .3s var(--ease),background .3s,border-color .3s;
+}
+.nav.compact{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:8px;border-bottom-color:var(--line);background:rgba(5,5,7,.82)}
+.nav-brand{font-family:Saira,sans-serif;font-weight:800;font-size:13px;letter-spacing:.18em;color:var(--ink);text-decoration:none}
+.nav-links{display:none;gap:18px;font-size:12.5px}
+.nav-links a{color:var(--mute);text-decoration:none;transition:color .2s}
+.nav-links a:hover,.nav-links a.on{color:var(--ink)}
+.nav-cta{
+  font-size:12px;font-weight:700;color:var(--ink);text-decoration:none;
+  border:1px solid var(--line-2);padding:8px 14px;border-radius:999px;
+  transition:border-color .2s,background .2s;
+}
+.nav-cta:hover{border-color:var(--purple);background:var(--purple-soft)}
+@media(min-width:880px){.nav-links{display:flex}}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  .progress>i,.hero-bg img,.j-item{transition:none!important;animation:none!important}
+}
+
+/* type */
+.kicker{font-family:Saira,sans-serif;font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--purple);text-transform:uppercase;margin:0 0 14px}
+.h1{font-size:clamp(34px,7vw,68px);font-weight:800;color:var(--ink);line-height:1.15;margin:0 0 16px;letter-spacing:-.02em}
+.h2{font-size:clamp(26px,4.6vw,44px);font-weight:800;color:var(--ink);line-height:1.25;margin:0 0 16px;letter-spacing:-.015em}
+.h3{font-size:clamp(18px,2.4vw,24px);font-weight:700;color:var(--ink);margin:0 0 10px}
+.lede{font-size:clamp(16px,2vw,19px);color:var(--silver);font-weight:500;line-height:1.75;max-width:38em;margin:0 0 16px}
+.quiet{font-size:13px;color:var(--mute-2);line-height:1.65}
+.quiet a{color:var(--purple);text-decoration:none;border-bottom:1px solid rgba(139,92,246,.35)}
+.wrap{width:min(var(--max),100%);margin:0 auto;padding:0 var(--pad)}
+.sec{padding:clamp(64px,10vw,120px) 0;position:relative}
+.sec-tight{padding:clamp(48px,7vw,80px) 0}
+.sec-dark{background:var(--bg)}
+.sec-2{background:var(--bg-2)}
+.sec-3{background:var(--bg-3)}
+.rule{height:1px;background:var(--line);border:0;margin:0}
+
+/* badges */
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:Saira,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;padding:5px 10px;border:1px solid var(--line-2);color:var(--silver);
+}
+.badge.live{color:#86EFAC;border-color:rgba(134,239,172,.35)}
+.badge.proj{color:#FDE68A;border-color:rgba(253,230,138,.3);border-style:dashed}
+.badge.past{color:var(--silver);border-color:var(--line-2)}
+.badge.kpi{color:var(--purple);border-color:rgba(139,92,246,.45)}
+.badge.custom{color:var(--ink);border-color:var(--line-2)}
+
+/* buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 22px;font-weight:700;font-size:14px;text-decoration:none;
+  border:1px solid transparent;transition:transform .2s,background .2s,border-color .2s,box-shadow .2s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn-p{background:var(--purple);color:#fff;box-shadow:0 12px 40px rgba(91,33,182,.35)}
+.btn-p:hover{background:#9B6CFF}
+.btn-g{background:transparent;color:var(--ink);border-color:var(--line-2)}
+.btn-g:hover{border-color:var(--ink)}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+
+/* HERO */
+.hero{
+  position:relative;min-height:100vh;min-height:100dvh;
+  display:flex;align-items:flex-end;padding:120px 0 72px;overflow:hidden;
+}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 28%;transform:scale(1.04);filter:saturate(.85) contrast(1.05)}
+.hero-bg::after{
+  content:"";position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,rgba(5,5,7,.35) 0%,rgba(5,5,7,.55) 40%,rgba(5,5,7,.92) 78%,var(--bg) 100%),
+    radial-gradient(ellipse 60% 50% at 70% 20%,rgba(91,33,182,.35),transparent 60%);
+}
+.hero-iv{
+  position:absolute;left:2%;bottom:8%;z-index:1;
+  font-family:Saira,sans-serif;font-weight:800;font-size:clamp(120px,28vw,340px);
+  line-height:.8;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.07);
+  pointer-events:none;user-select:none;letter-spacing:-.06em;
+}
+.hero .wrap{position:relative;z-index:2}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px 22px;margin:22px 0 0;font-size:13.5px;color:var(--silver)}
+.hero-meta b{color:var(--ink);font-weight:700}
+.hero-prize{margin-top:18px;font-size:clamp(20px,3vw,28px);color:var(--gold);font-weight:800}
+.scroll-cue{
+  margin-top:40px;font-family:Saira,sans-serif;font-size:11px;letter-spacing:.18em;
+  color:var(--mute-2);display:inline-flex;align-items:center;gap:10px;
+}
+.scroll-cue::after{content:"";width:1px;height:36px;background:linear-gradient(var(--purple),transparent);display:inline-block}
+
+/* statement */
+.statement{min-height:70vh;display:flex;align-items:center;background:#000;text-align:center}
+.statement .giant{font-size:clamp(28px,6.5vw,64px);font-weight:800;color:var(--ink);line-height:1.35;margin:0}
+.statement-photo{position:relative;height:min(62vh,560px);overflow:hidden}
+.statement-photo img{width:100%;height:100%;object-fit:cover;object-position:center 30%;filter:brightness(.72)}
+.statement-photo .cap{
+  position:absolute;inset:auto var(--pad) var(--pad) var(--pad);
+  max-width:720px;color:var(--ink);font-size:clamp(16px,2.2vw,20px);font-weight:600;line-height:1.7;
+  text-shadow:0 8px 30px rgba(0,0,0,.6);
+}
+
+/* track editorial */
+.track-item{display:grid;gap:20px;padding:36px 0;border-bottom:1px solid var(--line);align-items:center}
+@media(min-width:800px){
+  .track-item{grid-template-columns:140px 1fr 280px;gap:28px}
+  .track-item:nth-child(even){grid-template-columns:280px 1fr 140px}
+  .track-item:nth-child(even) .track-year{order:3}
+  .track-item:nth-child(even) .track-body{order:2}
+  .track-item:nth-child(even) .track-media{order:1}
+}
+.track-year{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(28px,4vw,42px);color:var(--ink)}
+.track-year span{display:block;font-size:12px;letter-spacing:.14em;color:var(--purple);font-weight:700;margin-bottom:6px}
+.track-body h3{margin:0 0 8px}
+.track-body p{margin:0;font-size:14.5px}
+.track-media{overflow:hidden;aspect-ratio:4/3}
+.track-media img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.track-item:hover .track-media img{transform:scale(1.04)}
+.track-scale{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(22px,3vw,32px);color:var(--ink);margin-top:8px}
+
+/* prize climb */
+.prize-climb{margin-top:56px;padding-top:40px;border-top:1px solid var(--line)}
+.climb{display:flex;align-items:flex-end;gap:clamp(8px,2vw,18px);min-height:220px;margin-top:28px}
+.climb-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}
+.climb-bar{
+  width:100%;max-width:72px;background:linear-gradient(180deg,rgba(139,92,246,.55),rgba(139,92,246,.12));
+  border-top:2px solid var(--purple);transform-origin:bottom;
+}
+.climb-col.is-now .climb-bar{background:linear-gradient(180deg,var(--gold),rgba(232,195,106,.15));border-top-color:var(--gold)}
+.climb-n{font-family:Saira,sans-serif;font-weight:800;color:var(--ink);font-size:clamp(14px,2.2vw,22px)}
+.climb-col.is-now .climb-n{color:var(--gold);font-size:clamp(28px,5vw,56px)}
+.climb-l{font-size:11px;color:var(--mute-2);text-align:center;font-family:Saira,sans-serif;letter-spacing:.06em}
+
+/* audience */
+.mega-row{display:grid;gap:28px;margin:36px 0}
+@media(min-width:760px){.mega-row{grid-template-columns:1.2fr 1fr;align-items:end}}
+.mega{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(64px,14vw,140px);color:var(--ink);line-height:.85;letter-spacing:-.05em}
+.mega em{font-style:normal;color:var(--purple);font-size:.45em;vertical-align:super;margin-right:4px}
+.mega-l{margin-top:12px;color:var(--silver);font-size:15px;font-weight:600}
+.persona-row{display:grid;gap:0;margin-top:40px;border-top:1px solid var(--line)}
+@media(min-width:800px){.persona-row{grid-template-columns:1fr 1fr 1fr}}
+.persona{padding:24px 0;border-bottom:1px solid var(--line)}
+@media(min-width:800px){
+  .persona{padding:28px 24px;border-bottom:0;border-left:1px solid var(--line)}
+  .persona:first-child{border-left:0;padding-right:0}
+}
+.persona .t{color:var(--purple);font-weight:700;font-size:13px;margin-bottom:8px}
+.persona .a{color:var(--ink);font-weight:700;font-size:18px;margin-bottom:8px}
+
+/* momentum board */
+.live-board{display:grid;gap:18px;margin-top:28px}
+@media(min-width:820px){
+  .live-board{grid-template-columns:1.4fr 1fr;grid-template-rows:auto auto;gap:22px}
+  .lb-a{grid-row:1/3}
+  .live-board.flat{grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto}
+}
+.lb{
+  border:1px solid var(--line);padding:clamp(22px,3vw,36px);background:var(--bg-2);
+  position:relative;overflow:hidden;
+}
+.lb::before{content:"";position:absolute;top:0;right:0;width:80px;height:2px;background:var(--purple)}
+.lb .n{font-family:Saira,sans-serif;font-weight:800;color:var(--ink);line-height:.9;letter-spacing:-.04em}
+.lb-a .n{font-size:clamp(64px,10vw,112px)}
+.lb-b .n,.lb-c .n{font-size:clamp(40px,6vw,64px)}
+.lb-d .n{font-size:clamp(36px,5vw,52px)}
+.lb .l{margin-top:12px;font-family:Saira,sans-serif;font-size:11px;letter-spacing:.14em;color:var(--purple);font-weight:700}
+.lb .d{margin-top:6px;color:var(--mute);font-size:14px}
+.past-strip{display:grid;gap:1px;background:var(--line);margin-top:40px;border:1px solid var(--line)}
+@media(min-width:760px){.past-strip{grid-template-columns:1fr 1fr 1fr}}
+.past-cell{background:var(--bg);padding:0;overflow:hidden}
+.past-cell img{width:100%;height:180px;object-fit:cover;object-position:top center;opacity:.85;filter:grayscale(.15)}
+.past-cell .info{padding:16px 18px;border-top:1px solid var(--line)}
+.past-cell .n{font-family:Saira,sans-serif;font-weight:800;font-size:32px;color:var(--ink)}
+
+/* journey */
+.journey-rail{
+  display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;margin:32px calc(var(--pad) * -1) 0;padding:0 var(--pad) 12px;
+  scrollbar-width:thin;
+}
+@media(max-width:759px){
+  .journey-rail{flex-direction:column;overflow:visible;scroll-snap-type:none;margin-inline:0;padding:0}
+}
+.j-item{
+  flex:0 0 min(78vw,300px);scroll-snap-align:start;
+  border-right:1px solid var(--line);padding:20px 18px 24px;min-height:280px;
+  opacity:.45;transition:opacity .4s,background .4s;
+  background:transparent;
+}
+@media(max-width:759px){
+  .j-item{flex:none;width:100%;border-right:0;border-bottom:1px solid var(--line);opacity:1;min-height:0}
+}
+.j-item.on,.j-item:hover{opacity:1;background:rgba(139,92,246,.06)}
+.j-item .no{font-family:Saira,sans-serif;font-weight:800;color:var(--purple);font-size:12px;letter-spacing:.14em;margin-bottom:10px}
+.j-item h3{margin:0 0 10px;font-size:20px}
+.j-item p{margin:0 0 14px;font-size:13.5px;line-height:1.65}
+.j-touch{border-top:1px solid var(--line);padding-top:12px}
+.j-touch .tl{font-family:Saira,sans-serif;font-size:10px;letter-spacing:.12em;color:var(--gold);font-weight:700;margin-bottom:8px}
+.j-touch ul{margin:0;padding:0;list-style:none}
+.j-touch li{font-size:12.5px;color:var(--silver);padding:3px 0;font-family:Saira,Vazirmatn,sans-serif}
+.journey-end{margin-top:48px;text-align:center;padding:48px 0;border-top:1px solid var(--line)}
+.journey-end .big{font-size:clamp(28px,5vw,48px);font-weight:800;color:var(--ink);line-height:1.35;margin:0 0 12px}
+
+/* event */
+.event-hero-nums{display:flex;flex-wrap:wrap;gap:28px 48px;margin:28px 0 40px}
+.event-hero-nums .n{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(40px,8vw,72px);color:var(--ink);line-height:.9}
+.event-hero-nums .n.gold{color:var(--gold)}
+.event-hero-nums .l{display:block;margin-top:8px;font-size:12px;letter-spacing:.12em;font-family:Saira,sans-serif;color:var(--mute);font-weight:700}
+.fc-hero{
+  display:grid;gap:0;margin:24px 0;border:1px solid var(--line);overflow:hidden;
+}
+@media(min-width:860px){.fc-hero{grid-template-columns:1.2fr .8fr}}
+.fc-hero .media{min-height:260px;position:relative}
+.fc-hero .media img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.fc-hero .body{padding:clamp(22px,3vw,36px);background:var(--bg-2)}
+.fc-hero .body .tag{font-family:Saira,sans-serif;font-size:11px;letter-spacing:.14em;color:var(--purple);font-weight:700;margin-bottom:10px}
+.disc-grid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:16px}
+@media(min-width:700px){.disc-grid{grid-template-columns:1fr 1fr}}
+.disc{background:var(--bg);padding:20px 18px}
+.disc b{display:block;color:var(--ink);font-size:18px;margin-bottom:8px}
+.disc span{display:block;font-size:13px;color:var(--mute)}
+.table-wrap{overflow-x:auto;margin-top:28px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+th,td{padding:12px 14px;text-align:right;border-bottom:1px solid var(--line)}
+th{color:var(--mute-2);font-weight:700;font-size:11px;letter-spacing:.06em;background:var(--bg-2)}
+td{color:var(--silver)}
+td.hi{color:var(--ink);font-weight:700}
+tr.total td{color:var(--ink);font-weight:800;background:rgba(139,92,246,.08);border-bottom:0}
+
+/* iranmall reveal */
+.im-reveal{position:relative;min-height:78vh;display:flex;align-items:flex-end;overflow:hidden}
+.im-reveal img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%;filter:brightness(.55) saturate(.9)}
+.im-reveal::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,5,7,.2),rgba(5,5,7,.85) 70%,var(--bg))}
+.im-reveal .wrap{position:relative;z-index:2;padding-bottom:56px}
+.im-reveal .giant{font-size:clamp(40px,9vw,96px);font-weight:800;color:var(--ink);line-height:1.05;margin:8px 0}
+.im-reveal .en-big{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(18px,3vw,28px);letter-spacing:.2em;color:var(--purple)}
+
+/* experience chapters */
+.xp{display:grid;gap:0}
+.xp-row{display:grid;gap:0;border-top:1px solid var(--line)}
+@media(min-width:860px){
+  .xp-row{grid-template-columns:1fr 1fr;min-height:340px}
+  .xp-row.reverse .txt{order:2}
+  .xp-row.reverse .pic{order:1}
+}
+.xp-row .pic{min-height:240px;overflow:hidden}
+.xp-row .pic img{width:100%;height:100%;object-fit:cover;transition:transform 1.4s var(--ease)}
+.xp-row:hover .pic img{transform:scale(1.03)}
+.xp-row .txt{padding:clamp(28px,4vw,48px);display:flex;flex-direction:column;justify-content:center;background:var(--bg-2)}
+.xp-row .txt h3{font-family:Saira,Vazirmatn,sans-serif;font-size:clamp(18px,2.4vw,24px);margin:8px 0 12px;color:var(--ink)}
+.xp-row .txt p{margin:0;font-size:14.5px;max-width:36em}
+
+/* championship break */
+.champ{
+  position:relative;min-height:72vh;display:flex;align-items:center;justify-content:center;
+  text-align:center;overflow:hidden;
+}
+.champ img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 25%;filter:brightness(.4)}
+.champ::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(91,33,182,.25),rgba(5,5,7,.9))}
+.champ .inner{position:relative;z-index:2;padding:var(--pad)}
+.champ .h{font-size:clamp(22px,3.5vw,32px);color:var(--silver);font-weight:600;margin:0 0 12px}
+.champ .g{font-size:clamp(48px,10vw,96px);font-weight:800;color:var(--ink);margin:0 0 16px;letter-spacing:-.02em}
+.champ .s{max-width:28em;margin:0 auto;color:var(--mute);font-size:15px}
+
+/* pillars */
+.pillars{display:grid;gap:0;margin-top:36px;border-top:1px solid var(--line)}
+.pillar{padding:28px 0;border-bottom:1px solid var(--line);display:grid;gap:8px}
+@media(min-width:700px){.pillar{grid-template-columns:100px 160px 1fr;align-items:baseline;gap:24px;padding:32px 0}}
+.pillar .no{font-family:Saira,sans-serif;font-weight:800;color:var(--purple);font-size:14px;letter-spacing:.12em}
+.pillar .en{font-family:Saira,sans-serif;font-weight:800;color:var(--ink);font-size:18px;letter-spacing:.08em}
+.pillar .fa{color:var(--ink);font-weight:700;font-size:18px}
+.pillar p{margin:0;grid-column:1/-1}
+@media(min-width:700px){.pillar p{grid-column:3}}
+
+/* brand journey parallel */
+.parallel{display:grid;gap:24px;margin-top:28px}
+@media(min-width:800px){.parallel{grid-template-columns:1fr 1fr;gap:40px}}
+.par-col h3{font-family:Saira,sans-serif;font-size:12px;letter-spacing:.14em;color:var(--purple);margin:0 0 16px}
+.par-steps{display:flex;flex-direction:column;gap:0}
+.par-steps span{
+  display:block;padding:14px 0;border-bottom:1px solid var(--line);
+  color:var(--ink);font-weight:600;font-size:15px;
+}
+.par-steps span small{display:block;color:var(--mute-2);font-size:12px;font-weight:500;margin-top:2px;font-family:Saira,sans-serif;letter-spacing:.06em}
+
+/* network strip */
+.net-strip{display:flex;gap:14px;overflow-x:auto;padding:20px 0 8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.net-card{flex:0 0 200px;scroll-snap-align:start}
+.net-card img{width:100%;height:240px;object-fit:cover;object-position:top center;filter:grayscale(.2);transition:filter .3s}
+.net-card:hover img{filter:none}
+.net-card .c{margin-top:10px;font-size:13px;color:var(--ink);font-weight:600}
+.net-card .f{font-size:12px;color:var(--mute-2);font-family:Saira,sans-serif}
+
+/* value reveal */
+.value-open{min-height:50vh;display:flex;align-items:center;background:#000;text-align:center}
+.value-open .q{font-size:clamp(28px,5.5vw,52px);font-weight:800;color:var(--ink);line-height:1.35;margin:12px 0 0}
+.layers{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:32px}
+@media(min-width:800px){.layers{grid-template-columns:1fr 1fr}}
+.layer{background:var(--bg);padding:28px 24px}
+.layer h3{font-family:Saira,sans-serif;margin:0 0 14px;color:var(--purple);font-size:14px;letter-spacing:.12em}
+.layer ul{margin:0;padding:0;list-style:none}
+.layer li{padding:6px 0;border-bottom:1px solid var(--line);color:var(--silver);font-size:14px;font-family:Saira,Vazirmatn,sans-serif}
+.layer li:last-child{border-bottom:0}
+.keyline{
+  margin-top:40px;text-align:center;font-size:clamp(20px,3.5vw,32px);font-weight:800;
+  color:var(--ink);line-height:1.45;padding:32px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+
+/* activations */
+.act-rail{display:flex;gap:16px;overflow-x:auto;padding:8px 0 16px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+@media(max-width:700px){.act-rail{flex-direction:column;overflow:visible}}
+.act{
+  flex:0 0 min(78vw,340px);scroll-snap-align:start;
+  border:1px solid var(--line);padding:22px 20px;min-height:220px;background:var(--bg-2);
+  transition:border-color .25s,background .25s;
+}
+@media(max-width:700px){.act{flex:none;width:100%}}
+.act:hover{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)}
+.act h3{font-family:Saira,sans-serif;font-size:20px;letter-spacing:.04em;margin:12px 0 10px;color:var(--ink)}
+.act p{margin:0 0 12px;font-size:14px}
+.act .vals{font-size:12.5px;color:var(--mute-2);line-height:1.6}
+
+/* packages editorial */
+.pkg-present{
+  border:1px solid rgba(139,92,246,.35);background:linear-gradient(160deg,rgba(91,33,182,.18),var(--bg-2) 45%);
+  padding:clamp(28px,4vw,48px);margin-top:28px;position:relative;overflow:hidden;
+}
+.pkg-present::before{
+  content:"PRESENTING";position:absolute;left:-2%;top:8%;
+  font-family:Saira,sans-serif;font-weight:800;font-size:clamp(48px,10vw,120px);
+  color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.04);letter-spacing:-.04em;pointer-events:none;
+}
+.pkg-price{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(48px,9vw,88px);color:var(--ink);line-height:.9;letter-spacing:-.04em}
+.pkg-price small{display:block;font-size:14px;letter-spacing:.08em;color:var(--mute);font-weight:600;margin-top:10px}
+.pkg-en{font-family:Saira,sans-serif;font-weight:800;letter-spacing:.14em;color:var(--purple);font-size:13px;margin:18px 0 6px}
+.pkg-rights{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}
+.pkg-rights span{
+  font-family:Saira,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;
+  border:1px solid var(--line-2);padding:8px 12px;color:var(--ink);
+}
+.pkg-list{columns:1;margin:18px 0 0;padding:0 18px 0 0}
+@media(min-width:700px){.pkg-list{columns:2;column-gap:36px}}
+.pkg-list li{break-inside:avoid;margin-bottom:8px;font-size:14px;color:var(--silver)}
+.pkg-row{display:grid;gap:16px;margin-top:16px}
+@media(min-width:800px){.pkg-row{grid-template-columns:1fr 1fr}}
+.pkg-tier{border:1px solid var(--line);padding:28px 24px;background:var(--bg-2)}
+.pkg-tier .pkg-price{font-size:clamp(36px,6vw,56px)}
+.matrix{overflow-x:auto;margin-top:40px;border:1px solid var(--line)}
+.matrix table{min-width:640px}
+.matrix td.yes{color:var(--ink);font-weight:700}
+.matrix td.no{color:var(--mute-2)}
+
+/* spectrum */
+.spectrum{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:28px}
+@media(min-width:800px){.spectrum{grid-template-columns:1fr 1fr 1fr}}
+.spec{background:var(--bg);padding:28px 22px}
+.spec.is-gl{background:rgba(139,92,246,.1)}
+.spec .en{font-family:Saira,sans-serif;font-weight:800;letter-spacing:.1em;color:var(--purple);font-size:12px;margin-bottom:10px}
+.spec h3{margin:0 0 8px;font-size:20px}
+.spec p{margin:0;font-size:14px}
+
+/* measurement */
+.meas{display:grid;gap:14px;margin-top:24px}
+@media(min-width:800px){.meas{grid-template-columns:1fr 1fr 1fr}}
+.meas-c{padding:24px;border:1px solid var(--line);background:var(--bg-2)}
+.meas-c.proj{border-style:dashed;border-color:rgba(253,230,138,.35)}
+.meas-c.kpi{border-color:rgba(139,92,246,.45);background:rgba(139,92,246,.08)}
+.meas-c .n{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(32px,5vw,48px);color:var(--ink);margin:12px 0 8px}
+
+/* final CTA */
+.final{
+  position:relative;min-height:85vh;display:flex;align-items:flex-end;overflow:hidden;
+}
+.final img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;filter:brightness(.42)}
+.final::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,5,7,.25),rgba(5,5,7,.92) 70%,#000)}
+.final .wrap{position:relative;z-index:2;padding-bottom:64px}
+.final .giant{font-size:clamp(32px,6.5vw,64px);font-weight:800;color:var(--ink);line-height:1.25;margin:12px 0 16px}
+.contact-row{display:flex;flex-wrap:wrap;gap:20px 36px;margin-top:28px;font-size:14px;color:var(--silver)}
+.contact-row a{color:var(--ink);font-weight:700;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.25)}
+
+footer{text-align:center;padding:28px var(--pad) calc(28px + env(safe-area-inset-bottom));color:var(--mute-2);font-size:12px;background:#000}
+
+
+/* insight screenshot frames */
+.insight-slider{position:relative;margin-top:28px}
+.insight-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:8px 2px 18px;scrollbar-width:thin}
+.insight-card{
+  flex:0 0 min(82vw,340px);scroll-snap-align:start;
+  background:#111114;border:1px solid var(--line);padding:12px 12px 14px;
+}
+.insight-card .frame{
+  background:#fff;border-radius:4px;overflow:hidden;
+  aspect-ratio:1/1.05;display:flex;align-items:center;justify-content:center;
+}
+.insight-card .frame img{
+  width:100%;height:100%;object-fit:contain;object-position:center top;background:#f5f5f5;
+}
+.insight-card .meta{margin-top:12px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.insight-card .meta .n{font-family:Saira,sans-serif;font-weight:800;font-size:28px;color:var(--ink);letter-spacing:-.03em}
+.insight-card .meta .t{font-size:12px;color:var(--mute-2)}
+.insight-dots{display:flex;justify-content:center;gap:7px;margin-top:4px}
+.insight-dots button{width:7px;height:7px;border-radius:50%;border:0;padding:0;background:rgba(139,92,246,.28);cursor:pointer}
+.insight-dots button.on{background:var(--purple);transform:scale(1.25)}
+
+/* creator phone slider */
+.creator-slider{margin-top:24px}
+.creator-track{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:8px 2px 18px}
+.creator-phone{
+  flex:0 0 min(72vw,280px);scroll-snap-align:start;
+  background:#0E0E12;border:1px solid var(--line);border-radius:22px;padding:10px 10px 14px;
+  box-shadow:0 18px 40px rgba(0,0,0,.35);
+}
+.creator-phone .notch{
+  width:38%;height:5px;border-radius:999px;background:rgba(255,255,255,.12);margin:4px auto 10px;
+}
+.creator-phone .screen{
+  background:#000;border-radius:14px;overflow:hidden;
+  aspect-ratio:9/16;display:flex;align-items:flex-start;justify-content:center;
+}
+.creator-phone .screen img{
+  width:100%;height:100%;object-fit:contain;object-position:top center;background:#111;
+}
+.creator-phone .cap{margin-top:10px;text-align:center;font-size:12.5px;color:var(--silver)}
+.creator-phone .cap b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
+
+.track-media.portrait{aspect-ratio:3/4}
+.track-media.portrait img{object-position:center 20%}
+
+
+/* Duo auto-slider: 2 boxes, fade pairs */
+.duo-auto{margin-top:28px;position:relative}
+.duo-stage{position:relative;min-height:320px}
+.duo-pair{
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;
+  position:absolute;inset:0;opacity:0;visibility:hidden;
+  transition:opacity .55s ease,visibility .55s;
+  pointer-events:none;
+}
+.duo-pair.on{opacity:1;visibility:visible;pointer-events:auto;position:relative}
+@media(max-width:700px){
+  .duo-pair{grid-template-columns:1fr}
+  .duo-stage{min-height:0}
+  .duo-pair:not(.on){display:none}
+  .duo-pair.on{position:relative}
+}
+.duo-dots{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.duo-dots button{
+  width:8px;height:8px;border-radius:50%;border:0;padding:0;
+  background:rgba(139,92,246,.28);cursor:pointer;transition:transform .2s,background .2s;
+}
+.duo-dots button.on{background:var(--purple);transform:scale(1.25)}
+
+.insight-card{
+  background:#111114;border:1px solid var(--line);padding:12px 12px 14px;min-width:0;
+}
+.insight-card .frame{
+  background:#f3f3f3;overflow:hidden;aspect-ratio:1/1.02;
+  display:flex;align-items:center;justify-content:center;
+}
+.insight-card .frame img{
+  width:100%;height:100%;object-fit:contain;object-position:center top;
+}
+
+.creator-card{
+  background:var(--bg-2);border:1px solid var(--line);padding:0 0 14px;min-width:0;overflow:hidden;
+}
+.creator-card .shot{
+  aspect-ratio:12/7;background:#0a0a0c;overflow:hidden;
+}
+.creator-card .shot img{
+  width:100%;height:100%;object-fit:cover;object-position:top center;display:block;
+}
+.creator-card .cap{padding:12px 14px 0;font-size:13px;color:var(--mute)}
+.creator-card .cap b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:2px}
+
+.statement-photo{height:min(70vh,620px)}
+.statement-photo img{object-position:center 40%;filter:brightness(.68) saturate(.95)}
+
+/* V2 — data wall */
+.wall{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:36px}
+@media(min-width:800px){.wall{grid-template-columns:1fr 1fr 1fr}}
+.wall-c{background:var(--bg);padding:clamp(22px,3vw,32px) 22px}
+.wall-c.span{grid-column:1/-1}
+.wall-c .n{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(36px,6vw,56px);color:var(--ink);letter-spacing:-.04em;line-height:.9}
+.wall-c .n.gold{color:var(--gold)}
+.wall-c .en{display:block;margin-top:10px;font-family:Saira,sans-serif;font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--purple)}
+.wall-c p{margin:8px 0 0;font-size:13.5px;color:var(--silver);line-height:1.65}
+.proj-mark{
+  display:inline-block;margin-bottom:8px;
+  font-family:Saira,sans-serif;font-size:10px;font-weight:700;letter-spacing:.14em;
+  color:#FDE68A;border:1px dashed rgba(253,230,138,.4);padding:3px 8px;
+}
+
+/* V2 — compact proof timeline */
+.tl-row{display:flex;gap:0;overflow-x:auto;margin-top:32px;padding-bottom:8px;scrollbar-width:thin}
+.tl-step{flex:0 0 auto;min-width:140px;padding:0 22px 0 0;border-left:1px solid var(--line)}
+.tl-step:last-child{border-left:0}
+.tl-step .y{font-family:Saira,sans-serif;font-weight:800;color:var(--gold);font-size:13px;letter-spacing:.1em}
+.tl-step .t{display:block;margin-top:8px;color:var(--ink);font-weight:700;font-size:16px}
+.tl-step p{margin:6px 0 0;font-size:13px}
+
+/* V2 — Aparat interrupt */
+.aparat{
+  position:relative;min-height:88vh;display:flex;align-items:flex-end;overflow:hidden;
+  background:#000;
+}
+.aparat>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;filter:brightness(.38) saturate(.85)}
+.aparat::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(5,5,7,.92) 72%,#050507)}
+.aparat .wrap{position:relative;z-index:2;padding-bottom:56px}
+.apa-nums{display:grid;gap:18px;margin-top:32px}
+@media(min-width:720px){.apa-nums{grid-template-columns:1fr 1fr 1fr 1fr}}
+.apa-n .n{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(32px,5vw,48px);color:var(--ink);line-height:.9}
+.apa-n .en{display:block;margin-top:8px;font-family:Saira,sans-serif;font-size:11px;letter-spacing:.12em;color:var(--purple);font-weight:700}
+.apa-n p{margin:6px 0 0;font-size:13px;color:var(--silver)}
+.apa-line{margin-top:36px;max-width:40em;font-size:16px;color:var(--ink);font-weight:600;line-height:1.75}
+
+/* V2 — ownership properties */
+.own{display:grid;gap:12px;margin-top:28px}
+@media(min-width:720px){.own{grid-template-columns:1fr 1fr}}
+@media(min-width:1100px){.own{grid-template-columns:1fr 1fr 1fr}}
+.own-c{border:1px solid var(--line);padding:22px 20px;background:var(--bg-2);min-height:168px}
+.own-c.lead{grid-column:1/-1;background:linear-gradient(160deg,rgba(91,33,182,.2),var(--bg-2) 50%);border-color:rgba(139,92,246,.35)}
+.own-c h3{margin:10px 0 8px;font-size:18px;color:var(--ink)}
+.own-c p{margin:0;font-size:13.5px;color:var(--silver)}
+.st{display:inline-block;font-family:Saira,sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;padding:3px 8px;border:1px solid var(--line-2);color:var(--silver)}
+.st.ok{color:#86EFAC;border-color:rgba(134,239,172,.35)}
+
+/* V2 — models */
+.models{display:grid;gap:16px;margin-top:28px}
+@media(min-width:900px){.models{grid-template-columns:1.15fr .95fr .9fr}}
+.mod{border:1px solid var(--line);padding:28px 24px;background:var(--bg-2)}
+.mod.a{border-color:rgba(139,92,246,.4);background:linear-gradient(180deg,rgba(91,33,182,.16),var(--bg-2) 40%)}
+.mod .en{font-family:Saira,sans-serif;font-weight:800;letter-spacing:.12em;color:var(--purple);font-size:12px}
+.mod .price{font-family:Saira,sans-serif;font-weight:800;font-size:clamp(28px,4vw,40px);color:var(--ink);margin:10px 0;letter-spacing:-.03em}
+.mod ul{margin:14px 0 0;padding:0 16px 0 0;color:var(--silver);font-size:14px}
+.mod li{margin:6px 0}
+
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><i id="prog"></i></div>
+
+<header class="nav" id="nav">
+  <a class="nav-brand" href="#hero">GAMELAND</a>
+  <nav class="nav-links" aria-label="بخش‌ها">
+    <a href="#scale">مقیاس</a>
+    <a href="#proof">سابقه</a>
+    <a href="#journey">مسیر</a>
+    <a href="#iranmall">ایران‌مال</a>
+    <a href="#own">مالکیت</a>
+    <a href="#models">مدل‌ها</a>
+  </nav>
+  <a class="nav-cta" href="#cta">شروع مذاکره</a>
+</header>
+
+<!-- 01 HERO -->
+<section class="hero" id="hero">
+  <div class="hero-bg"><img src="media/web/crowd-iranmall.jpg" alt="فینال THE BEST در ایران‌مال" width="1600" height="1000" fetchpriority="high"></div>
+  <div class="hero-iv" aria-hidden="true">IV</div>
+  <div class="wrap">
+    <p class="kicker">GAMELAND</p>
+    <p class="en" style="color:var(--silver);font-weight:700;font-size:13px;letter-spacing:.2em;margin:0 0 10px">THE BEST IV</p>
+    <h1 class="h1">خانه رقابت فوتبال گیمینگ ایران</h1>
+    <p class="lede">از شهرهای ایران تا فینال ایران‌مال؛ یک مسیر رقابتی که برند می‌تواند بخشی از آن را در اختیار بگیرد.</p>
+    <div class="hero-meta">
+      <span><b>۱۶ تا ۲۲ شهریور ۱۴۰۵</b></span>
+      <span class="en">IRAN MALL · TEHRAN</span>
+    </div>
+    <div class="hero-prize">۶۰۰M+ · بیش از ۶۰۰ میلیون تومان جایزه</div>
+    <div class="cta-row">
+      <a class="btn btn-p" href="#own">فرصت‌های همکاری</a>
+      <a class="btn btn-g" href="#scale">مشاهده مقیاس رویداد</a>
+    </div>
+    <div class="scroll-cue">SCROLL</div>
+  </div>
+</section>
+
+<section class="statement sec">
+  <div class="wrap reveal">
+    <p class="giant">از شهرهای ایران<br>تا ایران‌مال<br>تا میلیون‌ها صفحه نمایش.</p>
+  </div>
+</section>
+
+<!-- 02 SCALE -->
+<section class="sec sec-dark" id="scale">
+  <div class="wrap">
+    <p class="kicker reveal">مقیاس THE BEST IV</p>
+    <h2 class="h2 reveal">این فقط یک فینال نیست.</h2>
+    <p class="lede reveal">یک مسیر سراسری که از رقابت در استان‌ها شروع می‌شود، به ایران‌مال می‌رسد و در شبکه‌های اجتماعی ادامه پیدا می‌کند.</p>
+    <div class="wall reveal">
+      <div class="wall-c">
+        <span class="proj-mark">برآورد</span>
+        <div class="n">۵۰–۱۰۰M</div>
+        <span class="en">ایمپرشن اجتماعی</span>
+        <p>برآورد مجموع ایمپرشن محتوای کمپین و رویداد</p>
+      </div>
+      <div class="wall-c">
+        <div class="n">۲۹+</div>
+        <span class="en">استان</span>
+        <p>پوشش جامعه و شرکت‌کنندگان در سراسر ایران</p>
+      </div>
+      <div class="wall-c">
+        <span class="proj-mark">برآورد</span>
+        <div class="n">۳K–۶K</div>
+        <span class="en">بازدید استانی</span>
+        <p>برآورد مجموع بازدید حضوری مراحل استانی</p>
+      </div>
+      <div class="wall-c">
+        <span class="proj-mark">برآورد</span>
+        <div class="n">۱۰K–۲۰K</div>
+        <span class="en">مقدماتی ایران‌مال</span>
+        <p>برآورد بازدید/تردد حضوری روز مقدماتی تهران در ایران‌مال</p>
+      </div>
+      <div class="wall-c">
+        <span class="proj-mark">برآورد</span>
+        <div class="n">۱۰K+</div>
+        <span class="en">بازدید فینال</span>
+        <p>برآورد بازدید حضوری دو روز فینال ایران‌مال</p>
+      </div>
+      <div class="wall-c">
+        <div class="n gold">۶۰۰M+</div>
+        <span class="en">مجموع جوایز</span>
+        <p>بیش از ۶۰۰ میلیون تومان جایزه</p>
+      </div>
+    </div>
+    <p class="quiet" style="margin-top:16px">اعداد برآوردی نتیجه قطعی نیستند و به‌عنوان مقیاس برنامه‌ریزی نمایش داده می‌شوند.</p>
+  </div>
+</section>
+
+<!-- 03 GAMELAND PROOF -->
+<section class="sec sec-2" id="proof">
+  <div class="wrap">
+    <p class="kicker reveal">GAMELAND PROOF</p>
+    <h2 class="h2 reveal">ما قرار نیست اولین بار این مقیاس را تجربه کنیم.</h2>
+    <p class="lede reveal">GAMELAND از سال ۱۳۹۶ در حال ساخت جامعه و زیرساخت رقابت فوتبال گیمینگ ایران است؛ از مسابقات شهری و کشوری تا ایران‌مال، باغ‌کتاب و استودیو آپارات.</p>
+    <div class="tl-row reveal">
+      <div class="tl-step"><span class="y">۱۳۹۶</span><span class="t">گیم‌لند</span><p>شروع جامعه رقابت</p></div>
+      <div class="tl-step"><span class="y">تهران</span><span class="t">مسابقه کشوری</span><p>۱٬۰۰۰ شرکت‌کننده · فینال ۱۲۸ نفره</p></div>
+      <div class="tl-step"><span class="y">آپارات</span><span class="t">فینال استودیو</span><p>≈ ۱٬۰۰۰ گیمر از سراسر ایران</p></div>
+      <div class="tl-step"><span class="y">ایران‌مال</span><span class="t">فینال حضوری</span><p>فینال چند هزار نفره</p></div>
+      <div class="tl-step"><span class="y">۱۴۰۵</span><span class="t">THE BEST IV</span><p>۶۰۰M+ جایزه</p></div>
+    </div>
+  </div>
+</section>
+<section class="statement-photo" aria-label="سابقه اجرا">
+  <img loading="lazy" decoding="async" src="media/web/tb3-led-stage.jpg" alt="فینال ایران‌مال · استیج و LED">
+  <p class="cap">قوی‌ترین شواهد اجرا — نه تاریخچه شرکتی.</p>
+</section>
+
+<!-- 04 APARAT CASE -->
+<section class="aparat" id="aparat">
+  <img loading="lazy" decoding="async" src="media/web/winner-aparat.jpg" alt="فینال استودیو آپارات · سابقه گیم‌لند">
+  <div class="wrap reveal">
+    <span class="badge past">سابقه اجرا</span>
+    <p class="kicker" style="margin-top:16px">گیم‌لند × آپارات</p>
+    <h2 class="h2">یک رقابت کشوری؛ از سراسر ایران تا استودیو آپارات.</h2>
+    <p class="lede">در یکی از تجربه‌های کشوری گیم‌لند با همکاری آپارات، حدود ۱٬۰۰۰ گیمر از سراسر ایران وارد رقابت شدند و فینال در استودیو آپارات برگزار شد.</p>
+    <div class="apa-nums">
+      <div class="apa-n"><div class="n">۱٬۰۰۰</div><span class="en">شرکت‌کننده</span><p>گیمر از سراسر ایران</p></div>
+      <div class="apa-n"><div class="n">۳۰٬۰۰۰+</div><span class="en">بازدید استریم</span><p>مجموع بازدید استریم فینال</p></div>
+      <div class="apa-n"><div class="n">۳٬۰۰۰+</div><span class="en">تماشاگر زنده</span><p>هم‌زمان در فینال</p></div>
+      <div class="apa-n"><div class="n" style="font-size:clamp(22px,3vw,28px)">استودیو آپارات</div><span class="en">محل فینال</span><p>برگزاری حضوری / استودیویی</p></div>
+    </div>
+    <p class="apa-line">برای گیم‌لند، مسابقه فقط حضور فیزیکی نیست؛ تجربه قبلی نشان داده رقابت می‌تواند هم‌زمان به محصول رسانه‌ای و استریم‌شدنی تبدیل شود.</p>
+    <p class="quiet" style="margin-top:16px">این بخش سابقه همکاری است، نه اسپانسری یا شراکت فعلی THE BEST IV.</p>
+  </div>
+</section>
+
+<!-- TEHRAN TOURNAMENT + 1404 OUTLOOK -->
+<section class="sec sec-dark" id="tehran-proof">
+  <div class="wrap">
+    <span class="badge past">سابقه اجرا</span>
+    <p class="kicker" style="margin-top:16px">مسابقه تهران</p>
+    <h2 class="h2 reveal">از سراسر ایران تا فینال تهران.</h2>
+    <p class="lede reveal">در یکی از مسابقات تهران با قالب ۶۴ نفره، حدود ۱٬۰۰۰ شرکت‌کننده از سراسر ایران وارد رقابت شدند و فینال ۱۲۸ نفره در تهران برگزار شد.</p>
+    <div class="apa-nums reveal">
+      <div class="apa-n"><div class="n">۶۴</div><span class="en">قالب مسابقه</span><p>مسابقه ۶۴ نفره · تهران</p></div>
+      <div class="apa-n"><div class="n">۱٬۰۰۰</div><span class="en">شرکت‌کننده</span><p>از سراسر ایران</p></div>
+      <div class="apa-n"><div class="n">۱۲۸</div><span class="en">فینال تهران</span><p>حضور در مرحله نهایی</p></div>
+    </div>
+
+    <div style="margin-top:56px">
+      <span class="badge proj">برآورد آینده · ۱۴۰۴+</span>
+      <h2 class="h2" style="margin-top:14px">افق مقیاس گیم‌لند.</h2>
+      <p class="lede">برای دوره‌های پیش‌رو، برآورد فعلی این است که مقیاس شرکت‌کننده و حضور فینال تهران رشد کند — این اعداد برنامه‌ریزی‌اند، نه تضمین.</p>
+      <div class="apa-nums">
+        <div class="apa-n"><div class="n">۲٬۵۰۰–۳٬۰۰۰</div><span class="en">شرکت‌کننده</span><p>برآورد سراسر ایران</p></div>
+        <div class="apa-n"><div class="n">۵۰۰</div><span class="en">فینال تهران</span><p>برآورد حضور پایه</p></div>
+        <div class="apa-n"><div class="n">تا ۱٬۰۰۰</div><span class="en">فینال تهران</span><p>سقف برآورد حضور در مسابقات تهران</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCE -->
+<section class="sec sec-2" id="audience">
+  <div class="wrap">
+    <p class="kicker reveal">AUDIENCE + MEDIA POWER</p>
+    <h2 class="h2 reveal">مخاطبی که برای رقابت آمده، نه برای رد شدن از کنار تبلیغ.</h2>
+    <p class="lede reveal">مخاطب اصلی THE BEST گیمر رقابتی جوان است؛ کسی که فوتبال گیمینگ را جدی دنبال می‌کند، برای مسابقه ثبت‌نام می‌کند و با همین جامعه محتوا می‌سازد.</p>
+    <div class="mega-row reveal">
+      <div>
+        <div class="mega">۱۸–۲۶</div>
+        <div class="mega-l">هسته اصلی شرکت‌کننده‌ها و جامعه رقابتی گیم‌لند</div>
+      </div>
+      <div>
+        <div class="mega"><span data-bind="market.players">۲۹.۳ میلیون</span></div>
+        <div class="mega-l">بازار بزرگ‌تر بازی‌های دیجیتال ایران · بستر رشد همین جامعه</div>
+      </div>
+    </div>
+    <p class="quiet">پروفایل مخاطب THE BEST · برآورد بر اساس مخاطبان فعلی گیم‌لند. آمار بازار ملی: پیمایش مصرف بازی‌های دیجیتال ۱۴۰۲، بنیاد ملی / دایرک · <a href="https://creativehousenet.ir/web/page/namayehbaz02" target="_blank" rel="noopener">منبع</a></p>
+    <div class="persona-row reveal">
+      <div class="persona"><div class="t">PLAYERS</div><div class="a">بازیکن رقابتی</div><p>۱۸–۲۶ · ثبت‌نام، هزینه و رقابت برای فینال.</p></div>
+      <div class="persona"><div class="t">SPECTATORS</div><div class="a">تماشاگر حضوری</div><p>حضور در سالن، چالش و لحظه قهرمانی.</p></div>
+      <div class="persona"><div class="t">CREATORS</div><div class="a">کریتور و جامعه آنلاین</div><p>ریل، هایلایت، Reaction و پوشش مسابقه.</p></div>
+    </div>
+    <div class="wall reveal" style="margin-top:40px">
+      <div class="wall-c span">
+        <span class="proj-mark">برآورد</span>
+        <div class="n">۵۰–۱۰۰M</div>
+        <span class="en">ایمپرشن اجتماعی · برآورد</span>
+        <p>برآورد مجموع ایمپرشن حاصل از محتوای GAMELAND، بازیکنان، کریتورها، رسانه‌ها، لحظات وایرال و پوشش رویداد. این عدد تضمین نیست.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:56px">
+      <span class="badge past">PAST PERFORMANCE</span>
+      <h3 class="h3" style="margin-top:14px">از مسابقه<br>به محتوا.</h3>
+      <p class="lede">مسابقه در پایان سوت تمام نمی‌شود؛ لحظه‌ها به ریل، هایلایت، مصاحبه، Reaction و محتوای قابل انتشار تبدیل می‌شوند.</p>
+      <p class="quiet">این نمونه‌ها Past Performance هستند و تضمین Reach دوره جدید محسوب نمی‌شوند.</p>
+      <div class="past-strip reveal">
+        <div class="past-cell"><img loading="lazy" decoding="async" src="media/web/viral-celebrity.jpg" alt="۹.۵ میلیون بازدید"><div class="info"><div class="n">۹.۵M</div><div>Views · مسابقه فیفا با چهره‌ها</div></div></div>
+        <div class="past-cell"><img loading="lazy" decoding="async" src="media/web/viral-milad.jpg" alt="۳.۹ میلیون بازدید"><div class="info"><div class="n">۳.۹M</div><div>Views · فینال برج میلاد</div></div></div>
+        <div class="past-cell"><img loading="lazy" decoding="async" src="media/web/viral-practice.jpg" alt="۲.۲ میلیون بازدید"><div class="info"><div class="n">۲.۲M</div><div>Views · محتوای گیم‌لند</div></div></div>
+      </div>
+</div>
+  </div>
+</section>
+
+<!-- PLAYER JOURNEY -->
+<section class="sec sec-2" id="journey">
+  <div class="wrap">
+    <p class="kicker reveal">ROAD TO IRAN MALL</p>
+    <h2 class="h2 reveal">رقابت از ایران‌مال شروع نمی‌شود.</h2>
+    <p class="lede reveal">از شهر خودش شروع می‌شود. برند می‌تواند در چند نقطه از این مسیر حضور داشته باشد.</p>
+  </div>
+  <div class="journey-rail" id="journey-rail">
+    <article class="j-item">
+  <div class="no">01 — APP</div>
+  <h3>ثبت‌نام</h3>
+  <p>ورود به اپ، ساخت پروفایل و تهیه سهم مسابقه.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Reward / Offer</li><li>Registration</li></ul></div>
+</article>
+<article class="j-item">
+  <div class="no">02 — PROVINCE</div>
+  <h3>مقدماتی</h3>
+  <p>رقابت در شهر و استان خودش.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Local Activation</li><li>Content</li></ul></div>
+</article>
+<article class="j-item">
+  <div class="no">03 — QUALIFY</div>
+  <h3>صعود</h3>
+  <p>برنده‌ها سهم فینال را می‌گیرند.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Winner Moment</li><li>Travel Support</li></ul></div>
+</article>
+<article class="j-item">
+  <div class="no">04 — TEHRAN</div>
+  <h3>رسیدن به تهران</h3>
+  <p>ورود به مسیر حضوری پایتخت.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Arrival Content</li><li>Player Welcome</li></ul></div>
+</article>
+<article class="j-item">
+  <div class="no">05 — IRAN MALL</div>
+  <h3>فینال</h3>
+  <p>رقابت، استیج و تجربه حضوری.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Brand Experience</li><li>Product Trial</li></ul></div>
+</article>
+<article class="j-item">
+  <div class="no">06 — CHAMPION</div>
+  <h3>قهرمانی</h3>
+  <p>جام، جایزه و Hero Content.</p>
+  <div class="j-touch"><div class="tl">Brand Touchpoints</div><ul><li>Award</li><li>Hero Content</li></ul></div>
+</article>
+  </div>
+  <div class="wrap">
+    <div class="journey-end reveal">
+      <p class="big">از اولین ثبت‌نام<br>تا آخرین جام.</p>
+      <p class="lede" style="margin:12px auto 0">برند می‌تواند در چند نقطه از این مسیر حضور داشته باشد.</p>
+    </div>
+  </div>
+</section>
+
+<!-- IRANMALL -->
+<section class="im-reveal" id="iranmall">
+  <img loading="lazy" decoding="async" src="media/web/crowd-iranmall.jpg" alt="ایران‌مال · فینال گیم‌لند">
+  <div class="wrap">
+    <p class="kicker">مقصد نهایی</p>
+    <p class="en-big">IRAN MALL</p>
+    <p class="giant">وقتی فینال شروع می‌شود،<br>مسابقه فقط پشت کنسول نیست.</p>
+  </div>
+</section>
+
+<section class="sec-tight sec-dark" id="experience">
+  <div class="wrap reveal" style="padding-bottom:28px">
+    <h2 class="h2">در روزهای THE BEST IV در ایران‌مال چه اتفاقی می‌افتد؟</h2>
+    <p class="lede">فضای چندروزه رقابتی و اجتماعی — بازیکن، تماشاگر، کریتور و برند در آن نقش دارند.</p>
+  </div>
+  <div class="xp">
+    <div class="xp-row reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/ps5-hall.jpg" alt="Competition Floor"></div><div class="txt"><p class="kicker">01</p><h3>COMPETITION FLOOR</h3><p>استیشن‌های مسابقه و رقابت هم‌زمان.</p></div></div>
+    <div class="xp-row reverse reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/thebest-stage.jpg" alt="Main Stage"></div><div class="txt"><p class="kicker">02</p><h3>MAIN STAGE</h3><p>مسابقات منتخب، نیمه‌نهایی و فینال.</p></div></div>
+    <div class="xp-row reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/players-focus.jpg" alt="Player Area"></div><div class="txt"><p class="kicker">03</p><h3>PLAYER AREA</h3><p>حضور و آماده‌سازی بازیکنان.</p></div></div>
+    <div class="xp-row reverse reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/hosts-tactics.jpg" alt="Creator & Content"></div><div class="txt"><p class="kicker">04</p><h3>CREATOR &amp; CONTENT</h3><p>مصاحبه، Reaction، Challenge و محتوای کوتاه.</p></div></div>
+    <div class="xp-row reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/hallway-lan.jpg" alt="Challenge Zone"></div><div class="txt"><p class="kicker">05</p><h3>CHALLENGE ZONE</h3><p>بازی‌های کوتاه برای بازدیدکنندگان بین مسابقات — Penalty Challenge، Beat The Pro، Football Darts، Reaction، Accuracy Shot، FC Challenge.</p></div></div>
+    <div class="xp-row reverse reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/players-thumbs.jpg" alt="Brand Experience"></div><div class="txt"><span class="badge custom">CUSTOMIZABLE</span><h3>BRAND EXPERIENCE</h3><p>Product Trial، Sampling، QR، Competition Reward و Lead mechanic در صورت تناسب.</p></div></div>
+    <div class="xp-row reveal"><div class="pic"><img loading="lazy" decoding="async" src="media/web/medals-winners.jpg" alt="Championship Moment"></div><div class="txt"><p class="kicker">07</p><h3>CHAMPIONSHIP MOMENT</h3><p>جام، جایزه قهرمان و Hero Content.</p></div></div>
+  </div>
+</section>
+
+<!-- CHAMPIONSHIP BREAK -->
+<section class="champ" id="championship">
+  <img loading="lazy" decoding="async" src="media/web/trophy-celebration.jpg" alt="قهرمانی">
+  <div class="inner reveal">
+    <p class="h">همه برای همین لحظه آمده‌اند.</p>
+    <p class="g">قهرمانی.</p>
+    <p class="s">لحظه‌ای که رقابت، محتوا، تماشاگر و برند در یک قاب به هم می‌رسند.</p>
+  </div>
+</section>
+
+<!-- NETWORK -->
+<section class="sec sec-dark" id="network">
+  <div class="wrap">
+    <p class="kicker reveal">MEDIA &amp; CREATOR NETWORK</p>
+    <h2 class="h2 reveal">شبکه رسانه و کریتور</h2>
+    <p class="lede reveal">پوشش رویداد می‌تواند با رسانه‌ها و کریتورهای نزدیک به جامعه FC گسترش پیدا کند. وضعیت‌ها: CONFIRMED / IN DISCUSSION / NETWORK · POTENTIAL. همکاری تاریخی آپارات در بخش Past Performance است، نه شراکت فعلی THE BEST IV.</p>
+  </div>
+  <div class="wrap">
+    <div class="duo-auto" data-duo data-interval="4000">
+  <div class="duo-stage">
+<div class="duo-pair on"><article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-01.jpg" alt="@dani.pinkman"></div>
+  <div class="cap"><b>@dani.pinkman</b>≈ ۱۹۹ هزار</div>
+</article>
+<article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-02.jpg" alt="@sepehrtorabi"></div>
+  <div class="cap"><b>@sepehrtorabi</b>≈ ۸۱ هزار</div>
+</article></div>
+<div class="duo-pair"><article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-03.jpg" alt="@mostafa_ghtm"></div>
+  <div class="cap"><b>@mostafa_ghtm</b>≈ ۲.۴ میلیون</div>
+</article>
+<article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-05.jpg" alt="@tiyrak"></div>
+  <div class="cap"><b>@tiyrak</b>≈ ۴۲۲ هزار</div>
+</article></div>
+<div class="duo-pair"><article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-15.jpg" alt="@unrealhosis"></div>
+  <div class="cap"><b>@unrealhosis</b>≈ ۲۲ هزار</div>
+</article>
+<article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-18.jpg" alt="@r3stive"></div>
+  <div class="cap"><b>@r3stive</b>≈ ۴۴ هزار</div>
+</article></div>
+<div class="duo-pair"><article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-04.jpg" alt="پیج شبکه"></div>
+  <div class="cap"><b>پیج شبکه</b>اسکرین · فالوئر تقریبی</div>
+</article>
+<article class="creator-card">
+  <div class="shot"><img loading="lazy" decoding="async" src="media/web/ig-norm-06.jpg" alt="پیج شبکه"></div>
+  <div class="cap"><b>پیج شبکه</b>اسکرین · فالوئر تقریبی</div>
+</article></div>
+  </div>
+  <div class="duo-dots"></div>
+</div>
+    <p class="quiet" style="margin-top:14px"><span class="st">NETWORK / POTENTIAL</span> فالوئر تقریبی است. هیچ‌کس در این نوار شریک تأییدشده THE BEST IV نیست مگر جداگانه اعلام شود.</p>
+  </div>
+</section>
+
+<!-- 08 WHAT CAN A BRAND OWN -->
+<section class="value-open sec" id="own">
+  <div class="wrap reveal">
+    <p class="kicker">WHAT CAN A BRAND OWN?</p>
+    <p class="q">برند شما قرار نیست فقط دیده شود.</p>
+    <p class="lede" style="margin:16px auto 0;max-width:28em">می‌تواند بخشی از THE BEST را در اختیار بگیرد.</p>
+  </div>
+</section>
+<section class="sec sec-2" id="value">
+  <div class="wrap">
+    <div class="own reveal">
+      <div class="own-c lead"><span class="st ok">AVAILABLE</span><h3>PRESENTING PARTNER</h3><p>THE BEST IV presented by [BRAND] — حداکثر مالکیت رویداد.</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Gaming Monitor</h3><p>Cash + Monitors · Category Exclusivity · Tournament Stations · Product Trial · Stage Integration</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Gaming Chair</h3><p>Cash + Gaming Chairs</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Console / Platform</h3><p>یکپارچگی کنسول یا پلتفرم</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Gaming Accessory</h3><p>Controllers · Headsets · Keyboards · Accessories</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Technology Partner</h3><p>PC · Hardware · Network · Technical Equipment</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Connectivity Partner</h3><p>ISP · Telecom · Internet · 5G</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Payment Partner</h3><p>Bank · Fintech · Payment</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Official Beverage / Energy</h3><p>در صورت تناسب تجاری</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Main Stage Partner</h3><p>مالکیت استیج اصلی</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Player Zone Partner</h3><p>مالکیت تجربه بازیکن</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Challenge Zone Partner</h3><p>مالکیت چالش تماشاگران</p></div>
+      <div class="own-c"><span class="st ok">AVAILABLE</span><h3>Discipline Partner</h3><p>مالکیت یک رشته منتخب، در صورت ظرفیت</p></div>
+    </div>
+    <p class="quiet" style="margin-top:16px">وضعیت‌ها: AVAILABLE / IN NEGOTIATION / RESERVED / SOLD / CUSTOM. انحصار دسته متداخل ساخته نمی‌شود.</p>
+    <div class="layers reveal" style="margin-top:48px">
+      <div class="layer"><h3>OWNERSHIP</h3><ul><li>Naming</li><li>Official Category Exclusivity</li><li>Stage / Zone Ownership</li></ul></div>
+      <div class="layer"><h3>EXPERIENCE</h3><ul><li>Product Trial</li><li>Sampling</li><li>Challenge</li><li>Player / Spectator Interaction</li></ul></div>
+      <div class="layer"><h3>CONTENT</h3><ul><li>Reels</li><li>Creator Content</li><li>Interviews / Reaction</li><li>Winner &amp; Hero Content</li></ul></div>
+      <div class="layer"><h3>DISTRIBUTION</h3><ul><li>GAMELAND App</li><li>Social</li><li>Creator Network</li><li>On-site / Player Communication</li></ul></div>
+    </div>
+    <p class="keyline">نه یک تبلیغ.<br>یک حضور چندنقطه‌ای.</p>
+  </div>
+</section>
+
+<!-- ACTIVATIONS -->
+<section class="sec sec-dark" id="activations">
+  <div class="wrap">
+    <p class="kicker reveal">BRAND ACTIVATIONS</p>
+    <h2 class="h2 reveal">شش ایده کمپین؛ همه قابل سفارشی‌سازی.</h2>
+    <p class="lede reveal">هر کدام یک مینی‌کمپین است، نه یک بنر.</p>
+  </div>
+  <div class="wrap"><div class="act-rail">
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] BEAT THE PRO</h3><p>رقابت مستقیم مخاطب با یکی از بازیکنان مطرح.</p></article>
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] PENALTY CHALLENGE</h3><p>پنالتی بزن، امتیاز جمع کن، جایزه ببر.</p></article>
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] MVP OF THE DAY</h3><p>انتخاب بازیکن روز با جایزه برند.</p></article>
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] PREDICTION CHALLENGE</h3><p>پیش‌بینی نتایج از طریق اپ / QR.</p></article>
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] ROAD TO FINAL</h3><p>داستان یک بازیکن از شهر خودش تا ایران‌مال.</p></article>
+<article class="act"><span class="badge custom">CUSTOMIZABLE</span><h3>[BRAND] CHAMPIONSHIP MOMENT</h3><p>حضور برند در جام، جایزه و مهم‌ترین محتوای رویداد.</p></article>
+  </div></div>
+</section>
+
+<!-- 10 PARTNERSHIP MODELS -->
+<section class="sec sec-2" id="models">
+  <div class="wrap">
+    <p class="kicker reveal">مدل‌های همکاری</p>
+    <h2 class="h2 reveal">سه مدل تجاری؛ سقف همکاری عدد ثابت نیست.</h2>
+    <p class="lede reveal">رویداد برای شراکت‌های استراتژیک بزرگ‌تر طراحی شده — نقدی، تجهیزاتی، یا ترکیبی.</p>
+    <div class="models reveal">
+      <div class="mod a">
+        <div class="en">مدل الف</div>
+        <h3 class="h3">تقدیم‌کننده / استراتژیک</h3>
+        <p class="quiet" style="margin:12px 0 0">یا ارزش استراتژیک سفارشی</p>
+        <ul>
+          <li>شراکت نقدی با حداکثر مالکیت</li>
+          <li>کل مسیر رقابت</li>
+          <li>انحصار دسته</li>
+          <li>یکپارچگی محتوا و استیج اصلی</li>
+          <li>لحظه قهرمانی</li>
+        </ul>
+      </div>
+      <div class="mod">
+        <div class="en">مدل ب</div>
+        <h3 class="h3">شریک دسته رسمی</h3>
+        <div class="price">نقد + تجهیزات</div>
+        <p>مانیتور، صندلی، لوازم، سخت‌افزار یا شبکه. ارزش تجاری از جمع نقد + ارزش محصول + زیرساخت + بودجه اکتیویشن محاسبه می‌شود.</p>
+      </div>
+      <div class="mod">
+        <div class="en">مدل ج</div>
+        <h3 class="h3">تجربه / زون</h3>
+        <div class="price">اکتیویشن</div>
+        <p>حضور فیزیکی: زون چالش، تجربه برند، Sampling.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MEASUREMENT -->
+<section class="sec sec-dark" id="measurement">
+  <div class="wrap">
+    <p class="kicker reveal">اندازه‌گیری و گزارش</p>
+    <h2 class="h2 reveal">عملکرد همکاری را با عدد گزارش می‌کنیم</h2>
+    <p class="lede reveal">KPI قبل از شروع مشخص می‌شود. گزارش نهایی بعد از رویداد با مستند تصویری تحویل می‌شود. اعداد زیر برآورد دوره‌اند، نه تضمین.</p>
+    <div style="margin:18px 0 8px"><span class="badge proj">برآورد دوره</span></div>
+    <div class="meas reveal">
+      <div class="meas-c proj"><div class="n">۵۰–۱۰۰M</div><div>ایمپرشن اجتماعی</div><p class="quiet">برآورد مجموع ایمپرشن کمپین و رویداد</p></div>
+      <div class="meas-c proj"><div class="n">۱۰K+</div><div>بازدید فینال</div><p class="quiet">برآورد بازدید حضوری دو روز فینال</p></div>
+      <div class="meas-c proj"><div class="n">۶۰۰M+</div><div>مجموع جوایز</div><p class="quiet">بیش از ۶۰۰ میلیون تومان جایزه</p></div>
+    </div>
+    <div class="meas-c kpi" style="margin-top:16px">
+      <span class="badge kpi">SPONSORSHIP KPI</span>
+      <h3 class="h3" style="margin-top:14px">KPI نهایی هر برند</h3>
+      <p>KPI نهایی براساس پکیج، اکتیویشن و کانال‌های توافق‌شده در قرارداد مشخص می‌شود.</p>
+      <p class="quiet">KPI تضمینی یا Make-good فقط در قرارداد اختصاصی تعریف می‌شود.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final" id="cta">
+  <img loading="lazy" decoding="async" src="media/web/huddle-win.jpg" alt="جشن برد · ایران‌مال">
+  <div class="wrap">
+    <p class="kicker">GAMELAND · THE BEST IV</p>
+    <p class="giant">از اولین ثبت‌نام<br>تا آخرین جام.</p>
+    <p class="lede" style="color:var(--silver)">مرحله بعد: طراحی مدل همکاری، اکتیویشن و KPI اختصاصی برند.</p>
+    <p class="quiet" style="margin-top:8px">THE BEST IV · ۱۶ تا ۲۲ شهریور · ایران‌مال</p>
+    <div class="cta-row">
+      <a class="btn btn-p" href="https://instagram.com/gamelandteam" target="_blank" rel="noopener">طراحی همکاری اختصاصی برند</a>
+      <a class="btn btn-g" href="https://gamelandteam.ir" target="_blank" rel="noopener">وب‌سایت گیم‌لند</a>
+    </div>
+    <div class="contact-row">
+      <span>Instagram · <a href="https://instagram.com/gamelandteam" target="_blank" rel="noopener">@gamelandteam</a></span>
+      <span>Web · <a href="https://gamelandteam.ir" target="_blank" rel="noopener">gamelandteam.ir</a></span>
+      <span>۱۶ تا ۲۲ شهریور ۱۴۰۵ · ایران‌مال</span>
+    </div>
+    <!-- TODO(owner): add negotiation contact name + mobile when confirmed -->
+  </div>
+</section>
+
+<footer>گیم‌لند · THE BEST IV · پیشنهاد همکاری تجاری</footer>
+
+<script>
+window.PROPOSAL_DATA = {
+  meta: { updated: '۳ شهریور ۱۴۰۵', eventDates: '۱۶ تا ۲۲ شهریور ۱۴۰۵', venue: 'ایران‌مال', prizeTotal: 'بیش از ۶۰۰ میلیون تومان' },
+  market: { players: '۲۹.۳ میلیون', avgAge: '۲۹' },
+  current: {
+    appUsers: '۱٬۶۴۰', approvedSeats: '۴۵۰+', ticketBuyers: '۲۵۲',
+    igFollowers: '۵۹ هزار', dauPeak: 'تا ۳۳۰', provinces: '۲۹+'
+  },
+  projected: { igImpressions: '۵۰–۱۰۰M', entries: '۳K–۶K', footfall: '۱۰K+' },
+};
+
+(function () {
+  function get(obj, path) {
+    return path.split('.').reduce(function (o, k) { return o && o[k] != null ? o[k] : null; }, obj);
+  }
+  document.querySelectorAll('[data-bind]').forEach(function (el) {
+    var v = get(window.PROPOSAL_DATA, el.getAttribute('data-bind'));
+    if (v != null) el.textContent = v;
+  });
+
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var nav = document.getElementById('nav');
+  var prog = document.getElementById('prog');
+  function onScroll() {
+    var y = window.scrollY || 0;
+    if (nav) nav.classList.toggle('compact', y > 40);
+    if (prog) {
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      prog.style.width = (h > 0 ? (y / h) * 100 : 0) + '%';
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  var reveals = document.querySelectorAll('.reveal');
+  if (!reduce && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    reveals.forEach(function (el) { io.observe(el); });
+  } else {
+    reveals.forEach(function (el) { el.classList.add('in'); });
+  }
+
+  var items = document.querySelectorAll('.j-item');
+  if (items.length && !reduce && 'IntersectionObserver' in window) {
+    var jio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          items.forEach(function (i) { i.classList.remove('on'); });
+          e.target.classList.add('on');
+        }
+      });
+    }, { threshold: 0.55, root: null, rootMargin: '0px -20% 0px -20%' });
+    items.forEach(function (el) { jio.observe(el); });
+    if (items[0]) items[0].classList.add('on');
+  } else {
+    items.forEach(function (el) { el.classList.add('on'); });
+  }
+
+  /* Duo auto-slider: 2 cards side-by-side, rotate pairs */
+  document.querySelectorAll('[data-duo]').forEach(function (root) {
+    var pairs = Array.prototype.slice.call(root.querySelectorAll('.duo-pair'));
+    var dotsWrap = root.querySelector('.duo-dots');
+    if (!pairs.length) return;
+    var i = 0;
+    var ms = parseInt(root.getAttribute('data-interval') || '4000', 10);
+    var timer = null;
+
+    pairs.forEach(function (_, idx) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'اسلاید ' + (idx + 1));
+      if (idx === 0) b.classList.add('on');
+      b.addEventListener('click', function () { go(idx); restart(); });
+      if (dotsWrap) dotsWrap.appendChild(b);
+    });
+
+    function paint() {
+      pairs.forEach(function (p, idx) { p.classList.toggle('on', idx === i); });
+      if (dotsWrap) {
+        dotsWrap.querySelectorAll('button').forEach(function (b, idx) {
+          b.classList.toggle('on', idx === i);
+        });
+      }
+    }
+    function go(n) {
+      i = (n + pairs.length) % pairs.length;
+      paint();
+    }
+    function next() { go(i + 1); }
+    function restart() {
+      if (reduce) return;
+      clearInterval(timer);
+      timer = setInterval(next, ms);
+    }
+    paint();
+    if (!reduce && pairs.length > 1) {
+      timer = setInterval(next, ms);
+      root.addEventListener('mouseenter', function () { clearInterval(timer); });
+      root.addEventListener('mouseleave', restart);
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) clearInterval(timer);
+        else restart();
+      });
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
