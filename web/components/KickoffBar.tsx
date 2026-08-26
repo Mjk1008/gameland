@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { C, DISP, Wordmark } from '@/components/ui'
+import { C, Wordmark } from '@/components/ui'
 import { faDigits } from '@/lib/jalali'
 
 function padFa(n: number) {
@@ -42,44 +42,59 @@ export default function KickoffBar({ posters, targetMs }: { posters: string[]; t
   }, [posters.length])
 
   const ended = !left
+  const finalHours = left && left.d === 0
 
   return (
     <div style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 6, margin: '-14px -16px 0' }}>
-      {left && (
-        <div className="gl-kickoff">
-          {posters.length > 0 && (
-            <div className="gl-kickoff-wash" aria-hidden>
-              {posters.map((src, i) => (
-                <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
-              ))}
+      <div className="gl-kickoff-slab">
+        {left && (
+          <div
+            className="gl-kickoff"
+            role="timer"
+            aria-label={`مانده ${faDigits(left.d)} روز و ${padFa(left.h)} ساعت تا شروع ۱۶ شهریور`}
+          >
+            {posters.length > 0 && (
+              <div className="gl-kickoff-wash" aria-hidden>
+                {posters.map((src, i) => (
+                  <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
+                ))}
+              </div>
+            )}
+            {posters[0] && (
+              <div className="gl-kickoff-thumb" aria-hidden>
+                {posters.map((src, i) => (
+                  <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
+                ))}
+              </div>
+            )}
+            <div className="gl-kickoff-mid">
+              {!finalHours && (
+                <div className="gl-kickoff-days">
+                  <b className="gl-num" suppressHydrationWarning>{faDigits(left.d)}</b>
+                  <span>روز</span>
+                </div>
+              )}
+              <div
+                dir="ltr"
+                className={'gl-num ' + (finalHours ? 'gl-kickoff-time is-hero' : 'gl-kickoff-time')}
+                suppressHydrationWarning
+              >
+                {padFa(left.h)}<span className="gl-kickoff-sep">:</span>
+                {padFa(left.m)}<span className="gl-kickoff-sep">:</span>
+                {padFa(left.s)}
+              </div>
             </div>
-          )}
-          {posters[0] && (
-            <div className="gl-kickoff-thumb">
-              {posters.map((src, i) => (
-                <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
-              ))}
-            </div>
-          )}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 3, position: 'relative', zIndex: 2 }}>
-            <div dir="ltr" className="gl-num" suppressHydrationWarning style={{ fontFamily: DISP, fontWeight: 800, fontSize: 23, lineHeight: 1, color: C.gold, letterSpacing: '.04em', fontVariantNumeric: 'tabular-nums', textShadow: '0 1px 10px rgba(20,17,13,.55)' }}>
-              {padFa(left.d)}<span style={{ color: 'rgba(245,166,35,.38)', fontWeight: 700, padding: '0 3px', letterSpacing: 0 }}>:</span>
-              {padFa(left.h)}<span style={{ color: 'rgba(245,166,35,.38)', fontWeight: 700, padding: '0 3px', letterSpacing: 0 }}>:</span>
-              {padFa(left.m)}<span style={{ color: 'rgba(245,166,35,.38)', fontWeight: 700, padding: '0 3px', letterSpacing: 0 }}>:</span>
-              {padFa(left.s)}
-            </div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(246,239,228,.72)', textShadow: '0 1px 8px rgba(20,17,13,.8)' }}>شروع · ۱۶ شهریور</div>
+            <Link href="/competitions" className="gl-kickoff-cta">ثبت‌نام</Link>
           </div>
-          <Link href="/competitions" className="gl-kickoff-cta">ثبت‌نام</Link>
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 10px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
-        <Wordmark size={17} />
-        {ended && (
-          <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
-          </span>
         )}
+        <div className="gl-kickoff-head">
+          <Wordmark size={17} />
+          {ended && (
+            <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
