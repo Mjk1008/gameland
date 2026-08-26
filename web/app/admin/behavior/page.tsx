@@ -6,6 +6,7 @@ import { BackHeader } from '@/components/ui'
 import BehaviorContent, { type BehaviorBusiness } from './content'
 import type { RegRec } from '../analytics/client'
 import { parseBehaviorRange } from '@/lib/behavior-range'
+import { resolveProvince } from '@/lib/iran-geo'
 import type { BehaviorView } from './view-tabs'
 
 export const dynamic = 'force-dynamic'
@@ -29,12 +30,14 @@ export default function BehaviorPage({ searchParams }: { searchParams: { bdays?:
 
   const regs: RegRec[] = allRegistrations().map(r => {
     const u = getUserById(r.userId)
+    const city = (u?.city || '').trim() || 'نامشخص'
     return {
       uid: r.userId,
       compId: r.compId,
       comp: r.compId,
       disc: (eventDisc.get(r.compId) ?? u?.primaryDisc ?? 'fc26') as Disc,
-      city: (u?.city || '').trim() || 'نامشخص',
+      city,
+      province: resolveProvince(u?.province, city === 'نامشخص' ? '' : city),
       status: r.status,
       tickets: r.attempts,
       price: ticketPriceFor(r.compId).price,

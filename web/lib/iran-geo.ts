@@ -44,3 +44,19 @@ export const PROVINCE_NAMES = IRAN_GEO.map(p => p.province)
 export function citiesOf(province: string): string[] {
   return IRAN_GEO.find(p => p.province === province)?.cities ?? []
 }
+
+const CITY_TO_PROVINCE: Record<string, string> = Object.fromEntries(
+  IRAN_GEO.flatMap(p => p.cities.map(c => [c, p.province] as const))
+)
+
+export function provinceOf(city: string): string | undefined {
+  return CITY_TO_PROVINCE[city]
+}
+
+/** Stored province wins; otherwise infer from the city list. */
+export function resolveProvince(province?: string | null, city?: string | null): string {
+  const p = (province || '').trim()
+  if (p) return p
+  const c = (city || '').trim()
+  return (c && CITY_TO_PROVINCE[c]) || 'نامشخص'
+}

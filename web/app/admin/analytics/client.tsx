@@ -6,8 +6,9 @@ import type { Disc } from '@/lib/mock-data'
 import { toman } from '@/lib/payment'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
-export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; status: 'pending' | 'approved' | 'rejected'; tickets: number; price: number; at: number }
-export interface UserRec { at: number; city: string; disc: Disc | null }
+export type RegStatus = 'pending' | 'approved' | 'rejected'
+export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; province: string; status: RegStatus; tickets: number; price: number; at: number }
+export interface UserRec { at: number; city: string; province: string; disc: Disc | null }
 
 // Status is the only categorical encoding — three reserved status colors, never
 // reused for anything else. approved = good, pending = warning, rejected = critical.
@@ -16,6 +17,9 @@ const ST = [
   { key: 'pending', label: 'در انتظار', color: C.gold },
   { key: 'rejected', label: 'ردشده', color: C.live },
 ] as const
+
+type StatusOn = Record<RegStatus, boolean>
+const ALL_STATUS: StatusOn = { approved: true, pending: true, rejected: true }
 
 const TIMES = [
   { key: 'all', label: 'کل زمان', days: 0 },
@@ -32,37 +36,68 @@ interface Bucket { label: string; sub?: string; approved: number; pending: numbe
 
 export interface ReferralSnap { invited: number; freeGranted: number; top: { uid: string; name: string; tag: string; count: number }[] }
 
+type GeoScope = 'city' | 'province'
 const VIEWS = [
-  { key: 'comp',  label: 'مسابقه' },
-  { key: 'city',  label: 'شهر' },
-  { key: 'disc',  label: 'رشته' },
-  { key: 'trend', label: 'روند' },
+  { key: 'comp',     label: 'مسابقه' },
+  { key: 'city',     label: 'شهر' },
+  { key: 'province', label: 'استان' },
+  { key: 'disc',     label: 'رشته' },
+  { key: 'trend',    label: 'روند' },
 ] as const
+type ViewKey = (typeof VIEWS)[number]['key']
 
-export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, referral, showHeader = true }: {
-  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; referral?: ReferralSnap; showHeader?: boolean
+const selectStyle: React.CSSProperties = {
+  background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10,
+  padding: '10px 12px', color: C.thi, fontSize: 13, outline: 'none',
+  fontFamily: 'inherit', width: '100%',
+}
+
+export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, provinceOptions = [], referral, showHeader = true }: {
+  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; provinceOptions?: string[]; referral?: ReferralSnap; showHeader?: boolean
 }) {
   const [now] = useState(() => Date.now())
   const [time, setTime] = useState<(typeof TIMES)[number]['key']>('all')
   const [disc, setDisc] = useState<Disc | 'all'>('all')
+  const [geoScope, setGeoScope] = useState<GeoScope>('city')
+  const [province, setProvince] = useState<string | 'all'>('all')
   const [city, setCity] = useState<string | 'all'>('all')
+  const [statusOn, setStatusOn] = useState<StatusOn>(ALL_STATUS)
   const [table, setTable] = useState(false)
-  const [view, setView] = useState<(typeof VIEWS)[number]['key']>('comp')
+  const [view, setView] = useState<ViewKey>('comp')
 
   const cutoff = useMemo(() => { const t = TIMES.find(x => x.key === time)!; return t.days ? now - t.days * 86400000 : 0 }, [time, now])
 
+  const anyStatusOff = !statusOn.approved || !statusOn.pending || !statusOn.rejected
+
+  const citiesForDropdown = useMemo(() => {
+    if (province === 'all') return cityOptions
+    const inProv = new Set<string>()
+    for (const r of regs) if (r.province === province && r.city !== 'نامشخص') inProv.add(r.city)
+    for (const g of gamers) if (g.province === province && g.city !== 'نامشخص') inProv.add(g.city)
+    return cityOptions.filter(c => inProv.has(c))
+  }, [cityOptions, province, regs, gamers])
+
   const fReg = useMemo(() => regs.filter(r =>
-    r.at >= cutoff && (disc === 'all' || r.disc === disc) && (city === 'all' || r.city === city)
-  ), [regs, cutoff, disc, city])
+    r.at >= cutoff
+    && (disc === 'all' || r.disc === disc)
+    && (province === 'all' || r.province === province)
+    && (geoScope === 'province' || city === 'all' || r.city === city)
+    && statusOn[r.status]
+  ), [regs, cutoff, disc, province, city, geoScope, statusOn])
 
   const fGamers = useMemo(() => gamers.filter(g =>
-    g.at >= cutoff && (disc === 'all' || g.disc === disc) && (city === 'all' || g.city === city)
-  ), [gamers, cutoff, disc, city])
+    g.at >= cutoff
+    && (disc === 'all' || g.disc === disc)
+    && (province === 'all' || g.province === province)
+    && (geoScope === 'province' || city === 'all' || g.city === city)
+  ), [gamers, cutoff, disc, province, city, geoScope])
 
   // Headline metrics.
   const sum = (rs: RegRec[], st?: string) => rs.reduce((a, r) => a + (st ? (r.status === st ? r.tickets : 0) : r.tickets), 0)
   const totalTickets = sum(fReg)
   const approvedTickets = sum(fReg, 'approved')
+  const pendingTickets = sum(fReg, 'pending')
+  const rejectedTickets = sum(fReg, 'rejected')
   const activeUsers = new Set(fReg.map(r => r.uid)).size
   const compCount = new Set(fReg.map(r => r.compId)).size
   // Per-event price (ticketPriceFor), never a single global constant — an
@@ -83,16 +118,75 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
   const byComp = group(r => r.comp)
   const byDisc = group(r => DISC[r.disc]?.name ?? r.disc, r => DISC_DOT[r.disc] ?? C.tmut)
   const cityGamers = useMemo(() => { const m = new Map<string, number>(); for (const g of fGamers) m.set(g.city, (m.get(g.city) ?? 0) + 1); return m }, [fGamers])
+  const provinceGamers = useMemo(() => { const m = new Map<string, number>(); for (const g of fGamers) m.set(g.province, (m.get(g.province) ?? 0) + 1); return m }, [fGamers])
   const byCity = group(r => r.city).map(b => ({ ...b, sub: `${fa(cityGamers.get(b.label) ?? 0)} گیمر` }))
+  const byProvince = group(r => r.province).map(b => ({ ...b, sub: `${fa(provinceGamers.get(b.label) ?? 0)} گیمر` }))
 
-  // Tickets sold over time — daily buckets, oldest → newest.
+  // Tickets sold over time — daily buckets, oldest → newest, stacked by status.
   const daily = useMemo(() => {
-    const m = new Map<string, { at: number; total: number }>()
-    for (const r of fReg) { const k = dayKey(r.at); const b = m.get(k); if (b) b.total += r.tickets; else m.set(k, { at: r.at, total: r.tickets }) }
+    const m = new Map<string, { at: number; approved: number; pending: number; rejected: number }>()
+    for (const r of fReg) {
+      const k = dayKey(r.at)
+      let b = m.get(k)
+      if (!b) { b = { at: r.at, approved: 0, pending: 0, rejected: 0 }; m.set(k, b) }
+      b[r.status] += r.tickets
+    }
     return Array.from(m.values()).sort((a, b) => a.at - b.at)
   }, [fReg])
 
-  const activeFilters = (time !== 'all' ? 1 : 0) + (disc !== 'all' ? 1 : 0) + (city !== 'all' ? 1 : 0)
+  const geoFilterCount = (province !== 'all' ? 1 : 0) + (geoScope === 'city' && city !== 'all' ? 1 : 0)
+  const activeFilters = (time !== 'all' ? 1 : 0) + (disc !== 'all' ? 1 : 0) + geoFilterCount + (anyStatusOff ? 1 : 0)
+
+  const setScope = (next: GeoScope) => {
+    setGeoScope(next)
+    if (next === 'province') setCity('all')
+    if (view === 'city' || view === 'province') setView(next)
+  }
+
+  const pickProvince = (value: string) => {
+    setProvince(value)
+    setCity('all')
+  }
+
+  const pickCity = (value: string) => {
+    setCity(value)
+    if (value !== 'all') {
+      const hit = regs.find(r => r.city === value) ?? gamers.find(g => g.city === value)
+      if (hit) setProvince(hit.province)
+    }
+  }
+
+  const toggleStatus = (key: RegStatus) => {
+    setStatusOn(s => {
+      const next = { ...s, [key]: !s[key] }
+      if (!next.approved && !next.pending && !next.rejected) return ALL_STATUS
+      return next
+    })
+  }
+
+  const clearFilters = () => {
+    setTime('all'); setDisc('all'); setProvince('all'); setCity('all'); setStatusOn(ALL_STATUS)
+  }
+
+  const onGeoBar = (label: string, scope: GeoScope) => {
+    if (scope === 'province') {
+      if (province === label) { setProvince('all'); setCity('all'); return }
+      setProvince(label)
+      setCity('all')
+      setGeoScope('city')
+      setView('city')
+      return
+    }
+    if (city === label) { setCity('all'); return }
+    const hit = regs.find(r => r.city === label) ?? gamers.find(g => g.city === label)
+    if (hit) setProvince(hit.province)
+    setCity(label)
+    setGeoScope('city')
+  }
+
+  const geoHint = geoScope === 'province'
+    ? 'روی استان بزن تا شهرهایش را ببینی'
+    : 'روی شهر بزن تا همان شهر فیلتر شود'
 
   return (
     <div className="animate-fade-up">
@@ -112,16 +206,51 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
               </Chip>
             ))}
           </ChipRow>
-          {cityOptions.length > 0 && (
-            <select value={city} onChange={e => setCity(e.target.value)} style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px', color: C.thi, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
-              <option value="all">همهٔ شهرها</option>
-              {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+
+          <ChipRow>
+            <span style={{ fontSize: 11, color: C.tmut, alignSelf: 'center', paddingInlineEnd: 2, flexShrink: 0 }}>اسکوپ:</span>
+            <Chip on={geoScope === 'city'} onClick={() => setScope('city')}>شهر</Chip>
+            <Chip on={geoScope === 'province'} onClick={() => setScope('province')}>استان</Chip>
+          </ChipRow>
+
+          {geoScope === 'province' ? (
+            provinceOptions.length > 0 && (
+              <select value={province} onChange={e => pickProvince(e.target.value)} style={selectStyle}>
+                <option value="all">همهٔ استان‌ها</option>
+                {provinceOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {provinceOptions.length > 0 && (
+                <select value={province} onChange={e => pickProvince(e.target.value)} style={selectStyle}>
+                  <option value="all">همهٔ استان‌ها</option>
+                  {provinceOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              )}
+              {citiesForDropdown.length > 0 && (
+                <select value={city} onChange={e => pickCity(e.target.value)} style={selectStyle}>
+                  <option value="all">{province === 'all' ? 'همهٔ شهرها' : `همهٔ شهرهای ${province}`}</option>
+                  {citiesForDropdown.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+            </div>
           )}
+
+          <ChipRow>
+            <span style={{ fontSize: 11, color: C.tmut, alignSelf: 'center', paddingInlineEnd: 2, flexShrink: 0 }}>سهم:</span>
+            {ST.map(s => (
+              <Chip key={s.key} on={statusOn[s.key]} onClick={() => toggleStatus(s.key)}>
+                <span style={{ width: 7, height: 7, borderRadius: 2, background: s.color, display: 'inline-block', marginInlineEnd: 6, opacity: statusOn[s.key] ? 1 : 0.35 }} />
+                {s.label}
+              </Chip>
+            ))}
+          </ChipRow>
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 11, color: C.tmut }}>{activeFilters ? `${fa(activeFilters)} فیلتر فعال` : 'بدون فیلتر — همهٔ داده'}</span>
             <div style={{ display: 'flex', gap: 6 }}>
-              {activeFilters > 0 && <button onClick={() => { setTime('all'); setDisc('all'); setCity('all') }} style={miniBtn(false)}>پاک‌کردن</button>}
+              {activeFilters > 0 && <button onClick={clearFilters} style={miniBtn(false)}>پاک‌کردن</button>}
               <button onClick={() => setTable(t => !t)} style={miniBtn(table)}>{table ? 'نمودار' : 'جدول'}</button>
             </div>
           </div>
@@ -132,24 +261,27 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
           <Tile label="گیمرها" value={fa(fGamers.length)} color={C.accent} />
           <Tile label="کاربر فعال" value={fa(activeUsers)} color={C.win} sub="ثبت‌نام‌کرده" />
           <Tile label="مسابقات" value={fa(compCount)} color={C.gold} sub="با ثبت‌نام" />
-          <Tile label="کل سهم" value={fa(totalTickets)} color={C.thi} />
-          <Tile label="سهمِ تاییدشده" value={fa(approvedTickets)} color={C.win} />
+          <Tile label="کل سهم" value={fa(totalTickets)} color={C.thi} onClick={() => setStatusOn(ALL_STATUS)} />
+          <Tile label="سهمِ تاییدشده" value={fa(approvedTickets)} color={C.win} onClick={() => setStatusOn({ approved: true, pending: false, rejected: false })} />
           <Tile label="درآمدِ تاییدشده" value={<><span className="gl-num">{toman(revenue)}</span></>} color={C.accent} sub="تومان" small />
         </div>
+        {(pendingTickets > 0 || rejectedTickets > 0) && anyStatusOff && (
+          <div style={{ fontSize: 11, color: C.tmut, padding: '0 2px' }}>
+            {statusOn.pending ? `${fa(pendingTickets)} در انتظار` : null}
+            {statusOn.pending && statusOn.rejected ? ' · ' : null}
+            {statusOn.rejected ? `${fa(rejectedTickets)} ردشده` : null}
+          </div>
+        )}
 
-        {/* ── Legend (status) ── */}
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', padding: '0 2px' }}>
-          {ST.map(s => (
-            <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: C.tbody }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />{s.label}
-            </span>
-          ))}
-        </div>
-
-        {/* ── View-by dimension selector — pick ONE breakdown, no scrolling past the others ── */}
+        {/* ── View-by dimension selector ── */}
         <ChipRow>
           <span style={{ fontSize: 11, color: C.tmut, alignSelf: 'center', paddingInlineEnd: 2, flexShrink: 0 }}>نمایش بر اساس:</span>
-          {VIEWS.map(v => <Chip key={v.key} on={view === v.key} onClick={() => setView(v.key)}>{v.label}</Chip>)}
+          {VIEWS.map(v => (
+            <Chip key={v.key} on={view === v.key} onClick={() => {
+              if (v.key === 'city' || v.key === 'province') setScope(v.key)
+              setView(v.key)
+            }}>{v.label}</Chip>
+          ))}
         </ChipRow>
 
         {fReg.length === 0 ? (
@@ -164,8 +296,17 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
               </Section>
             )}
             {view === 'city' && (
-              <Section title="سهم و گیمر به‌ازای هر شهر">
-                {table ? <BTable rows={byCity} extra="گیمر" extraOf={b => b.sub?.replace(' گیمر', '') ?? '۰'} /> : byCity.map(b => <StackRow key={b.label} b={b} max={byCity[0].total} />)}
+              <Section title={province === 'all' ? 'سهم و گیمر به‌ازای هر شهر' : `شهرهای استان ${province}`} hint={geoHint}>
+                {table
+                  ? <BTable rows={byCity} extra="گیمر" extraOf={b => b.sub?.replace(' گیمر', '') ?? '۰'} onRow={label => onGeoBar(label, 'city')} activeLabel={city === 'all' ? undefined : city} />
+                  : byCity.map(b => <StackRow key={b.label} b={b} max={byCity[0].total} active={city === b.label} onClick={() => onGeoBar(b.label, 'city')} />)}
+              </Section>
+            )}
+            {view === 'province' && (
+              <Section title="سهم و گیمر به‌ازای هر استان" hint={geoHint}>
+                {table
+                  ? <BTable rows={byProvince} extra="گیمر" extraOf={b => b.sub?.replace(' گیمر', '') ?? '۰'} onRow={label => onGeoBar(label, 'province')} activeLabel={province === 'all' ? undefined : province} />
+                  : byProvince.map(b => <StackRow key={b.label} b={b} max={byProvince[0].total} active={province === b.label} onClick={() => onGeoBar(b.label, 'province')} />)}
               </Section>
             )}
             {view === 'disc' && (
@@ -205,13 +346,23 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
 }
 
 // ── Stacked horizontal bar (one entity, segmented by status) ──
-function StackRow({ b, max }: { b: Bucket; max: number }) {
+function StackRow({ b, max, onClick, active }: { b: Bucket; max: number; onClick?: () => void; active?: boolean }) {
   const pct = max > 0 ? (b.total / max) * 100 : 0
   const segs = ST.filter(s => b[s.key] > 0)
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr auto', alignItems: 'center', gap: 10, padding: '5px 0' }}>
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      style={{
+        display: 'grid', gridTemplateColumns: '96px 1fr auto', alignItems: 'center', gap: 10,
+        padding: '7px 8px', margin: '0 -8px', borderRadius: 10, cursor: onClick ? 'pointer' : 'default',
+        background: active ? C.accentSoft : 'transparent', outline: 'none',
+      }}
+    >
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: active ? C.accent : C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
           {b.dot && <span style={{ width: 7, height: 7, borderRadius: '50%', background: b.dot, flexShrink: 0 }} />}{b.label}
         </div>
         {b.sub && <div style={{ fontSize: 10, color: C.tmut, marginTop: 1 }}>{b.sub}</div>}
@@ -230,19 +381,28 @@ function StackRow({ b, max }: { b: Bucket; max: number }) {
 }
 
 // ── Daily tickets-sold bars ──
-function DailyBars({ data }: { data: { at: number; total: number }[] }) {
+function DailyBars({ data }: { data: { at: number; approved: number; pending: number; rejected: number }[] }) {
   if (data.length === 0) return <div style={{ fontSize: 12, color: C.tmut, padding: '8px 0' }}>هنوز فروشی ثبت نشده.</div>
-  const max = Math.max(...data.map(d => d.total))
+  const totalOf = (d: (typeof data)[number]) => d.approved + d.pending + d.rejected
+  const max = Math.max(...data.map(totalOf))
   const show = data.slice(-30) // keep it readable
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100, overflowX: 'auto', paddingBottom: 2 }}>
-        {show.map((d, i) => (
-          <div key={i} title={`${dayShort(d.at)}: ${fa(d.total)} سهم`} style={{ flex: '1 0 14px', minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <span className="gl-num" style={{ fontSize: 9, color: C.tmut }}>{fa(d.total)}</span>
-            <div style={{ width: '100%', height: `${max > 0 ? (d.total / max) * 74 : 0}px`, minHeight: 3, background: C.accent, borderRadius: 4 }} />
-          </div>
-        ))}
+        {show.map((d, i) => {
+          const total = totalOf(d)
+          const segs = ST.filter(s => d[s.key] > 0)
+          return (
+            <div key={i} title={`${dayShort(d.at)}: ${fa(total)} سهم`} style={{ flex: '1 0 14px', minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span className="gl-num" style={{ fontSize: 9, color: C.tmut }}>{fa(total)}</span>
+              <div style={{ width: '100%', height: `${max > 0 ? (total / max) * 74 : 0}px`, minHeight: 3, display: 'flex', flexDirection: 'column-reverse', borderRadius: 4, overflow: 'hidden' }}>
+                {segs.map(s => (
+                  <div key={s.key} style={{ height: `${total > 0 ? (d[s.key] / total) * 100 : 0}%`, background: s.color, minHeight: d[s.key] > 0 ? 2 : 0 }} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: C.tmut }}>
         <span>{dayShort(show[0].at)}</span>
@@ -253,7 +413,9 @@ function DailyBars({ data }: { data: { at: number; total: number }[] }) {
 }
 
 // ── Table fallback (accessibility / exact numbers) ──
-function BTable({ rows, extra, extraOf }: { rows: Bucket[]; extra?: string; extraOf?: (b: Bucket) => string }) {
+function BTable({ rows, extra, extraOf, onRow, activeLabel }: {
+  rows: Bucket[]; extra?: string; extraOf?: (b: Bucket) => string; onRow?: (label: string) => void; activeLabel?: string
+}) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -264,8 +426,9 @@ function BTable({ rows, extra, extraOf }: { rows: Bucket[]; extra?: string; extr
         </thead>
         <tbody>
           {rows.map(b => (
-            <tr key={b.label} style={{ borderTop: `1px solid ${C.line}` }}>
-              <td style={{ ...td, color: C.thi, fontWeight: 700 }}>{b.label}</td>
+            <tr key={b.label} onClick={onRow ? () => onRow(b.label) : undefined}
+              style={{ borderTop: `1px solid ${C.line}`, cursor: onRow ? 'pointer' : 'default', background: activeLabel === b.label ? C.accentSoft : 'transparent' }}>
+              <td style={{ ...td, color: activeLabel === b.label ? C.accent : C.thi, fontWeight: 700 }}>{b.label}</td>
               <td style={tdN}>{fa(b.approved)}</td><td style={tdN}>{fa(b.pending)}</td><td style={tdN}>{fa(b.rejected)}</td>
               <td style={{ ...tdN, color: C.thi, fontWeight: 800 }}>{fa(b.total)}</td>
               {extra && <td style={tdN}>{extraOf ? extraOf(b) : ''}</td>}
@@ -278,17 +441,20 @@ function BTable({ rows, extra, extraOf }: { rows: Bucket[]; extra?: string; extr
 }
 
 // ── small building blocks ──
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 16, padding: '14px 15px' }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: C.thi, marginBottom: 12 }}>{title}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: C.thi, marginBottom: hint ? 4 : 12 }}>{title}</div>
+      {hint && <div style={{ fontSize: 11, color: C.tmut, marginBottom: 12 }}>{hint}</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>{children}</div>
     </div>
   )
 }
-function Tile({ label, value, color, sub, small }: { label: string; value: React.ReactNode; color: string; sub?: string; small?: boolean }) {
+function Tile({ label, value, color, sub, small, onClick }: { label: string; value: React.ReactNode; color: string; sub?: string; small?: boolean; onClick?: () => void }) {
   return (
-    <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 13, padding: '13px 10px', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center', textAlign: 'center' }}>
+    <div role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick}
+      onKeyDown={onClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
+      style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 13, padding: '13px 10px', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center', textAlign: 'center', cursor: onClick ? 'pointer' : 'default' }}>
       <span className="gl-num" style={{ fontFamily: DISP, fontSize: small ? 15 : 23, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</span>
       <span style={{ fontSize: 10.5, color: C.tbody, fontWeight: 600 }}>{label}</span>
       {sub && <span style={{ fontSize: 9, color: C.tmut }}>{sub}</span>}

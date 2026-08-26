@@ -11,6 +11,7 @@ import MonitorContent from '../ai/monitor-content'
 import PromoterAnalyticsContent from './promoter-content'
 import { parseBehaviorRange } from '@/lib/behavior-range'
 import { promoterAnalyticsSnap } from '@/lib/promoter'
+import { resolveProvince } from '@/lib/iran-geo'
 import type { BehaviorView } from '../behavior/view-tabs'
 
 export const dynamic = 'force-dynamic'
@@ -41,12 +42,14 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
 
   const regs: RegRec[] = allRegistrations().map(r => {
     const u = getUserById(r.userId)
+    const city = (u?.city || '').trim() || 'نامشخص'
     return {
       uid: r.userId,
       compId: r.compId,
       comp: eventTitle.get(r.compId) ?? 'مسابقهٔ حذف‌شده',
       disc: (eventDisc.get(r.compId) ?? u?.primaryDisc ?? 'fc26') as Disc,
-      city: (u?.city || '').trim() || 'نامشخص',
+      city,
+      province: resolveProvince(u?.province, city === 'نامشخص' ? '' : city),
       status: r.status,
       tickets: r.attempts,
       price: priceForComp(r.compId),
@@ -56,15 +59,22 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
 
   const gamers: UserRec[] = allUsers()
     .filter(u => u.role === 'gamer')
-    .map(u => ({
-      at: u.createdAt,
-      city: (u.city || '').trim() || 'نامشخص',
-      disc: (u.primaryDisc ?? null) as Disc | null,
-    }))
+    .map(u => {
+      const city = (u.city || '').trim() || 'نامشخص'
+      return {
+        at: u.createdAt,
+        city,
+        province: resolveProvince(u.province, city === 'نامشخص' ? '' : city),
+        disc: (u.primaryDisc ?? null) as Disc | null,
+      }
+    })
 
   const discOptions = (Object.keys(DISC) as Disc[]).map(d => ({ key: d, name: DISC[d].name }))
   const cityOptions = Array.from(new Set([...regs.map(r => r.city), ...gamers.map(g => g.city)]))
     .filter(c => c !== 'نامشخص')
+    .sort((a, b) => a.localeCompare(b, 'fa'))
+  const provinceOptions = Array.from(new Set([...regs.map(r => r.province), ...gamers.map(g => g.province)]))
+    .filter(p => p !== 'نامشخص')
     .sort((a, b) => a.localeCompare(b, 'fa'))
 
   const us = allUsers()
@@ -87,7 +97,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       <Suspense>
         <HubTabs tabs={[
           { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
-          { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} referral={referral} showHeader={false} /> },
+          { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} referral={referral} showHeader={false} /> },
           { key: 'promoter', label: 'پروموتر', content: <PromoterAnalyticsContent snap={promoterSnap} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },
         ]} />
