@@ -9,6 +9,7 @@ export default function GamenetPhotoManager({ gamenetId, initialPhotoIds }: { ga
   const [photoIds, setPhotoIds] = useState(initialPhotoIds)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   async function addPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
@@ -29,7 +30,7 @@ export default function GamenetPhotoManager({ gamenetId, initialPhotoIds }: { ga
   }
 
   async function removePhoto(photoId: string) {
-    if (!confirm('این عکس حذف بشه؟')) return
+    if (confirmDeleteId !== photoId) { setConfirmDeleteId(photoId); return }
     setErr(null); setBusy(true)
     try {
       const res = await fetch(`/api/gamenet-photos/${photoId}`, { method: 'DELETE' })
@@ -38,7 +39,7 @@ export default function GamenetPhotoManager({ gamenetId, initialPhotoIds }: { ga
       setPhotoIds(ids => ids.filter(id => id !== photoId))
       router.refresh()
     } catch (e: any) { setErr(e.message) }
-    finally { setBusy(false) }
+    finally { setBusy(false); setConfirmDeleteId(null) }
   }
 
   const canAdd = photoIds.length < GAMENET_PHOTO_MAX
@@ -54,11 +55,22 @@ export default function GamenetPhotoManager({ gamenetId, initialPhotoIds }: { ga
         {photoIds.map(id => (
           <div key={id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line}` }}>
             <img src={`/api/gamenet-photo/${id}`} alt="" style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }} />
-            {photoIds.length > 1 && (
+            {photoIds.length > 1 && confirmDeleteId !== id && (
               <button type="button" disabled={busy} onClick={() => removePhoto(id)}
-                style={{ all: 'unset', cursor: busy ? 'default' : 'pointer', position: 'absolute', top: 6, left: 6, width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ all: 'unset', cursor: busy ? 'default' : 'pointer', position: 'absolute', top: 6, insetInlineStart: 6, width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 ×
               </button>
+            )}
+            {photoIds.length > 1 && confirmDeleteId === id && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 }}>
+                <span style={{ fontSize: 10.5, color: '#fff', textAlign: 'center' }}>حذف بشه؟</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" disabled={busy} onClick={() => setConfirmDeleteId(null)}
+                    style={{ all: 'unset', cursor: 'pointer', padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 10.5 }}>نه</button>
+                  <button type="button" disabled={busy} onClick={() => removePhoto(id)}
+                    style={{ all: 'unset', cursor: 'pointer', padding: '4px 10px', borderRadius: 6, background: C.live, color: '#fff', fontSize: 10.5, fontWeight: 700 }}>{busy ? '…' : 'حذف'}</button>
+                </div>
+              </div>
             )}
           </div>
         ))}

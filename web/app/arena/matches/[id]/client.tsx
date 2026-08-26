@@ -35,6 +35,7 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [pointsMsg, setPointsMsg] = useState('')
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   async function reload() {
     const r = await fetch(`/api/arena/matches/${matchId}`)
@@ -99,14 +100,13 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
   }
 
   async function cancel() {
-    if (!confirm('مطمئنی؟ این بازی لغو می‌شه.')) return
     setBusy(true); setErr('')
     try {
       const r = await fetch(`/api/arena/matches/${matchId}/cancel`, { method: 'POST' })
       const j = await r.json()
       if (!r.ok) { setErr(j.error); return }
       router.push('/me/arena')
-    } finally { setBusy(false) }
+    } finally { setBusy(false); setConfirmingCancel(false) }
   }
 
   if (!m) return <div style={{ padding: 24, textAlign: 'center', color: C.tmut }}>…</div>
@@ -164,7 +164,7 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {gamenets.map(g => (
                 <button key={g.id} type="button" onClick={() => setPickGn(g.id)} style={{
-                  textAlign: 'right', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                  textAlign: 'start', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
                   border: `1px solid ${pickGn === g.id ? C.accent : C.line}`, background: pickGn === g.id ? C.accentSoft : C.sf1,
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
@@ -227,11 +227,20 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
           </div>
         )}
 
-        {canCancel && (
-          <button type="button" onClick={cancel} disabled={busy} style={btnDanger}>انصراف از بازی</button>
+        {canCancel && !confirmingCancel && (
+          <button type="button" onClick={() => setConfirmingCancel(true)} disabled={busy} style={btnDanger}>انصراف از بازی</button>
+        )}
+        {canCancel && confirmingCancel && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: `${C.live}11`, border: `1px solid ${C.live}44`, borderRadius: 12, padding: 12 }}>
+            <div style={{ fontSize: 12.5, color: C.thi, textAlign: 'center' }}>مطمئنی؟ این بازی برای هر دو نفر لغو می‌شه.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setConfirmingCancel(false)} disabled={busy} style={btnSecondary}>منصرف شدم</button>
+              <button type="button" onClick={cancel} disabled={busy} style={btnDanger}>{busy ? '…' : 'آره، لغو کن'}</button>
+            </div>
+          </div>
         )}
 
-        {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: C.live, fontSize: 12 }}>{err}</div>}
       </div>
     </div>
   )
@@ -240,4 +249,4 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
 const btnPrimary: React.CSSProperties = { minHeight: 46, borderRadius: 12, border: 'none', background: C.accent, color: C.ink, fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }
 const btnGold: React.CSSProperties = { ...btnPrimary, background: C.gold }
 const btnSecondary: React.CSSProperties = { ...btnPrimary, background: C.sf1, color: C.thi, border: `1px solid ${C.line2}` }
-const btnDanger: React.CSSProperties = { ...btnPrimary, background: 'transparent', color: '#f87171', border: `1px solid #f8717144` }
+const btnDanger: React.CSSProperties = { ...btnPrimary, background: 'transparent', color: C.live, border: `1px solid ${C.live}44` }

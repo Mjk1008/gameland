@@ -1,11 +1,10 @@
 import {
-  getUserById, activityPointsOf, approvedReferralCount, allUsers,
+  getUserById, approvedReferralCount, allUsers,
   allEvents, allCompetitions, registrationsForUser, notifsForUser,
   remainingTickets, getSetting, AI_KNOWLEDGE_KEY, approvedRegistrationsForComp,
   activeNews,
 } from '@/lib/store'
-import { challengePointsOf } from '@/lib/arena'
-import { isArenaEnabled } from '@/lib/arena-enabled'
+import { computeRankingTotals } from '@/lib/ranking-store'
 import { DISC } from '@/lib/mock-data'
 import { prizeMillionLabel, tomanFull } from '@/lib/payment'
 import { ticketPriceFor } from '@/lib/ticket-price'
@@ -78,13 +77,14 @@ export function buildAssistantEntities(uid: string): AssistantEntities {
   return { events, news: newsRows, regs }
 }
 
+// Same formula as computeRankingTotals (home/leaderboard/profile) — a local
+// recompute here previously omitted placement points and gated arena points
+// behind isArenaEnabled() when the shared formula doesn't, so the assistant
+// could report a different rank/points than everywhere else for the same
+// account. See CLAUDE.md §3: this must stay one formula, not three.
 export function userRankLine(uid: string): string {
   const gamers = allUsers().filter(x => x.role === 'gamer')
-  const pts = new Map(gamers.map(g => {
-    let p = (g.bonusPoints ?? 0) + activityPointsOf(g)
-    if (isArenaEnabled()) p += challengePointsOf(g.id)
-    return [g.id, p]
-  }))
+  const pts = new Map(gamers.map(g => [g.id, computeRankingTotals(g.id).points]))
   const order = [...gamers].sort((a, b) => (pts.get(b.id) ?? 0) - (pts.get(a.id) ?? 0))
   const rankIdx = order.findIndex(g => g.id === uid)
   if (rankIdx < 0) return 'رتبهٔ ملی: این حساب گیمر نیست.'

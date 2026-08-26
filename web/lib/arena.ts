@@ -203,7 +203,7 @@ export function createPlayRequest(uid: string, input: {
   const u = getUserById(uid)
   if (!u) return { ok: false, error: 'کاربر پیدا نشد' }
   if (!u.discs?.includes(input.disc)) return { ok: false, error: 'این رشته تو پروفایلت نیست' }
-  if (![1, 3, 5].includes(input.bestOf)) return { ok: false, error: 'Best of نامعتبر' }
+  if (![1, 3, 5].includes(input.bestOf)) return { ok: false, error: 'فرمت مسابقه نامعتبر' }
   if (!input.city || !input.province) return { ok: false, error: 'شهر و استان الزامی' }
 
   const open = openRequestsForUser(uid)
@@ -447,11 +447,14 @@ export function submitPlayResult(uid: string, matchId: string, winnerId: string)
   return { ok: true, match: m, pointsAwarded, notify }
 }
 
+// Evaluated against every OTHER confirmed win in the window — m is always
+// excluded up front so this gives the right answer regardless of whether the
+// caller has already flipped m.status to 'confirmed' before calling this.
 function challengePointsForMatch(m: PlayMatch, winnerId: string): number {
   const since = Date.now() - 30 * 86400000
   const wins = [...playMatches.values()]
-    .filter(x => x.status === 'confirmed' && x.winnerUserId === winnerId && (x.confirmedAt ?? x.createdAt) >= since)
-    .sort((a, b) => (b.confirmedAt ?? b.createdAt) - (a.confirmedAt ?? b.createdAt))
+    .filter(x => x.id !== m.id && x.status === 'confirmed' && x.winnerUserId === winnerId && (x.confirmedAt ?? x.createdAt) >= since)
+    .sort((a, b) => (b.confirmedAt ?? b.createdAt) - (a.confirmedAt ?? a.createdAt))
 
   const opponents = new Set<string>()
   let count = 0
@@ -462,8 +465,8 @@ function challengePointsForMatch(m: PlayMatch, winnerId: string): number {
     count++
   }
   const opp = m.requesterId === winnerId ? m.acceptorId : m.requesterId
-  if (opponents.has(opp) && !wins.some(w => w.id === m.id)) return 0
-  if (count >= ARENA_MAX_SCORED_WINS_PER_30D && !wins.some(w => w.id === m.id)) return 0
+  if (opponents.has(opp)) return 0
+  if (count >= ARENA_MAX_SCORED_WINS_PER_30D) return 0
   return 1
 }
 
@@ -471,7 +474,7 @@ export function challengePointsOf(uid: string): number {
   const since = Date.now() - 30 * 86400000
   const wins = [...playMatches.values()]
     .filter(m => m.status === 'confirmed' && m.winnerUserId === uid && (m.confirmedAt ?? m.createdAt) >= since)
-    .sort((a, b) => (b.confirmedAt ?? b.createdAt) - (a.confirmedAt ?? b.createdAt))
+    .sort((a, b) => (b.confirmedAt ?? b.createdAt) - (a.confirmedAt ?? a.createdAt))
 
   const opponents = new Set<string>()
   let total = 0

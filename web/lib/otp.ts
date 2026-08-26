@@ -35,9 +35,10 @@ export function issueCode(phone: string): string {
 }
 
 export function verifyCode(phone: string, input: string): boolean {
-  const code = (input || '').trim()
-  // Local dev: accept stub code even if in-memory OTP was lost (hot reload / slow boot).
-  if (!process.env.KAVENEGAR_API_KEY && code === '123456' && /^09\d{9}$/.test(phone)) return true
+  // No unconditional bypass here, even in dev: without KAVENEGAR_API_KEY,
+  // issueCode() already stores the fixed '123456' code for that phone, so
+  // the normal check below still lets local dev in — but only for a phone
+  // that actually requested a code, respecting TTL/tries like production.
   const r = codes.get(phone)
   if (!r) return false
   if (Date.now() > r.exp || r.tries >= MAX_TRIES) { codes.delete(phone); return false }

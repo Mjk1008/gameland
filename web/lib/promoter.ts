@@ -18,7 +18,9 @@ export interface PromoterCode {
   createdAt: number
 }
 
-export type EarningStatus = 'pending' | 'paid'
+// 'voided' = the sale it was tied to was reversed (registration rejected)
+// before payout — excluded from every pending/paid total.
+export type EarningStatus = 'pending' | 'paid' | 'voided'
 
 export interface PromoterEarning {
   id: string
@@ -32,6 +34,11 @@ export interface PromoterEarning {
   paidAt?: number
   paidNote?: string
   createdAt: number
+  // `pe_${regId}_${attempts}` at the time this row was recorded — the actual
+  // dedupe key (see recordPromoterEarning). Not the DB primary id: a reject
+  // → re-register cycle can legitimately produce a fresh row with the same
+  // dedupeKey as an earlier voided one.
+  dedupeKey?: string
 }
 
 export type CodeRequestStatus = 'pending' | 'approved' | 'rejected'
@@ -113,6 +120,7 @@ export function hydratePromoterEarning(row: {
   id: string; codeId: string; regId: string; promoterUserId: string
   paidTickets: number; buyerPaidTotal: number; commissionAmount: number
   status: string; paidAt?: unknown; paidNote?: string | null; createdAt: unknown
+  dedupeKey?: unknown
 }) {
   const e: PromoterEarning = {
     id: row.id,
@@ -126,6 +134,10 @@ export function hydratePromoterEarning(row: {
     paidAt: row.paidAt ? ms(row.paidAt) : undefined,
     paidNote: row.paidNote ?? undefined,
     createdAt: ms(row.createdAt),
+    // Rows written before the dedupe_key column existed used the old scheme
+    // where `id` itself was the deterministic `pe_${regId}_${attempts}` key —
+    // fall back to it so old rows still dedupe correctly after this migration.
+    dedupeKey: (row.dedupeKey as string | null | undefined) ?? row.id,
   }
   earnings.set(e.id, e)
 }
@@ -262,23 +274,44 @@ export function isPromoter(userId: string): boolean {
   return !!u?.promoterActive
 }
 
-function defaultCodeForUser(u: User): string {
-  let base = normCode(u.tag)
-  if (base.length < 3) base = normCode('P' + u.id.slice(-8))
-  if (!codeByStr.has(base)) return base
-  for (let i = 2; i < 99; i++) {
-    const cand = `${base}${i}`.slice(0, 24)
-    if (!codeByStr.has(cand)) return cand
+function pgErrMsg(e: unknown): string {
+  const parts: string[] = []
+  let cur: unknown = e
+  for (let depth = 0; depth < 6 && cur; depth++) {
+    if (typeof cur === 'string') { parts.push(cur); break }
+    if (typeof cur !== 'object' || !cur) break
+    const o = cur as Record<string, unknown>
+    if (typeof o.message === 'string') parts.push(o.message)
+    if (typeof o.detail === 'string') parts.push(o.detail)
+    if (typeof o.constraint === 'string') parts.push(String(o.constraint))
+    cur = o.cause
   }
-  throw new Error('CODE_EXISTS')
+  return [...new Set(parts.filter(Boolean))].join(' | ')
 }
 
-function parsePercent(v: unknown): number {
-  const s = String(v ?? '')
-    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0))
-    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[^\d.-]/g, '')
-  return Number(s)
+function isPgDuplicate(e: unknown): boolean {
+  return /unique|duplicate|23505/i.test(pgErrMsg(e))
+}
+
+async function allocatePromoterCode(u: User, preferred?: string): Promise<string> {
+  if (preferred?.trim()) {
+    const code = normCode(preferred)
+    if (code.length < 3 || code.length > 24) throw new Error('CODE_LENGTH')
+    if (codeByStr.has(code) || await persist.promoterCode.codeTakenAsync(code)) throw new Error('CODE_EXISTS')
+    return code
+  }
+  let base = normCode(u.tag)
+  if (base.length < 3) base = normCode('P' + u.id.slice(-8))
+  for (let i = 0; i < 99; i++) {
+    const cand = (i === 0 ? base : `${base}${i + 1}`).slice(0, 24)
+    if (codeByStr.has(cand)) continue
+    if (await persist.promoterCode.codeTakenAsync(cand)) {
+      if (!codeByStr.has(cand)) codeByStr.set(cand, '__db__')
+      continue
+    }
+    return cand
+  }
+  throw new Error('CODE_EXISTS')
 }
 
 function persistPromoterUser(u: User) {
@@ -290,8 +323,25 @@ function persistPromoterUser(u: User) {
   })
 }
 
+async function persistPromoterUserAsync(u: User) {
+  await persist.user.updateAsync(u.id, {
+    promoterActive: u.promoterActive,
+    promoterDiscountPercent: u.promoterDiscountPercent,
+    promoterCommissionPercent: u.promoterCommissionPercent,
+    promoterActivatedAt: u.promoterActivatedAt,
+  })
+}
+
+function parsePercent(v: unknown): number {
+  const s = String(v ?? '')
+    .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0))
+    .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[^\d.-]/g, '')
+  return Number(s)
+}
+
 /** Admin activates partner — terms only; codes need separate approval or admin create. */
-export function activatePromoter(userId: string, discountPercent: unknown, commissionPercent: unknown) {
+export async function activatePromoter(userId: string, discountPercent: unknown, commissionPercent: unknown) {
   const u = getUserById(userId)
   if (!u) throw new Error('USER_NOT_FOUND')
   if (u.role !== 'gamer') throw new Error('NOT_GAMER')
@@ -304,7 +354,7 @@ export function activatePromoter(userId: string, discountPercent: unknown, commi
   u.promoterDiscountPercent = d
   u.promoterCommissionPercent = c
   u.promoterActivatedAt = Date.now()
-  persistPromoterUser(u)
+  await persistPromoterUserAsync(u)
   return u
 }
 
@@ -403,11 +453,8 @@ export async function adminIssueCode(
     assertCanAddCode(promoterUserId)
   }
 
-  const codeStr = input.code
-    ? normCode(input.code)
-    : req?.requestedCode
-      ? normCode(req.requestedCode)
-      : defaultCodeForUser(u)
+  const preferred = input.code?.trim() || req?.requestedCode?.trim() || undefined
+  const codeStr = await allocatePromoterCode(u, preferred)
 
   const c = await createPromoterCode({
     code: codeStr,
@@ -453,7 +500,11 @@ export async function reactivatePromoterCode(codeId: string) {
   return updatePromoterCode(codeId, { active: true })
 }
 
-export function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
+// Awaited by its caller (same durability contract as activatePromoter) —
+// these percentages are the commercial terms every future commission payout
+// is computed from, so a fire-and-forget write here can drop a real rate
+// change on restart and silently keep paying the old percentage.
+export async function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
   const u = getUserById(userId)
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
   const d = Math.round(discountPercent)
@@ -462,7 +513,7 @@ export function updatePromoterTerms(userId: string, discountPercent: number, com
   if (c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
   u.promoterDiscountPercent = d
   u.promoterCommissionPercent = c
-  persistPromoterUser(u)
+  await persistPromoterUserAsync(u)
 }
 
 export function primaryCodeForPromoter(userId: string): PromoterCode | undefined {
@@ -609,7 +660,7 @@ export async function createPromoterCode(input: {
   if (!u) throw new Error('USER_NOT_FOUND')
   const code = normCode(input.code)
   if (code.length < 3 || code.length > 24) throw new Error('CODE_LENGTH')
-  if (codeByStr.has(code)) throw new Error('CODE_EXISTS')
+  if (codeByStr.has(code) || await persist.promoterCode.codeTakenAsync(code)) throw new Error('CODE_EXISTS')
   const discountPercent = Math.round(input.discountPercent)
   const commissionPercent = Math.round(input.commissionPercent)
   if (discountPercent < 1 || discountPercent > 90) throw new Error('DISCOUNT_RANGE')
@@ -636,9 +687,8 @@ export async function createPromoterCode(input: {
   } catch (e) {
     codes.delete(c.id)
     codeByStr.delete(c.code)
-    const msg = String((e as { message?: string })?.message ?? (e as { cause?: { message?: string } })?.cause?.message ?? e)
-    if (/unique|duplicate/i.test(msg)) throw new Error('CODE_EXISTS')
-    throw e
+    if (isPgDuplicate(e)) throw new Error('CODE_EXISTS')
+    throw new Error(pgErrMsg(e) || 'PROMO_INSERT_FAILED')
   }
   return c
 }
@@ -672,11 +722,21 @@ export async function attachPromoToRegistration(reg: Registration, promo: Promot
   await persist.promoterCode.updateAsync(promo.id, promo)
 }
 
-/** Call on admin approve — idempotent per reg attempt total. Durable earning row. */
+/**
+ * Call on admin approve — idempotent per (reg, attempt-count) pair, but only
+ * against a still-live earning. A rejected registration reuses the same
+ * `reg.id` and resets `attempts`/`paidAttempts` to 0 on the next signup (see
+ * createRegistration in store.ts), so the dedupe key alone isn't a safe DB
+ * primary id across reject→re-register cycles — a fresh sale can legitimately
+ * land on the exact same (regId, attempts) pair a voided one used. The row id
+ * is always a fresh random id; `dedupeKey` is the thing that's actually
+ * deduped, and only counts against live (pending/paid) rows.
+ */
 export async function recordPromoterEarning(reg: Registration, prevPaidAttempts: number) {
   if (!reg.promoterCodeId) return
-  const earningId = `pe_${reg.id}_${reg.attempts}`
-  if (earnings.has(earningId)) return
+  const dedupeKey = `pe_${reg.id}_${reg.attempts}`
+  const dup = [...earnings.values()].some(e => e.dedupeKey === dedupeKey && e.status !== 'voided')
+  if (dup) return
 
   const promo = codes.get(reg.promoterCodeId)
   if (!promo) return
@@ -694,7 +754,8 @@ export async function recordPromoterEarning(reg: Registration, prevPaidAttempts:
   if (commissionAmount <= 0) return
 
   const e: PromoterEarning = {
-    id: earningId,
+    id: 'pe_' + Math.random().toString(36).slice(2, 10),
+    dedupeKey,
     codeId: promo.id,
     regId: reg.id,
     promoterUserId: promo.promoterUserId,
@@ -710,6 +771,23 @@ export async function recordPromoterEarning(reg: Registration, prevPaidAttempts:
   } catch (err) {
     earnings.delete(e.id)
     throw err
+  }
+}
+
+// Call on admin reject (including a reversal from approved→rejected). A
+// rejected registration's ticket count resets to 0 on the next
+// createRegistration call (same row, reused id — see store.ts), so any
+// commission still 'pending' for it must be voided here or the next
+// approval cycle either double-pays (new earning gets a fresh key from the
+// new attempts count) or silently drops the sale (new cycle lands on the
+// same key as the still-"recorded" old one and the idempotency guard skips
+// it). Earnings already 'paid' are left untouched — money already sent to
+// the promoter needs a human clawback decision, not a silent code reversal.
+export async function voidPendingEarningsForReg(regId: string): Promise<void> {
+  const toVoid = [...earnings.values()].filter(e => e.regId === regId && e.status === 'pending')
+  for (const e of toVoid) {
+    e.status = 'voided'
+    await persist.promoterEarning.updateAsync(e.id, e)
   }
 }
 

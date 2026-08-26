@@ -31,8 +31,11 @@ function errMsg(code: string) {
   if (raw === 'DISCOUNT_RANGE') return 'تخفیف باید ۱ تا ۹۰٪ باشد'
   if (raw === 'COMMISSION_RANGE') return 'کمیسیون باید ۰ تا ۵۰٪ باشد'
   if (raw === 'CODE_LENGTH') return 'کد باید ۳ تا ۲۴ کاراکتر باشد'
-  if (/does not exist|undefined column/i.test(raw)) return 'جدول کد پروموتر روی دیتابیس ناقص است'
-  return 'فعال‌سازی انجام نشد'
+  if (/does not exist|undefined column/i.test(raw)) return 'جدول کد پروموتر روی دیتابیس ناقص است — یک بار ری‌استارت یا دیپلوی لازم است'
+  if (/23503|foreign key/i.test(raw)) return 'حساب این کاربر در دیتابیس کامل نیست'
+  if (/PROMO_INSERT_FAILED|failed query/i.test(raw)) return 'ذخیره کد در دیتابیس نشد — دوباره بزن یا کد دستی بده'
+  if (raw.length > 8 && /violates|constraint|column|relation/i.test(raw)) return `خطای دیتابیس: ${raw.slice(0, 160)}`
+  return raw.length > 12 ? raw.slice(0, 160) : 'فعال‌سازی انجام نشد'
 }
 
 export async function GET() {
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
     try {
       if (body.discountPercent != null || body.commissionPercent != null) {
         const u = getUserById(userId)
-        updatePromoterTerms(
+        await updatePromoterTerms(
           userId,
           body.discountPercent != null ? Number(body.discountPercent) : (u?.promoterDiscountPercent ?? 20),
           body.commissionPercent != null ? Number(body.commissionPercent) : (u?.promoterCommissionPercent ?? 10),
@@ -203,7 +206,7 @@ export async function POST(req: Request) {
   try {
     const userId = (body.promoterUserId ?? body.userId ?? '').toString()
     if (!userId) return NextResponse.json({ error: 'کاربر را انتخاب کن' }, { status: 400 })
-    activatePromoter(userId, body.discountPercent, body.commissionPercent)
+    await activatePromoter(userId, body.discountPercent, body.commissionPercent)
     const hasCode = allPromoterCodes().some(c => c.promoterUserId === userId && c.active)
     let code = null
     if (!hasCode) {
@@ -220,6 +223,6 @@ export async function POST(req: Request) {
   } catch (e: any) {
     const msg = [e?.message, e?.cause?.message, e?.code].filter(Boolean).join(' | ')
     console.error('[promoter] activate failed', msg)
-    return NextResponse.json({ error: errMsg(e?.message || msg) }, { status: 400 })
+    return NextResponse.json({ error: errMsg(msg) }, { status: 400 })
   }
 }

@@ -153,7 +153,9 @@ export function startHydration(loaders: {
           paid_tickets INTEGER NOT NULL, buyer_paid_total INTEGER NOT NULL, commission_amount INTEGER NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending', paid_at TIMESTAMPTZ, paid_note TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `ALTER TABLE app_promoter_earnings ADD COLUMN IF NOT EXISTS dedupe_key TEXT`,
         `CREATE INDEX IF NOT EXISTS promoter_earn_user_idx ON app_promoter_earnings (promoter_user_id, status)`,
+        `CREATE INDEX IF NOT EXISTS promoter_earn_dedupe_idx ON app_promoter_earnings (dedupe_key, status)`,
         `CREATE TABLE IF NOT EXISTS app_promoter_code_requests (
           id TEXT PRIMARY KEY, promoter_user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
           requested_code TEXT, comp_id TEXT, note TEXT,
@@ -404,6 +406,7 @@ export function startHydration(loaders: {
           paidTickets: row.paid_tickets, buyerPaidTotal: row.buyer_paid_total,
           commissionAmount: row.commission_amount, status: row.status,
           paidAt: row.paid_at, paidNote: row.paid_note, createdAt: row.created_at,
+          dedupeKey: row.dedupe_key,
         })
       } catch (e) { console.error('[db] load promoter earnings:', e) }
 
@@ -455,6 +458,12 @@ function fireOrdered(key: string, run: () => Promise<any> | undefined) {
   writeChains.set(key, next)
 }
 
+/** Raw sql` templates with postgres.js reject Date objects — use ISO strings. */
+function pgTs(v?: number | null): string | null {
+  if (v == null) return null
+  return new Date(v).toISOString()
+}
+
 function userValues(u: User) {
   return {
     id: u.id, email: u.email, googleSub: u.googleSub, avatarUrl: u.avatarUrl,
@@ -472,6 +481,35 @@ function userValues(u: User) {
     rankingPoints: u.rankingPoints ?? 0,
     rankingEvents: u.rankingEvents ?? 0,
   }
+}
+
+function userUpdateSet(patch: Partial<User>) {
+  const set: any = {}
+  if (patch.name !== undefined)        set.name = patch.name
+  if (patch.firstName !== undefined)   set.firstName = patch.firstName
+  if (patch.lastName !== undefined)    set.lastName = patch.lastName
+  if (patch.tag !== undefined)         set.tag = patch.tag
+  if (patch.province !== undefined)    set.province = patch.province
+  if (patch.city !== undefined)        set.city = patch.city
+  if (patch.messenger !== undefined)   set.messenger = patch.messenger
+  if (patch.primaryDisc !== undefined) set.primaryDisc = patch.primaryDisc
+  if (patch.discs !== undefined)       set.discs = (patch.discs ?? []).join(',')
+  if (patch.experienceYears !== undefined) set.experienceYears = patch.experienceYears
+  if (patch.teamName !== undefined)    set.teamName = patch.teamName
+  if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
+  if (patch.playerId !== undefined)    set.playerId = patch.playerId
+  if (patch.bonusPoints !== undefined) set.bonusPoints = patch.bonusPoints
+  if (patch.referredBy !== undefined)  set.referredBy = patch.referredBy
+  if (patch.freeTickets !== undefined) set.freeTickets = patch.freeTickets
+  if (patch.referralMilestone !== undefined) set.referralMilestone = patch.referralMilestone
+  if (patch.promoterActive !== undefined) set.promoterActive = patch.promoterActive
+  if (patch.promoterDiscountPercent !== undefined) set.promoterDiscountPercent = patch.promoterDiscountPercent
+  if (patch.promoterCommissionPercent !== undefined) set.promoterCommissionPercent = patch.promoterCommissionPercent
+  if (patch.promoterActivatedAt !== undefined) set.promoterActivatedAt = patch.promoterActivatedAt ? new Date(patch.promoterActivatedAt) : null
+  if (patch.email !== undefined)       set.email = patch.email
+  if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
+  if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
+  return set
 }
 
 function trackEventWhere(sinceMs: number, filters?: { city?: string; disc?: string }, untilMs?: number) {
@@ -509,33 +547,15 @@ export const persist = {
     },
     update(id: string, patch: Partial<User>) {
       const d = db(); if (!d) return
-      const set: any = {}
-      if (patch.name !== undefined)        set.name = patch.name
-      if (patch.firstName !== undefined)   set.firstName = patch.firstName
-      if (patch.lastName !== undefined)    set.lastName = patch.lastName
-      if (patch.tag !== undefined)         set.tag = patch.tag
-      if (patch.province !== undefined)    set.province = patch.province
-      if (patch.city !== undefined)        set.city = patch.city
-      if (patch.messenger !== undefined)   set.messenger = patch.messenger
-      if (patch.primaryDisc !== undefined) set.primaryDisc = patch.primaryDisc
-      if (patch.discs !== undefined)       set.discs = (patch.discs ?? []).join(',')
-      if (patch.experienceYears !== undefined) set.experienceYears = patch.experienceYears
-      if (patch.teamName !== undefined)    set.teamName = patch.teamName
-      if (patch.nationalId !== undefined)  set.nationalId = patch.nationalId
-      if (patch.playerId !== undefined)    set.playerId = patch.playerId
-      if (patch.bonusPoints !== undefined) set.bonusPoints = patch.bonusPoints
-      if (patch.referredBy !== undefined)  set.referredBy = patch.referredBy
-      if (patch.freeTickets !== undefined) set.freeTickets = patch.freeTickets
-      if (patch.referralMilestone !== undefined) set.referralMilestone = patch.referralMilestone
-      if (patch.promoterActive !== undefined) set.promoterActive = patch.promoterActive
-      if (patch.promoterDiscountPercent !== undefined) set.promoterDiscountPercent = patch.promoterDiscountPercent
-      if (patch.promoterCommissionPercent !== undefined) set.promoterCommissionPercent = patch.promoterCommissionPercent
-      if (patch.promoterActivatedAt !== undefined) set.promoterActivatedAt = patch.promoterActivatedAt ? new Date(patch.promoterActivatedAt) : null
-      if (patch.email !== undefined)       set.email = patch.email
-      if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
-      if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
-      if (Object.keys(set).length === 0) return
+      const set = userUpdateSet(patch)
+      if (!set || Object.keys(set).length === 0) return
       fire(d.update(schema.users).set(set).where(eq(schema.users.id, id)))
+    },
+    async updateAsync(id: string, patch: Partial<User>) {
+      const d = db(); if (!d) return
+      const set = userUpdateSet(patch)
+      if (!set || Object.keys(set).length === 0) return
+      await d.update(schema.users).set(set).where(eq(schema.users.id, id))
     },
     setCoinBalance(id: string, balance: number) {
       const d = db(); if (!d) return
@@ -1156,67 +1176,73 @@ export const persist = {
     insert(c: { id: string; code: string; promoterUserId: string; discountPercent: number; commissionPercent: number; compId?: string; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string; createdAt: number }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`INSERT INTO app_promoter_codes (id, code, promoter_user_id, discount_percent, commission_percent, comp_id, max_uses, use_count, active, expires_at, note, created_at)
-        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${c.expiresAt ? new Date(c.expiresAt) : null}, ${c.note ?? null}, ${new Date(c.createdAt)})
+        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${pgTs(c.expiresAt ?? null)}, ${c.note ?? null}, ${pgTs(c.createdAt)!})
         ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, discount_percent = EXCLUDED.discount_percent, commission_percent = EXCLUDED.commission_percent, comp_id = EXCLUDED.comp_id, max_uses = EXCLUDED.max_uses, use_count = EXCLUDED.use_count, active = EXCLUDED.active, expires_at = EXCLUDED.expires_at, note = EXCLUDED.note`))
     },
     // Awaited on activate/create/issue — codes must survive restart (fire-and-forget lost live codes).
     async insertAsync(c: { id: string; code: string; promoterUserId: string; discountPercent: number; commissionPercent: number; compId?: string; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string; createdAt: number }) {
       const d = db(); if (!d) return
       await d.execute(sql`INSERT INTO app_promoter_codes (id, code, promoter_user_id, discount_percent, commission_percent, comp_id, max_uses, use_count, active, expires_at, note, created_at)
-        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${c.expiresAt ? new Date(c.expiresAt) : null}, ${c.note ?? null}, ${new Date(c.createdAt)})
+        VALUES (${c.id}, ${c.code}, ${c.promoterUserId}, ${c.discountPercent}, ${c.commissionPercent}, ${c.compId ?? null}, ${c.maxUses ?? null}, ${c.useCount}, ${c.active}, ${pgTs(c.expiresAt ?? null)}, ${c.note ?? null}, ${pgTs(c.createdAt)!})
         ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, discount_percent = EXCLUDED.discount_percent, commission_percent = EXCLUDED.commission_percent, comp_id = EXCLUDED.comp_id, max_uses = EXCLUDED.max_uses, use_count = EXCLUDED.use_count, active = EXCLUDED.active, expires_at = EXCLUDED.expires_at, note = EXCLUDED.note`)
     },
     update(id: string, c: { discountPercent: number; commissionPercent: number; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string }) {
       const d = db(); if (!d) return
-      fire(d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${c.expiresAt ? new Date(c.expiresAt) : null}, note = ${c.note ?? null} WHERE id = ${id}`))
+      fire(d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${pgTs(c.expiresAt ?? null)}, note = ${c.note ?? null} WHERE id = ${id}`))
     },
     async updateAsync(id: string, c: { discountPercent: number; commissionPercent: number; maxUses?: number; useCount: number; active: boolean; expiresAt?: number; note?: string }) {
       const d = db(); if (!d) return
-      await d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${c.expiresAt ? new Date(c.expiresAt) : null}, note = ${c.note ?? null} WHERE id = ${id}`)
+      await d.execute(sql`UPDATE app_promoter_codes SET discount_percent = ${c.discountPercent}, commission_percent = ${c.commissionPercent}, max_uses = ${c.maxUses ?? null}, use_count = ${c.useCount}, active = ${c.active}, expires_at = ${pgTs(c.expiresAt ?? null)}, note = ${c.note ?? null} WHERE id = ${id}`)
+    },
+    async codeTakenAsync(code: string): Promise<boolean> {
+      const d = db(); if (!d) return false
+      const r = await d.execute(sql`SELECT id FROM app_promoter_codes WHERE upper(code) = ${code.toUpperCase()} LIMIT 1`)
+      const rows = Array.isArray(r) ? r : ((r as { rows?: unknown[] })?.rows ?? [])
+      return rows.length > 0
     },
   },
   promoterEarning: {
-    insert(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number }) {
+    insert(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number; dedupeKey?: string }) {
       const d = db(); if (!d) return
-      fire(d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at)
-        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${new Date(e.createdAt)})
+      fire(d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at, dedupe_key)
+        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${pgTs(e.createdAt)!}, ${e.dedupeKey ?? null})
         ON CONFLICT (id) DO NOTHING`))
     },
-    async insertAsync(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number }) {
+    async insertAsync(e: { id: string; codeId: string; regId: string; promoterUserId: string; paidTickets: number; buyerPaidTotal: number; commissionAmount: number; status: string; createdAt: number; dedupeKey?: string }) {
       const d = db(); if (!d) return
-      await d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at)
-        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${new Date(e.createdAt)})
+      await d.execute(sql`INSERT INTO app_promoter_earnings (id, code_id, reg_id, promoter_user_id, paid_tickets, buyer_paid_total, commission_amount, status, created_at, dedupe_key)
+        VALUES (${e.id}, ${e.codeId}, ${e.regId}, ${e.promoterUserId}, ${e.paidTickets}, ${e.buyerPaidTotal}, ${e.commissionAmount}, ${e.status}, ${pgTs(e.createdAt)!}, ${e.dedupeKey ?? null})
         ON CONFLICT (id) DO NOTHING`)
     },
     update(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
       const d = db(); if (!d) return
-      fire(d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`))
+      fire(d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${pgTs(e.paidAt ?? null)}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`))
     },
     async updateAsync(id: string, e: { status: string; paidAt?: number; paidNote?: string }) {
       const d = db(); if (!d) return
-      await d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${e.paidAt ? new Date(e.paidAt) : null}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`)
+      await d.execute(sql`UPDATE app_promoter_earnings SET status = ${e.status}, paid_at = ${pgTs(e.paidAt ?? null)}, paid_note = ${e.paidNote ?? null} WHERE id = ${id}`)
     },
   },
   promoterCodeRequest: {
     insert(r: { id: string; promoterUserId: string; requestedCode?: string; compId?: string; note?: string; status: string; createdAt: number }) {
       const d = db(); if (!d) return
       fire(d.execute(sql`INSERT INTO app_promoter_code_requests (id, promoter_user_id, requested_code, comp_id, note, status, created_at)
-        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${new Date(r.createdAt)})
+        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${pgTs(r.createdAt)!})
         ON CONFLICT (id) DO NOTHING`))
     },
     async insertAsync(r: { id: string; promoterUserId: string; requestedCode?: string; compId?: string; note?: string; status: string; createdAt: number }) {
       const d = db(); if (!d) return
       await d.execute(sql`INSERT INTO app_promoter_code_requests (id, promoter_user_id, requested_code, comp_id, note, status, created_at)
-        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${new Date(r.createdAt)})
+        VALUES (${r.id}, ${r.promoterUserId}, ${r.requestedCode ?? null}, ${r.compId ?? null}, ${r.note ?? null}, ${r.status}, ${pgTs(r.createdAt)!})
         ON CONFLICT (id) DO NOTHING`)
     },
     update(r: { id: string; status: string; rejectReason?: string; reviewedBy?: string; reviewedAt?: number; approvedCodeId?: string }) {
       const d = db(); if (!d) return
-      fire(d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${r.reviewedAt ? new Date(r.reviewedAt) : null}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`))
+      fire(d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${pgTs(r.reviewedAt ?? null)}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`))
     },
     async updateAsync(r: { id: string; status: string; rejectReason?: string; reviewedBy?: string; reviewedAt?: number; approvedCodeId?: string }) {
       const d = db(); if (!d) return
-      await d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${r.reviewedAt ? new Date(r.reviewedAt) : null}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`)
+      await d.execute(sql`UPDATE app_promoter_code_requests SET status = ${r.status}, reject_reason = ${r.rejectReason ?? null}, reviewed_by = ${r.reviewedBy ?? null}, reviewed_at = ${pgTs(r.reviewedAt ?? null)}, approved_code_id = ${r.approvedCodeId ?? null} WHERE id = ${r.id}`)
     },
   },
 }

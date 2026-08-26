@@ -28,6 +28,7 @@ export default function RequestDetailClient(props: Props) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(props.status)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
   const isOwner = props.myId === props.requesterId
 
   async function accept() {
@@ -43,7 +44,6 @@ export default function RequestDetailClient(props: Props) {
   }
 
   async function cancelRequest() {
-    if (!confirm('درخواست لغو بشه؟')) return
     setBusy(true)
     setErr('')
     try {
@@ -52,7 +52,7 @@ export default function RequestDetailClient(props: Props) {
       if (!r.ok) { setErr(j.error); return }
       setStatus('cancelled')
       router.push('/arena')
-    } finally { setBusy(false) }
+    } finally { setBusy(false); setConfirmingCancel(false) }
   }
 
   return (
@@ -68,7 +68,7 @@ export default function RequestDetailClient(props: Props) {
             </div>
           </div>
           <div style={{ fontSize: 13, color: C.tbody, lineHeight: 2 }}>
-            <div>{DISC[props.disc as keyof typeof DISC]?.name ?? props.disc} · Best of {props.bestOf}</div>
+            <div>{DISC[props.disc as keyof typeof DISC]?.name ?? props.disc} · بهترین از {props.bestOf}</div>
             <div>{props.city} · {props.province}</div>
             <div style={{ fontSize: 11, color: C.tmut }}>{timeAgoFa(props.createdAt)} · {arenaStatusLabel(status)}</div>
             {props.note && <div style={{ marginTop: 6, color: C.thi }}>{props.note}</div>}
@@ -87,16 +87,30 @@ export default function RequestDetailClient(props: Props) {
           }}>{busy ? '…' : 'قبول می‌کنم'}</button>
         )}
 
-        {isOwner && status === 'open' && (
+        {isOwner && status === 'open' && !confirmingCancel && (
           <>
             <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', lineHeight: 2 }}>منتظر قبول حریف…</div>
-            <button type="button" onClick={cancelRequest} disabled={busy} style={{
-              minHeight: 44, borderRadius: 12, border: `1px solid #f8717144`, background: 'transparent', color: '#f87171', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            <button type="button" onClick={() => setConfirmingCancel(true)} disabled={busy} style={{
+              minHeight: 44, borderRadius: 12, border: `1px solid ${C.live}44`, background: 'transparent', color: C.live, fontWeight: 700, fontSize: 13, cursor: 'pointer',
             }}>لغو درخواست</button>
           </>
         )}
 
-        {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}
+        {isOwner && status === 'open' && confirmingCancel && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: `${C.live}11`, border: `1px solid ${C.live}44`, borderRadius: 12, padding: 12 }}>
+            <div style={{ fontSize: 12.5, color: C.thi, textAlign: 'center' }}>درخواست لغو بشه؟</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setConfirmingCancel(false)} disabled={busy} style={{
+                flex: 1, minHeight: 40, borderRadius: 10, border: `1px solid ${C.line2}`, background: 'transparent', color: C.tbody, fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
+              }}>منصرف شدم</button>
+              <button type="button" onClick={cancelRequest} disabled={busy} style={{
+                flex: 1, minHeight: 40, borderRadius: 10, border: 'none', background: C.live, color: '#fff', fontWeight: 700, fontSize: 12.5, cursor: 'pointer',
+              }}>{busy ? '…' : 'آره، لغو کن'}</button>
+            </div>
+          </div>
+        )}
+
+        {err && <div style={{ color: C.live, fontSize: 12 }}>{err}</div>}
       </div>
     </div>
   )

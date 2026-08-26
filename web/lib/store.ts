@@ -123,7 +123,13 @@ function ensureHydrated() {
     // Heavy seeds must not block auth (whenReady).
     setImmediate(() => {
       reconcileDefaultEventCovers().catch(e => console.warn('[covers]', e))
-      try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
+      // GAMELAND_LOCAL_PROD is set by scripts/local-prod.mjs when .env.local
+      // points DATABASE_URL at the LIVE Postgres for local testing — NODE_ENV
+      // is still 'development' in that case, so it can't be trusted to gate
+      // demo-data writes here. Skip the arena demo seeder whenever it's set.
+      if (!process.env.GAMELAND_LOCAL_PROD) {
+        try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
+      }
       import('./ranking-store').then(m => m.rebuildAllRankingsAsync().catch(e => console.warn('[ranking]', e)))
     })
   })
@@ -686,9 +692,11 @@ export function deleteEvent(id: string) {
   removeEventCover(id)
   events.delete(id)
   eventConfigs.delete(id)
-  for (const [k, r] of regs) if (r.compId === id) regs.delete(k)
+  for (const [k, r] of regs) if (r.compId === id) { deindexReg(r); regs.delete(k) }
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === id) matches.splice(i, 1)
   for (let i = placements.length - 1; i >= 0; i--) if (placements[i].compId === id) placements.splice(i, 1)
+  for (const [tid, t] of teams) if (t.compId === id) teams.delete(tid)
+  for (let i = teamMembers.length - 1; i >= 0; i--) if (!teams.has(teamMembers[i].teamId)) teamMembers.splice(i, 1)
   persist.event.delete?.(id)
 }
 
@@ -738,6 +746,13 @@ function indexReg(r: Registration) {
   const i = list.findIndex(x => x.compId === r.compId)
   if (i >= 0) list[i] = r
   else list.push(r)
+}
+
+function deindexReg(r: Registration) {
+  const list = regsByUser.get(r.userId)
+  if (!list) return
+  const i = list.findIndex(x => x.id === r.id)
+  if (i >= 0) list.splice(i, 1)
 }
 
 // Register / buy tickets. Each user may hold up to 6 سهم per discipline. Buying

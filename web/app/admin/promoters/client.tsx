@@ -100,7 +100,7 @@ export default function PromotersClient() {
     setErr(null); setBusy(true)
     try {
       const uid = selectedUser.id
-      const j = await post({
+      await post({
         action: 'activate',
         promoterUserId: uid,
         discountPercent: discount,
@@ -110,7 +110,6 @@ export default function PromotersClient() {
       setExpanded(uid)
       await load()
       router.refresh()
-      if (j?.code?.code) setErr(null)
     } catch (ex: any) { setErr(ex.message || 'فعال‌سازی انجام نشد') } finally { setBusy(false) }
   }
 
@@ -248,10 +247,12 @@ export default function PromotersClient() {
               <PayoutRow key={e.id} earning={e} onPaid={async (note) => {
                 setBusy(true)
                 try {
-                  await fetch('/api/admin/promoter-earnings', {
+                  const res = await fetch('/api/admin/promoter-earnings', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ earningId: e.id, note }),
                   })
+                  const j = await res.json().catch(() => ({}))
+                  if (!res.ok) throw new Error(j.error || 'ثبت پرداخت انجام نشد')
                   await load()
                 } finally { setBusy(false) }
               }} />
@@ -352,7 +353,7 @@ function PartnerCard({ partner: p, expanded, onToggle, busy, setBusy, onRefresh,
               <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 6 }}>کد فعالی نیست — از پایین بساز یا درخواست را تأیید کن.</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                {p.codes.map(c => <CodeRowView key={c.id} c={c} onToggle={() => toggleCode(c.id, false)} toggleLabel="غیرفعال" toggleColor={C.live} busy={busy} />)}
+                {p.codes.map(c => <CodeRowView key={c.id} c={c} onToggle={() => toggleCode(c.id, false)} toggleLabel="غیرفعال" toggleColor={C.live} busy={busy} confirmToggle />)}
               </div>
             )}
           </div>
@@ -401,9 +402,11 @@ function PartnerCard({ partner: p, expanded, onToggle, busy, setBusy, onRefresh,
   )
 }
 
-function CodeRowView({ c, muted, onToggle, toggleLabel, toggleColor, busy }: {
+function CodeRowView({ c, muted, onToggle, toggleLabel, toggleColor, busy, confirmToggle }: {
   c: CodeRow; muted?: boolean; onToggle: () => void; toggleLabel: string; toggleColor: string; busy: boolean
+  confirmToggle?: boolean
 }) {
+  const [confirming, setConfirming] = useState(false)
   return (
     <div style={{ padding: '10px 12px', borderRadius: 9, background: muted ? C.sf1 : C.sf2, border: `1px solid ${muted ? C.line : C.accent + '33'}`, opacity: muted ? 0.85 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -411,7 +414,15 @@ function CodeRowView({ c, muted, onToggle, toggleLabel, toggleColor, busy }: {
         {!muted && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: C.winSoft, color: C.win }}>فعال</span>}
         {muted && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: C.sf2, color: C.tmut }}>غیرفعال</span>}
         <span style={{ flex: 1 }} />
-        <button type="button" disabled={busy} onClick={onToggle} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: toggleColor }}>{toggleLabel}</button>
+        {!confirming ? (
+          <button type="button" disabled={busy} onClick={() => confirmToggle ? setConfirming(true) : onToggle()} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: toggleColor }}>{toggleLabel}</button>
+        ) : (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10.5, color: C.tmut }}>مطمئنی؟</span>
+            <button type="button" onClick={() => setConfirming(false)} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tbody }}>نه</button>
+            <button type="button" disabled={busy} onClick={() => { onToggle(); setConfirming(false) }} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: toggleColor }}>آره، {toggleLabel}</button>
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 10.5, color: C.tbody, marginTop: 6 }}>
         {c.totalUses} استفاده · {c.conversionPercent}٪ تبدیل · تأیید {c.approved} · انتظار {c.pending}
@@ -488,6 +499,7 @@ function PayoutRow({ earning: e, onPaid }: { earning: EarningRow; onPaid: (note?
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '12px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -499,12 +511,17 @@ function PayoutRow({ earning: e, onPaid }: { earning: EarningRow; onPaid: (note?
         <button type="button" onClick={() => setOpen(!open)} style={{ all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: C.win, background: C.winSoft, border: `1px solid ${C.win}55`, borderRadius: 8, padding: '8px 12px' }}>پرداخت شد</button>
       </div>
       {open && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-          <input value={note} onChange={ev => setNote(ev.target.value)} placeholder="یادداشت (اختیاری)" style={{ ...inp, flex: 1 }} />
-          <button type="button" disabled={busy} onClick={async () => {
-            setBusy(true)
-            try { await onPaid(note.trim() || undefined); setOpen(false); setNote('') } finally { setBusy(false) }
-          }} style={btnPrimary}>تأیید</button>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={note} onChange={ev => setNote(ev.target.value)} placeholder="یادداشت (اختیاری)" style={{ ...inp, flex: 1 }} />
+            <button type="button" disabled={busy} onClick={async () => {
+              setBusy(true); setErr(null)
+              try { await onPaid(note.trim() || undefined); setOpen(false); setNote('') }
+              catch (ex: any) { setErr(ex.message || 'ثبت پرداخت انجام نشد') }
+              finally { setBusy(false) }
+            }} style={btnPrimary}>{busy ? '…' : 'تأیید'}</button>
+          </div>
+          {err && <div style={{ fontSize: 11.5, color: C.live }}>{err}</div>}
         </div>
       )}
     </div>

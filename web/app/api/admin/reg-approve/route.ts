@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards } from '@/lib/store'
 import { trackServer, trackUserProps } from '@/lib/track-server'
-import { recordPromoterEarning } from '@/lib/promoter'
+import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -33,7 +33,17 @@ export async function POST(req: Request) {
   setRegistrationStatus(regId, status, action === 'reject' ? rsn || undefined : undefined)
   if (status === 'approved') {
     grantReferralRewards(r.userId)
-    await recordPromoterEarning(r, prevPaid)
+    // Never let a commission-recording failure block the approval from
+    // finishing — the status flip above already succeeded, so the gamer must
+    // still get notified either way. A lost earning here is recoverable by an
+    // admin reconciling app_promoter_earnings against approved regs; a gamer
+    // approved-but-never-notified, or an approval that 500s after the DB
+    // already shows them approved, is not something support can see coming.
+    try { await recordPromoterEarning(r, prevPaid) }
+    catch (e) { console.error('[reg-approve] recordPromoterEarning failed', regId, e) }
+  } else if (status === 'rejected') {
+    try { await voidPendingEarningsForReg(regId) }
+    catch (e) { console.error('[reg-approve] voidPendingEarningsForReg failed', regId, e) }
   }
 
   // Server-fired funnel event — no client dependency, free coverage of the

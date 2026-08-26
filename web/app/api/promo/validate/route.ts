@@ -16,12 +16,13 @@ export async function POST(req: Request) {
   try {
     const promo = validatePromoCode(String(code), uid, String(compId))
     const pricing = buyerTicketPricing(String(compId), promo.discountPercent)
+    // commissionPercent is an internal commercial term between Gameland and
+    // the promoter — never send it to the buyer applying the code.
     return NextResponse.json({
       ok: true,
       code: promo.code,
       discountPercent: pricing.totalOffPercent,
       promoDiscountPercent: promo.discountPercent,
-      commissionPercent: promo.commissionPercent,
       unitPrice: pricing.unitPrice,
       original: pricing.original,
     })

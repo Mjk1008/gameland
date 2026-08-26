@@ -5,8 +5,12 @@ import { getUserById } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { parseBehaviorRange } from '@/lib/behavior-range'
 
+// Event rows carry attacker-influenced text (path/props come from the public
+// /api/track ingest). Excel/Sheets treat a leading = + - @ as a formula, so
+// neutralize it with a leading apostrophe BEFORE the normal CSV quoting.
 function csvCell(v: string) {
-  return `"${v.replace(/"/g, '""')}"`
+  const safe = /^[=+\-@]/.test(v) ? `'${v}` : v
+  return `"${safe.replace(/"/g, '""')}"`
 }
 
 export async function GET(req: Request) {

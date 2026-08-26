@@ -21,10 +21,12 @@ export default function GamenetReviewList({ rows }: { rows: GamenetRow[] }) {
   const [busy, setBusy] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
   const pending = rows.filter(r => r.status === 'pending')
 
-  function openRow(r: GamenetRow) { setSel(r); setRejecting(false); setReason('') }
+  function openRow(r: GamenetRow) { setSel(r); setRejecting(false); setReason(''); setConfirmingDelete(false); setErr(null) }
   function closeSheet() { setClosing(true); setTimeout(() => { setSel(null); setClosing(false) }, 220) }
 
   useEffect(() => {
@@ -36,27 +38,28 @@ export default function GamenetReviewList({ rows }: { rows: GamenetRow[] }) {
 
   async function decide(action: 'approve' | 'reject') {
     if (!sel) return
-    setBusy(true)
+    setBusy(true); setErr(null)
     try {
       const res = await fetch('/api/admin/gamenet-review', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: sel.id, action, reason: action === 'reject' ? (reason.trim() || undefined) : undefined }),
       })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'انجام نشد'); return }
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error || 'انجام نشد'); return }
       closeSheet()
       router.refresh()
     } finally { setBusy(false) }
   }
 
   async function remove() {
-    if (!sel || !confirm(`«${sel.name}» حذف بشه؟ این کار برگشت‌پذیر نیست.`)) return
-    setBusy(true)
+    if (!sel) return
+    if (!confirmingDelete) { setConfirmingDelete(true); return }
+    setBusy(true); setErr(null)
     try {
       const res = await fetch('/api/admin/gamenet-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sel.id }) })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'حذف نشد'); return }
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error || 'حذف نشد'); return }
       closeSheet()
       router.refresh()
-    } finally { setBusy(false) }
+    } finally { setBusy(false); setConfirmingDelete(false) }
   }
 
   return (
@@ -114,7 +117,9 @@ export default function GamenetReviewList({ rows }: { rows: GamenetRow[] }) {
 
             <Link href={`/gamenets/${sel.id}`} style={{ display: 'block', fontSize: 12.5, color: C.accent, marginBottom: 14 }}>صفحهٔ عمومی ›</Link>
 
-            {!rejecting ? (
+            {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, borderRadius: 10, padding: 10, marginBottom: 10 }}>{err}</div>}
+
+            {!rejecting && !confirmingDelete ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {sel.status !== 'verified' && (
                   <button disabled={busy} onClick={() => decide('approve')} style={btn(C.win, C.winSoft)}>تأیید گیم‌نت</button>
@@ -123,6 +128,14 @@ export default function GamenetReviewList({ rows }: { rows: GamenetRow[] }) {
                   <button disabled={busy} onClick={() => setRejecting(true)} style={btn(C.live, C.liveSoft)}>رد درخواست</button>
                 )}
                 <button disabled={busy} onClick={remove} style={btn(C.tmut, C.sf2)}>حذف گیم‌نت</button>
+              </div>
+            ) : confirmingDelete ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 12.5, color: C.thi, textAlign: 'center', lineHeight: 1.8 }}>«{sel.name}» حذف بشه؟ این کار برگشت‌پذیر نیست.</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button disabled={busy} onClick={() => setConfirmingDelete(false)} style={{ ...btn(C.tbody, C.sf2), flex: 1 }}>انصراف</button>
+                  <button disabled={busy} onClick={remove} style={{ ...btn(C.live, C.liveSoft), flex: 1 }}>{busy ? '…' : 'آره، حذف کن'}</button>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

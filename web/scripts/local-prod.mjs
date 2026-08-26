@@ -37,6 +37,9 @@ const LOCAL_OVERRIDES = {
   NEXTAUTH_URL: 'http://localhost:3000',
   NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
   GOOGLE_OAUTH_ENABLED: 'false',
+  // Signals to lib/store.ts that DATABASE_URL is the LIVE Postgres even
+  // though NODE_ENV is 'development' — skips boot-time demo-data seeding.
+  GAMELAND_LOCAL_PROD: '1',
 }
 
 function parseEnvFile(text) {

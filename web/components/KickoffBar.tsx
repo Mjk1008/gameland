@@ -23,6 +23,11 @@ function remaining(targetMs: number) {
 export default function KickoffBar({ posters, targetMs }: { posters: string[]; targetMs: number }) {
   const [left, setLeft] = useState(() => remaining(targetMs))
   const [slide, setSlide] = useState(0)
+  // How many posters are actually in the DOM. Each one is a full-size cover blob
+  // served through /api/event-cover — mounting all five above the fold costs
+  // several MB on first paint. Start with one, pull the next in ahead of the
+  // crossfade so the fade still has a frame at opacity 0 to start from.
+  const [mountedCount, setMountedCount] = useState(1)
 
   useEffect(() => {
     setLeft(remaining(targetMs))
@@ -41,6 +46,20 @@ export default function KickoffBar({ posters, targetMs }: { posters: string[]; t
     return () => clearInterval(t)
   }, [posters.length])
 
+  // Second poster is only needed once the first crossfade is due; everything
+  // after that mounts one slide ahead of when it is shown.
+  useEffect(() => {
+    if (posters.length < 2) return
+    const t = setTimeout(() => setMountedCount(c => Math.max(c, 2)), 4000)
+    return () => clearTimeout(t)
+  }, [posters.length])
+
+  useEffect(() => {
+    setMountedCount(c => Math.min(posters.length, Math.max(c, slide + 2)))
+  }, [slide, posters.length])
+
+  const shown = posters.slice(0, mountedCount)
+
   const ended = !left
   const finalHours = left && left.d === 0
 
@@ -55,15 +74,31 @@ export default function KickoffBar({ posters, targetMs }: { posters: string[]; t
           >
             {posters.length > 0 && (
               <div className="gl-kickoff-wash" aria-hidden>
-                {posters.map((src, i) => (
-                  <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
+                {shown.map((src, i) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    decoding="async"
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    className={slide === i ? 'is-on' : undefined}
+                  />
                 ))}
               </div>
             )}
             {posters[0] && (
               <div className="gl-kickoff-thumb" aria-hidden>
-                {posters.map((src, i) => (
-                  <img key={src} src={src} alt="" className={slide === i ? 'is-on' : undefined} />
+                {shown.map((src, i) => (
+                  // same URL as the wash above, so this is served from cache
+                  // (/api/event-cover sets public, max-age=3600) — no second fetch
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    decoding="async"
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    className={slide === i ? 'is-on' : undefined}
+                  />
                 ))}
               </div>
             )}

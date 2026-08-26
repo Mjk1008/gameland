@@ -124,7 +124,11 @@ function seedArenaTrackEvents(userIds: string[]) {
 
 export async function seedArenaDemo(force = false): Promise<ArenaSeedResult> {
   if (!isArenaEnabled()) return { ok: false, message: 'ARENA_ENABLED=false' }
-  if (process.env.NODE_ENV === 'production' && process.env.ARENA_SEED !== 'true' && !force) {
+  // `force` only skips the "already seeded" short-circuit below (re-seed on
+  // demand). It must NEVER bypass the production gate — that gate is the only
+  // thing standing between an env-var flip and wiping/reseeding live data with
+  // fake gamer accounts, so it stays absolute regardless of the caller's intent.
+  if (process.env.NODE_ENV === 'production' && process.env.ARENA_SEED !== 'true') {
     return { ok: false, message: 'production seed blocked' }
   }
   if (process.env.ARENA_SEED === 'false' && !force) return { ok: false, message: 'ARENA_SEED=false' }

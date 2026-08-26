@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   // Complete profile required before joining a competition.
   if (u.role === 'gamer' && !profileCompletion(u).complete) {
-    return NextResponse.json({ error: 'PROFILE_INCOMPLETE', message: 'اول پروفایلت رو کامل کن' }, { status: 400 })
+    return NextResponse.json({ error: 'اول پروفایلت رو کامل کن', code: 'PROFILE_INCOMPLETE' }, { status: 400 })
   }
 
   const body = await req.json().catch(() => ({}))

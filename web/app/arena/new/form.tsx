@@ -34,7 +34,7 @@ export default function NewRequestForm({ discs, defaultCity, defaultProvince }: 
         body: JSON.stringify({ disc, bestOf, city, province, note }),
       })
       const j = await r.json()
-      if (!r.ok) { setErr(j.error || 'خطا'); return }
+      if (!r.ok) { setErr(j.error || 'ثبت درخواست انجام نشد، دوباره امتحان کن'); return }
       track('arena_request_create', { disc, bestOf, city })
       router.push(`/arena/requests/${j.request.id}`)
     } finally { setBusy(false) }
@@ -62,13 +62,13 @@ export default function NewRequestForm({ discs, defaultCity, defaultProvince }: 
         </div>
 
         <div>
-          <div style={{ fontSize: 11, color: C.tmut, marginBottom: 6 }}>Best of</div>
+          <div style={{ fontSize: 11, color: C.tmut, marginBottom: 6 }}>فرمت مسابقه</div>
           <div style={{ display: 'flex', gap: 8 }}>
             {([1, 3, 5] as const).map(b => (
               <button key={b} type="button" onClick={() => setBestOf(b)} style={{
                 flex: 1, minHeight: 42, borderRadius: 10, fontWeight: 800, cursor: 'pointer',
                 border: `1px solid ${bestOf === b ? C.gold : C.line}`, background: bestOf === b ? C.goldSoft : C.sf1, color: bestOf === b ? C.gold : C.tbody,
-              }}>Bo{b}</button>
+              }}><span dir="ltr" style={{ fontFamily: 'inherit' }}>Bo{b}</span></button>
             ))}
           </div>
         </div>
@@ -89,10 +89,10 @@ export default function NewRequestForm({ discs, defaultCity, defaultProvince }: 
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 11, color: C.tmut }}>یادداشت کوتاه (اختیاری)</span>
-          <input value={note} onChange={e => setNote(e.target.value)} maxLength={80} placeholder="مثلاً فقط evening" style={inp} />
+          <input value={note} onChange={e => setNote(e.target.value)} maxLength={80} placeholder="مثلاً فقط عصرها آزادم" style={inp} />
         </label>
 
-        {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ color: C.live, fontSize: 12 }}>{err}</div>}
 
         <button type="submit" disabled={busy || !disc || !city} style={{
           minHeight: 48, borderRadius: 12, border: 'none', background: C.accent, color: C.ink, fontWeight: 800, fontSize: 14, cursor: 'pointer', opacity: busy ? .6 : 1,
