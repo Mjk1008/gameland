@@ -6,12 +6,14 @@ import { queryTopGamers, queryUserRank, queryGamerCount, queryLeaderboard } from
 import { playerCard } from '@/lib/player-cards'
 import { hasAvatar } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, Label, Wordmark, Button, EmptyState, GAME_POSTER, DISC_DOT, GamerAvatar } from '@/components/ui'
+import { C, DISP, Num, Label, Button, EmptyState, GAME_POSTER, DISC_DOT, GamerAvatar } from '@/components/ui'
 import PromoSlider from './promo-slider'
 import NewsSlider from './news-slider'
 import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
 import HonorPoster from '@/components/HonorPoster'
+import KickoffBar from '@/components/KickoffBar'
+import { kickoffAtMs, kickoffPosters } from '@/lib/kickoff'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +45,9 @@ export default async function HomePage() {
   const activeStandalone = standalone.filter(e => ACTIVE.has(e.status)).slice(0, 2)
   const homeCount = activeMothers.length + activeStandalone.length
   const motherStatus = (evs: Event[]) => evs.some(e => e.status === 'live') ? 'live' : evs.some(e => e.status === 'open') ? 'open' : 'soon'
+  const posters = kickoffPosters(
+    events.filter(e => ACTIVE.has(e.status)).map(e => resolveEventCardCover(e.id, e.disc) ?? ''),
+  )
 
   // the signed-in gamer's own overview (rank, points, competitions entered)
   const me = uid ? getUserById(uid) : null
@@ -95,13 +100,7 @@ export default async function HomePage() {
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-      {/* Header — compact brand lockup, sticky so the shell stays put while content scrolls */}
-      <div style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-14px -16px 0', padding: '14px 16px 10px', background: 'rgba(20,17,13,.92)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${C.line}` }}>
-        <Wordmark size={17} />
-        <span className="gl-label" style={{ fontSize: 11, color: C.tbody, display: 'inline-flex', alignItems: 'center', gap: 6, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 999, padding: '6px 11px' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />LIVE
-        </span>
-      </div>
+      <KickoffBar posters={posters} targetMs={kickoffAtMs()} />
 
       {/* Honorary arcade poster — server-rendered null for everyone whose phone
           isn't in HONOR_USER_PHONE, so nobody else even receives the markup */}

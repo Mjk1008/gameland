@@ -18,6 +18,7 @@
 | Ranking / placement points | `web/lib/ranking.ts` + `activityPointsOf()` in store |
 | Home promo slider | `web/app/promo-slider.tsx` · admin: `/admin/content` → promos |
 | Home news slider | `web/app/news-slider.tsx` · admin: `/admin/content` → news |
+| Home kickoff countdown | `web/components/KickoffBar.tsx` · date in `web/lib/kickoff.ts` |
 | Competition cards (covers) | `web/app/competitions/cards.tsx` |
 | Upload competition/event cover | `web/components/CoverUploader.tsx` · APIs: `admin/competition-cover`, `admin/event-cover` |
 | AI assistant prompt + stream | `web/app/api/assistant/route.ts` · context: `web/lib/assistant-context.ts` |
