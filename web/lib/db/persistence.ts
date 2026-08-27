@@ -60,13 +60,14 @@ export function startHydration(loaders: {
     try {
       const ms = (v: any) => (v instanceof Date ? v.getTime() : Date.now())
 
-      let skipDdl = false
-      try {
-        const ver = await d.select().from(schema.settings).where(eq(schema.settings.key, 'schema_version'))
-        if (ver[0]?.value === '4') skipDdl = true
-      } catch { /* first boot */ }
-
-      if (!skipDdl) {
+      // Self-healing schema — runs on every boot (single instance, boot only, a
+      // few ms). Every statement below is idempotent: CREATE TABLE / ADD COLUMN /
+      // CREATE INDEX ... IF NOT EXISTS, or a guarded DO block. A former
+      // `schema_version === '4'` latch short-circuited this whole block once the
+      // marker row was set, which silently stranded every column added after
+      // that point (app_promoter_earnings.dedupe_key was missing on prod for
+      // days because of it). Do not reintroduce a skip.
+      {
       for (const stmt of [
         `CREATE TABLE IF NOT EXISTS app_competitions (id TEXT PRIMARY KEY, title TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', poster_url TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_competition_covers (competition_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
@@ -679,6 +680,24 @@ export const persist = {
       if ((patch as any).discountPercent !== undefined) set.discountPercent = (patch as any).discountPercent
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
+    },
+    // Awaitable variant — used where the write is on the critical path (e.g. the
+    // promoter-code discount snapshot, which is the commission base).
+    async updateAsync(id: string, patch: Partial<Registration>) {
+      const d = db(); if (!d) return
+      const set: any = {}
+      if (patch.seedsEarned !== undefined)      set.seedsEarned = patch.seedsEarned
+      if (patch.prelimsCompleted !== undefined) set.prelimsCompleted = patch.prelimsCompleted
+      if (patch.attempts !== undefined)         set.attempts = patch.attempts
+      if ((patch as any).freeAttempts !== undefined) set.freeAttempts = (patch as any).freeAttempts
+      if ((patch as any).rejectReason !== undefined) set.rejectReason = (patch as any).rejectReason
+      if ((patch as any).paidAttempts !== undefined) set.paidAttempts = (patch as any).paidAttempts
+      if ((patch as any).status !== undefined)  set.status = (patch as any).status
+      if ((patch as any).teamId !== undefined)  set.teamId = (patch as any).teamId
+      if ((patch as any).promoterCodeId !== undefined) set.promoterCodeId = (patch as any).promoterCodeId
+      if ((patch as any).discountPercent !== undefined) set.discountPercent = (patch as any).discountPercent
+      if (Object.keys(set).length === 0) return
+      await d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id))
     },
   },
   team: {

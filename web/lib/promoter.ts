@@ -1,7 +1,21 @@
-// Promoter / affiliate discount codes — isolated from home promos and referral @tag.
+// Promoter / affiliate discount codes — isolated from home promos and the
+// consumer @tag referral program.
+//
+// Model (redesign, 2026-08):
+//   - Every active promoter has exactly ONE primary code (compId == null),
+//     auto-issued when the admin activates them. Works on any event.
+//   - A promoter may additionally hold up to MAX_CAMPAIGN_CODES event-scoped
+//     "campaign" codes (compId set), each created only through an admin-approved
+//     request. Campaign codes can be paused individually; the primary cannot
+//     (pause the whole promoter instead).
+//
+// Durability: every commercial mutation (activate, terms, issue, attach a code
+// to a registration, record/void/pay a commission) is awaited so a restart
+// cannot silently drop a live code or a real payout.
+
 import { persist } from './db/persistence'
 import { ticketPriceFor } from './ticket-price'
-import { getUserById, unpaidAttempts, allRegistrations, getEvent, allUsers, type Registration, type User } from './store'
+import { getUserById, unpaidAttempts, allRegistrations, getEvent, allEvents, allUsers, type Registration, type User } from './store'
 
 export interface PromoterCode {
   id: string
@@ -9,6 +23,7 @@ export interface PromoterCode {
   promoterUserId: string
   discountPercent: number
   commissionPercent: number
+  /** null/undefined = primary (site-wide) code; set = campaign code bound to one event. */
   compId?: string
   maxUses?: number
   useCount: number
@@ -43,7 +58,7 @@ export interface PromoterEarning {
 
 export type CodeRequestStatus = 'pending' | 'approved' | 'rejected'
 
-/** Promoter asks admin for a new code — admin must approve before code goes live. */
+/** Promoter asks admin for an event-scoped campaign code — admin must approve. */
 export interface PromoterCodeRequest {
   id: string
   promoterUserId: string
@@ -58,7 +73,8 @@ export interface PromoterCodeRequest {
   createdAt: number
 }
 
-const MAX_CODES_PER_PROMOTER = 5
+/** Active event-scoped campaign codes a single promoter may hold at once. */
+const MAX_CAMPAIGN_CODES = 3
 const MAX_PENDING_REQUESTS = 1
 
 const codes = new Map<string, PromoterCode>()
@@ -136,7 +152,7 @@ export function hydratePromoterEarning(row: {
     createdAt: ms(row.createdAt),
     // Rows written before the dedupe_key column existed used the old scheme
     // where `id` itself was the deterministic `pe_${regId}_${attempts}` key —
-    // fall back to it so old rows still dedupe correctly after this migration.
+    // fall back to it so old rows still dedupe correctly.
     dedupeKey: (row.dedupeKey as string | null | undefined) ?? row.id,
   }
   earnings.set(e.id, e)
@@ -180,6 +196,18 @@ export function getPromoterCodeByStr(raw: string): PromoterCode | undefined {
 
 export function codesForPromoter(userId: string): PromoterCode[] {
   return allPromoterCodes().filter(c => c.promoterUserId === userId && c.active)
+}
+
+/** The one site-wide (compId-less) code for a promoter — active preferred, else any. */
+export function primaryCodeForPromoter(userId: string): PromoterCode | undefined {
+  const mine = allPromoterCodes().filter(c => c.promoterUserId === userId && !c.compId)
+  return mine.find(c => c.active) ?? mine[0]
+}
+
+export function campaignCodesForPromoter(userId: string, opts: { includeInactive?: boolean } = {}): PromoterCode[] {
+  return allPromoterCodes()
+    .filter(c => c.promoterUserId === userId && !!c.compId && (opts.includeInactive || c.active))
+    .sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
 }
 
 export function earningsForPromoter(userId: string): PromoterEarning[] {
@@ -314,15 +342,6 @@ async function allocatePromoterCode(u: User, preferred?: string): Promise<string
   throw new Error('CODE_EXISTS')
 }
 
-function persistPromoterUser(u: User) {
-  persist.user.update(u.id, {
-    promoterActive: u.promoterActive,
-    promoterDiscountPercent: u.promoterDiscountPercent,
-    promoterCommissionPercent: u.promoterCommissionPercent,
-    promoterActivatedAt: u.promoterActivatedAt,
-  })
-}
-
 async function persistPromoterUserAsync(u: User) {
   await persist.user.updateAsync(u.id, {
     promoterActive: u.promoterActive,
@@ -340,39 +359,125 @@ function parsePercent(v: unknown): number {
   return Number(s)
 }
 
-/** Admin activates partner — terms only; codes need separate approval or admin create. */
+function assertPercentRange(d: number, c: number) {
+  if (!Number.isFinite(d) || d < 1 || d > 90) throw new Error('DISCOUNT_RANGE')
+  if (!Number.isFinite(c) || c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
+}
+
+/**
+ * Admin activates a partner. Sets the commercial terms AND guarantees a durable
+ * primary code — a promoter with no code is a dead end. If the code write fails
+ * the activation is rolled back so we never persist a half-activated partner.
+ */
 export async function activatePromoter(userId: string, discountPercent: unknown, commissionPercent: unknown) {
   const u = getUserById(userId)
   if (!u) throw new Error('USER_NOT_FOUND')
   if (u.role !== 'gamer') throw new Error('NOT_GAMER')
   const d = Math.round(parsePercent(discountPercent))
   const c = Math.round(parsePercent(commissionPercent))
-  if (!Number.isFinite(d) || d < 1 || d > 90) throw new Error('DISCOUNT_RANGE')
-  if (!Number.isFinite(c) || c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
+  assertPercentRange(d, c)
 
+  const wasActive = !!u.promoterActive
   u.promoterActive = true
   u.promoterDiscountPercent = d
   u.promoterCommissionPercent = c
-  u.promoterActivatedAt = Date.now()
+  u.promoterActivatedAt = u.promoterActivatedAt ?? Date.now()
   await persistPromoterUserAsync(u)
-  return u
+
+  let primary = primaryCodeForPromoter(userId)
+  if (!primary) {
+    try {
+      primary = await createPromoterCode({
+        code: await allocatePromoterCode(u),
+        promoterUserId: userId,
+        discountPercent: d,
+        commissionPercent: c,
+      })
+    } catch (e) {
+      if (!wasActive) {
+        u.promoterActive = false
+        await persistPromoterUserAsync(u).catch(() => {})
+      }
+      throw e
+    }
+  } else if (!primary.active) {
+    await updatePromoterCode(primary.id, { active: true })
+  }
+  return { user: u, primaryCode: primary }
 }
 
+/** Re-enable a paused promoter and their primary code (campaign codes stay as the admin left them). */
+export async function reactivatePromoter(userId: string) {
+  return activatePromoter(
+    userId,
+    getUserById(userId)?.promoterDiscountPercent ?? 20,
+    getUserById(userId)?.promoterCommissionPercent ?? 10,
+  )
+}
+
+/** Pause a promoter — every one of their codes stops validating; earnings are preserved. */
 export async function deactivatePromoter(userId: string) {
   const u = getUserById(userId)
   if (!u) throw new Error('USER_NOT_FOUND')
   u.promoterActive = false
-  persistPromoterUser(u)
+  await persistPromoterUserAsync(u)
   for (const pc of allPromoterCodes().filter(c => c.promoterUserId === userId && c.active)) {
     await updatePromoterCode(pc.id, { active: false })
   }
+}
+
+// Awaited by its caller — these percentages are the terms every future payout is
+// computed from, so a fire-and-forget write here can drop a real rate change on
+// restart and keep paying the old percentage. The primary code follows the
+// promoter's terms so the buyer-facing discount always matches what's shown;
+// campaign codes keep their own rate.
+export async function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
+  const u = getUserById(userId)
+  if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
+  const d = Math.round(discountPercent)
+  const c = Math.round(commissionPercent)
+  assertPercentRange(d, c)
+  u.promoterDiscountPercent = d
+  u.promoterCommissionPercent = c
+  await persistPromoterUserAsync(u)
+  const primary = primaryCodeForPromoter(userId)
+  if (primary && (primary.discountPercent !== d || primary.commissionPercent !== c)) {
+    await updatePromoterCode(primary.id, { discountPercent: d, commissionPercent: c })
+  }
+}
+
+/** Admin renames the promoter's single primary code. Uniqueness-checked; earnings/regs keep their code id. */
+export async function renamePrimaryCode(userId: string, rawCode: string) {
+  const u = getUserById(userId)
+  if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
+  const primary = primaryCodeForPromoter(userId)
+  if (!primary) throw new Error('NO_PRIMARY_CODE')
+  const next = normCode(rawCode)
+  if (next.length < 3 || next.length > 24) throw new Error('CODE_LENGTH')
+  if (next === primary.code) return primary
+  if (codeByStr.has(next) || await persist.promoterCode.codeTakenAsync(next)) throw new Error('CODE_EXISTS')
+
+  const prev = primary.code
+  codeByStr.delete(prev)
+  primary.code = next
+  codeByStr.set(next, primary.id)
+  try {
+    // insertAsync upserts by id and rewrites the `code` column.
+    await persist.promoterCode.insertAsync(primary)
+  } catch (e) {
+    primary.code = prev
+    codeByStr.delete(next)
+    codeByStr.set(prev, primary.id)
+    if (isPgDuplicate(e)) throw new Error('CODE_EXISTS')
+    throw e
+  }
+  return primary
 }
 
 export function statsForCode(codeId: string) {
   const regs = allRegistrations().filter(r => r.promoterCodeId === codeId && r.status !== 'rejected')
   const approved = regs.filter(r => r.status === 'approved').length
   const pending = regs.filter(r => r.status === 'pending').length
-  const conversionPercent = (approved + pending) > 0 ? Math.round(approved / (approved + pending) * 100) : 0
   const code = codes.get(codeId)
   const mine = [...earnings.values()].filter(e => e.codeId === codeId)
   return {
@@ -380,8 +485,8 @@ export function statsForCode(codeId: string) {
     totalUses: regs.length,
     approved,
     pending,
-    conversionPercent,
     pendingCommission: mine.filter(e => e.status === 'pending').reduce((s, e) => s + e.commissionAmount, 0),
+    paidCommission: mine.filter(e => e.status === 'paid').reduce((s, e) => s + e.commissionAmount, 0),
   }
 }
 
@@ -393,20 +498,24 @@ export function requestsForPromoter(userId: string) {
   return [...codeRequests.values()].filter(r => r.promoterUserId === userId).sort((a, b) => b.createdAt - a.createdAt)
 }
 
-function assertCanAddCode(promoterUserId: string) {
-  const active = allPromoterCodes().filter(c => c.promoterUserId === promoterUserId && c.active)
-  if (active.length >= MAX_CODES_PER_PROMOTER) throw new Error('CODE_LIMIT')
+function assertCanAddCampaignCode(promoterUserId: string) {
+  if (campaignCodesForPromoter(promoterUserId).length >= MAX_CAMPAIGN_CODES) throw new Error('CODE_LIMIT')
 }
 
 function assertNoPendingRequest(promoterUserId: string) {
-  if (pendingCodeRequests().some(r => r.promoterUserId === promoterUserId)) throw new Error('REQUEST_PENDING')
+  if (pendingCodeRequests().filter(r => r.promoterUserId === promoterUserId).length >= MAX_PENDING_REQUESTS) {
+    throw new Error('REQUEST_PENDING')
+  }
 }
 
-/** Promoter submits a code request — admin must approve. Durable write. */
-export async function submitCodeRequest(promoterUserId: string, input: { code?: string; note?: string; compId?: string }) {
+/** Promoter requests an event-scoped campaign code — admin must approve. Durable write. */
+export async function submitCodeRequest(promoterUserId: string, input: { compId?: string; code?: string; note?: string }) {
   const u = getUserById(promoterUserId)
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
-  assertCanAddCode(promoterUserId)
+  const compId = input.compId?.trim()
+  if (!compId) throw new Error('COMP_REQUIRED')
+  if (!getEvent(compId)) throw new Error('COMP_NOT_FOUND')
+  assertCanAddCampaignCode(promoterUserId)
   assertNoPendingRequest(promoterUserId)
 
   let requestedCode: string | undefined
@@ -420,7 +529,7 @@ export async function submitCodeRequest(promoterUserId: string, input: { code?: 
     id: cid('pcr_'),
     promoterUserId,
     requestedCode,
-    compId: input.compId || undefined,
+    compId,
     note: input.note?.trim() || undefined,
     status: 'pending',
     createdAt: Date.now(),
@@ -435,7 +544,11 @@ export async function submitCodeRequest(promoterUserId: string, input: { code?: 
   return r
 }
 
-/** Admin creates code directly (no request) or approves a pending request. Durable. */
+/**
+ * Admin issues an event-scoped campaign code — either by approving a pending
+ * request (`requestId`) or directly (`compId` required). The primary code is
+ * never created here; it only comes from activatePromoter.
+ */
 export async function adminIssueCode(
   promoterUserId: string,
   adminId: string,
@@ -449,9 +562,12 @@ export async function adminIssueCode(
     req = codeRequests.get(input.requestId)
     if (!req || req.promoterUserId !== promoterUserId) throw new Error('NOT_FOUND')
     if (req.status !== 'pending') throw new Error('ALREADY_REVIEWED')
-  } else {
-    assertCanAddCode(promoterUserId)
   }
+
+  const compId = (input.compId ?? req?.compId ?? '').trim()
+  if (!compId) throw new Error('COMP_REQUIRED')
+  if (!getEvent(compId)) throw new Error('COMP_NOT_FOUND')
+  if (!req) assertCanAddCampaignCode(promoterUserId)
 
   const preferred = input.code?.trim() || req?.requestedCode?.trim() || undefined
   const codeStr = await allocatePromoterCode(u, preferred)
@@ -461,7 +577,7 @@ export async function adminIssueCode(
     promoterUserId,
     discountPercent: u.promoterDiscountPercent ?? 20,
     commissionPercent: u.promoterCommissionPercent ?? 10,
-    compId: input.compId ?? req?.compId,
+    compId,
     note: input.note ?? req?.note,
   })
 
@@ -489,42 +605,22 @@ export async function rejectCodeRequest(requestId: string, adminId: string, reas
 export async function deactivatePromoterCode(codeId: string) {
   const c = codes.get(codeId)
   if (!c) throw new Error('NOT_FOUND')
+  if (!c.compId) throw new Error('PRIMARY_CODE')
   return updatePromoterCode(codeId, { active: false })
 }
 
 export async function reactivatePromoterCode(codeId: string) {
   const c = codes.get(codeId)
   if (!c) throw new Error('NOT_FOUND')
+  if (!c.compId) throw new Error('PRIMARY_CODE')
   if (c.active) return c
-  assertCanAddCode(c.promoterUserId)
+  assertCanAddCampaignCode(c.promoterUserId)
   return updatePromoterCode(codeId, { active: true })
-}
-
-// Awaited by its caller (same durability contract as activatePromoter) —
-// these percentages are the commercial terms every future commission payout
-// is computed from, so a fire-and-forget write here can drop a real rate
-// change on restart and silently keep paying the old percentage.
-export async function updatePromoterTerms(userId: string, discountPercent: number, commissionPercent: number) {
-  const u = getUserById(userId)
-  if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
-  const d = Math.round(discountPercent)
-  const c = Math.round(commissionPercent)
-  if (d < 1 || d > 90) throw new Error('DISCOUNT_RANGE')
-  if (c < 0 || c > 50) throw new Error('COMMISSION_RANGE')
-  u.promoterDiscountPercent = d
-  u.promoterCommissionPercent = c
-  await persistPromoterUserAsync(u)
-}
-
-export function primaryCodeForPromoter(userId: string): PromoterCode | undefined {
-  return allPromoterCodes().find(c => c.promoterUserId === userId && c.active)
-    ?? allPromoterCodes().find(c => c.promoterUserId === userId)
 }
 
 export interface PromoterActivityRow {
   regId: string
   buyerTag: string
-  buyerName: string
   eventTitle: string
   status: 'pending' | 'approved' | 'rejected'
   attempts: number
@@ -535,10 +631,10 @@ export function promoterDashboard(userId: string) {
   const u = getUserById(userId)
   if (!u?.promoterActive) return null
 
-  const myCodes = allPromoterCodes().filter(c => c.promoterUserId === userId).sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
-  const activeCodes = myCodes.filter(c => c.active)
-  const inactiveCodes = myCodes.filter(c => !c.active)
-  const codeIds = new Set(myCodes.map(c => c.id))
+  const primary = primaryCodeForPromoter(userId)
+  const campaigns = campaignCodesForPromoter(userId, { includeInactive: true })
+  const codeIds = new Set([primary?.id, ...campaigns.map(c => c.id)].filter(Boolean) as string[])
+
   const regs = allRegistrations()
     .filter(r => r.promoterCodeId && codeIds.has(r.promoterCodeId) && r.status !== 'rejected')
     .sort((a, b) => b.createdAt - a.createdAt)
@@ -546,70 +642,75 @@ export function promoterDashboard(userId: string) {
   const approved = regs.filter(r => r.status === 'approved').length
   const pending = regs.filter(r => r.status === 'pending').length
   const totalUses = regs.length
-  const conversionPercent = (approved + pending) > 0 ? Math.round(approved / (approved + pending) * 100) : 0
 
   const mine = earningsForPromoter(userId)
   const pendingCommission = mine.filter(e => e.status === 'pending').reduce((s, e) => s + e.commissionAmount, 0)
   const paidCommission = mine.filter(e => e.status === 'paid').reduce((s, e) => s + e.commissionAmount, 0)
 
-  const mapCode = (c: PromoterCode) => {
-    const st = statsForCode(c.id)
-    const activity = regs.filter(r => r.promoterCodeId === c.id).slice(0, 20).map(r => {
+  const activityFor = (codeId: string): PromoterActivityRow[] =>
+    regs.filter(r => r.promoterCodeId === codeId).slice(0, 30).map(r => {
       const buyer = getUserById(r.userId)
       const ev = getEvent(r.compId)
       return {
         regId: r.id,
         buyerTag: buyer?.tag ?? '?',
-        buyerName: buyer?.name ?? '?',
         eventTitle: ev?.title ?? r.compId,
         status: r.status as 'pending' | 'approved' | 'rejected',
         attempts: r.attempts,
         createdAt: r.createdAt,
       }
     })
+
+  const mapCode = (c: PromoterCode) => {
+    const st = statsForCode(c.id)
     return {
       id: c.id,
       code: c.code,
       active: c.active,
+      compId: c.compId,
+      eventTitle: c.compId ? (getEvent(c.compId)?.title ?? c.compId) : undefined,
       discountPercent: c.discountPercent,
       commissionPercent: c.commissionPercent,
-      shareLink: `https://gamelandteam.ir/?code=${encodeURIComponent(c.code)}`,
-      ...st,
-      activity,
+      shareLink: c.compId
+        ? `https://gamelandteam.ir/competitions/${encodeURIComponent(c.compId)}?code=${encodeURIComponent(c.code)}`
+        : `https://gamelandteam.ir/?code=${encodeURIComponent(c.code)}`,
+      totalUses: st.totalUses,
+      approved: st.approved,
+      pending: st.pending,
+      activity: activityFor(c.id),
     }
   }
-
-  const codes = activeCodes.map(mapCode)
-  const inactive = inactiveCodes.map(mapCode)
 
   const myRequests = requestsForPromoter(userId)
   const pendingRequest = myRequests.find(r => r.status === 'pending') ?? null
   const lastRejected = myRequests.find(r => r.status === 'rejected') ?? null
-  const canRequestNew = activeCodes.length < MAX_CODES_PER_PROMOTER && !pendingRequest
 
   return {
+    active: true,
     discountPercent: u.promoterDiscountPercent ?? 0,
     commissionPercent: u.promoterCommissionPercent ?? 0,
-    codes,
-    inactiveCodes: inactive,
-    primaryCodeId: codes[0]?.id ?? inactive[0]?.id,
+    primary: primary ? mapCode(primary) : null,
+    primaryPaused: !!primary && !primary.active,
+    campaignCodes: campaigns.map(mapCode),
     totalUses,
     approved,
     pending,
-    conversionPercent,
     pendingCommission,
     paidCommission,
     pendingRequest: pendingRequest ? {
       id: pendingRequest.id,
       requestedCode: pendingRequest.requestedCode,
+      eventTitle: pendingRequest.compId ? (getEvent(pendingRequest.compId)?.title ?? pendingRequest.compId) : undefined,
       note: pendingRequest.note,
       createdAt: pendingRequest.createdAt,
     } : null,
     lastRejected: lastRejected?.status === 'rejected' && lastRejected.reviewedAt && lastRejected.reviewedAt > Date.now() - 7 * 86400000
       ? { reason: lastRejected.rejectReason, at: lastRejected.reviewedAt }
       : null,
-    canRequestNew,
-    maxCodes: MAX_CODES_PER_PROMOTER,
+    canRequestCampaign: campaignCodesForPromoter(userId).length < MAX_CAMPAIGN_CODES && !pendingRequest,
+    maxCampaignCodes: MAX_CAMPAIGN_CODES,
+    // Events the promoter can scope a campaign-code request to.
+    events: allEvents().map(e => ({ id: e.id, title: e.title })),
   }
 }
 
@@ -663,8 +764,7 @@ export async function createPromoterCode(input: {
   if (codeByStr.has(code) || await persist.promoterCode.codeTakenAsync(code)) throw new Error('CODE_EXISTS')
   const discountPercent = Math.round(input.discountPercent)
   const commissionPercent = Math.round(input.commissionPercent)
-  if (discountPercent < 1 || discountPercent > 90) throw new Error('DISCOUNT_RANGE')
-  if (commissionPercent < 0 || commissionPercent > 50) throw new Error('COMMISSION_RANGE')
+  assertPercentRange(discountPercent, commissionPercent)
 
   const c: PromoterCode = {
     id: cid('pc_'),
@@ -718,19 +818,20 @@ export async function attachPromoToRegistration(reg: Registration, promo: Promot
   reg.promoterCodeId = promo.id
   reg.discountPercent = promo.discountPercent
   promo.useCount += 1
-  persist.reg.update(reg.id, { promoterCodeId: promo.id, discountPercent: promo.discountPercent } as any)
+  // The discount snapshot on the reg row is the commission base — persist it
+  // durably (was fire-and-forget; a restart mid-checkout lost the attribution).
+  await persist.reg.updateAsync(reg.id, { promoterCodeId: promo.id, discountPercent: promo.discountPercent } as Partial<Registration>)
   await persist.promoterCode.updateAsync(promo.id, promo)
 }
 
 /**
- * Call on admin approve — idempotent per (reg, attempt-count) pair, but only
- * against a still-live earning. A rejected registration reuses the same
- * `reg.id` and resets `attempts`/`paidAttempts` to 0 on the next signup (see
+ * Call on admin approve — idempotent per (reg, attempt-count) pair against a
+ * still-live earning. A rejected registration reuses the same `reg.id` and
+ * resets `attempts`/`paidAttempts` to 0 on the next signup (see
  * createRegistration in store.ts), so the dedupe key alone isn't a safe DB
- * primary id across reject→re-register cycles — a fresh sale can legitimately
- * land on the exact same (regId, attempts) pair a voided one used. The row id
- * is always a fresh random id; `dedupeKey` is the thing that's actually
- * deduped, and only counts against live (pending/paid) rows.
+ * primary id across reject→re-register cycles — the row id is always fresh and
+ * `dedupeKey` is the thing that's actually deduped, counted only against live
+ * (pending/paid) rows.
  */
 export async function recordPromoterEarning(reg: Registration, prevPaidAttempts: number) {
   if (!reg.promoterCodeId) return
@@ -774,15 +875,12 @@ export async function recordPromoterEarning(reg: Registration, prevPaidAttempts:
   }
 }
 
-// Call on admin reject (including a reversal from approved→rejected). A
-// rejected registration's ticket count resets to 0 on the next
-// createRegistration call (same row, reused id — see store.ts), so any
-// commission still 'pending' for it must be voided here or the next
-// approval cycle either double-pays (new earning gets a fresh key from the
-// new attempts count) or silently drops the sale (new cycle lands on the
-// same key as the still-"recorded" old one and the idempotency guard skips
-// it). Earnings already 'paid' are left untouched — money already sent to
-// the promoter needs a human clawback decision, not a silent code reversal.
+// Call on admin reject (including a reversal from approved→rejected). A rejected
+// registration's ticket count resets to 0 on the next createRegistration call
+// (same row, reused id), so any commission still 'pending' for it must be voided
+// here or the next approval cycle either double-pays or silently drops the sale.
+// Earnings already 'paid' are left untouched — money already sent needs a human
+// clawback decision, not a silent reversal.
 export async function voidPendingEarningsForReg(regId: string): Promise<void> {
   const toVoid = [...earnings.values()].filter(e => e.regId === regId && e.status === 'pending')
   for (const e of toVoid) {
@@ -801,8 +899,46 @@ export async function markEarningPaid(earningId: string, note?: string) {
   return e
 }
 
+/** Bulk settle — mark every pending earning for one promoter as paid. */
+export async function markAllPendingPaidForPromoter(userId: string, note?: string) {
+  const pending = [...earnings.values()].filter(e => e.promoterUserId === userId && e.status === 'pending')
+  let amount = 0
+  for (const e of pending) {
+    await markEarningPaid(e.id, note)
+    amount += e.commissionAmount
+  }
+  return { count: pending.length, amount }
+}
+
 export function allPromoterEarnings(): PromoterEarning[] {
   return [...earnings.values()].sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/**
+ * Rebuild missing commission rows from the source of truth (the registrations
+ * themselves). Every approved reg with a promoter code but no live earning gets
+ * one recreated — treating the whole approved reg as newly settled from a zero
+ * baseline, which is exactly what a single clean approval would have produced.
+ * Idempotent: recordPromoterEarning's own dedupe guard skips rows already
+ * covered, and any reg with a 'paid' earning is left alone so settled money is
+ * never re-counted. Safe to run on every boot and from an admin button.
+ */
+export async function reconcilePromoterEarnings(): Promise<{ created: number }> {
+  let created = 0
+  for (const r of allRegistrations()) {
+    if (!r.promoterCodeId || r.status !== 'approved') continue
+    if ([...earnings.values()].some(e => e.regId === r.id && e.status === 'paid')) continue
+    const before = earnings.size
+    try {
+      await recordPromoterEarning(r, 0)
+    } catch (e) {
+      console.error('[promoter] reconcile failed for', r.id, pgErrMsg(e))
+      continue
+    }
+    if (earnings.size > before) created++
+  }
+  if (created) console.log(`[promoter] reconciled ${created} missing earning(s)`)
+  return { created }
 }
 
 export interface PromoterAnalyticsRow {

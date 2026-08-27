@@ -131,6 +131,9 @@ function ensureHydrated() {
         try { require('./arena-seed').seedArenaDemoIfEmpty() } catch (e) { console.warn('[arena-seed]', e) }
       }
       import('./ranking-store').then(m => m.rebuildAllRankingsAsync().catch(e => console.warn('[ranking]', e)))
+      // Rebuild any commission rows lost while app_promoter_earnings.dedupe_key
+      // was missing — self-healing from the registration rows.
+      import('./promoter').then(m => m.reconcilePromoterEarnings().catch(e => console.warn('[promoter]', e)))
     })
   })
 }

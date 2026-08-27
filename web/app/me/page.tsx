@@ -77,9 +77,10 @@ export default async function MePage() {
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, color: C.thi }}>پنل پروموتر</span>
             <span style={{ display: 'block', fontSize: 11, color: C.tmut, marginTop: 2 }}>
-              {promoDash.codes.length > 0
-                ? `${promoDash.codes.length} کد · ${promoDash.totalUses} استفاده`
-                : promoDash.pendingRequest ? 'درخواست کد در انتظار تأیید' : 'بدون کد فعال — درخواست بزن'}
+              {promoDash.primary && !promoDash.primaryPaused
+                ? `${promoDash.totalUses} استفاده · ${promoDash.approved} تأیید`
+                : promoDash.primaryPaused ? 'کدت موقتاً غیرفعاله'
+                : promoDash.pendingRequest ? 'درخواست کد کمپین در انتظار' : 'کد اصلی ساخته می‌شه'}
               {promoDash.pendingCommission > 0 ? ` · ${promoDash.pendingCommission.toLocaleString('fa-IR')} ت معوق` : ''}
             </span>
           </span>

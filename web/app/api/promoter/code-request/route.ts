@@ -6,7 +6,9 @@ import { isPromoter, submitCodeRequest, requestsForPromoter } from '@/lib/promot
 
 const ERR: Record<string, string> = {
   NOT_ACTIVE: 'پروموتر فعال نیست',
-  CODE_LIMIT: 'به سقف کدهای فعال رسیدی',
+  COMP_REQUIRED: 'یک رویداد برای کد کمپین انتخاب کن',
+  COMP_NOT_FOUND: 'این رویداد پیدا نشد',
+  CODE_LIMIT: 'به سقف کدهای کمپین رسیدی',
   REQUEST_PENDING: 'یک درخواست در انتظار تأیید داری',
   CODE_LENGTH: 'کد باید ۳ تا ۲۴ کاراکتر باشد',
   CODE_EXISTS: 'این کد قبلاً ثبت شده',
