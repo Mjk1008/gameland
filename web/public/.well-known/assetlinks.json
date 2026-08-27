@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ir.gamelandteam.app",
+      "sha256_cert_fingerprints": [
+        "6F:B3:28:A9:F5:09:80:CD:E2:FA:30:E8:68:08:26:C3:EE:56:8F:CB:DA:7A:AD:A4:04:F6:35:1E:0D:8F:91:7E"
+      ]
+    }
+  }
+]
