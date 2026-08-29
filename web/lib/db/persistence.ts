@@ -52,6 +52,14 @@ export function startHydration(loaders: {
   loadPromoterCodeRequest?: (r: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
+  // `next build` imports every route module to collect page data / prerender.
+  // We must NOT open a DB connection or run ensureSchema during the build — the
+  // build machine can't reach the DB (Liara build ≠ app private network), which
+  // either hangs (public host) or floods the log with ENOTFOUND (internal host).
+  // Runtime hydration still happens normally on the first request.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    hydrated = true; authReadyDone = true; return Promise.resolve()
+  }
   const d = db()
   if (!d) { hydrated = true; authReadyDone = true; return Promise.resolve() }
   let resolveAuth!: () => void

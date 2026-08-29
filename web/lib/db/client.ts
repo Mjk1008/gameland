@@ -12,6 +12,9 @@ let _initTried = false
 export function db(): PostgresJsDatabase<typeof schema> | null {
   if (_initTried) return _db
   _initTried = true
+  // Never connect during `next build` — the build machine can't reach the DB
+  // (different network from the running app). Runtime connects normally.
+  if (process.env.NEXT_PHASE === 'phase-production-build') return null
   const url = process.env.DATABASE_URL
   if (!url) return null
   try {
