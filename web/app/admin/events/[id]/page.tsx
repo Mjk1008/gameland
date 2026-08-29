@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover } from '@/lib/store'
-import { computeQualifiers, bracketModeOf } from '@/lib/bracket'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg } from '@/lib/store'
+import { computeQualifiers, bracketModeOf, bracketState } from '@/lib/bracket'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { DISC } from '@/lib/mock-data'
@@ -9,6 +9,7 @@ import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
 import RunPanel, { type RunMatch } from './run-panel'
+import AddPlayerPanel, { type EmptySlot } from './add-player-panel'
 import TournamentPanel, { type BracketInfo } from './tournament-panel'
 import DeleteEventButton from './delete-button'
 import PrizeEditor from './prize-editor'
@@ -23,7 +24,9 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending').length
-  const regs = approvedRegistrationsForComp(c.id)
+  // Drop a 2v2 partner's mirrored row from the counts — a team's سهم total
+  // is the captain's row; the mirror would double it.
+  const regs = approvedRegistrationsForComp(c.id).filter(r => !isTeamPartnerReg(r))
   const totalAttempts = regs.reduce((s, r) => s + r.attempts, 0)
   const cfg = getEventConfig(c.id)
   const isTeamEvent = cfg.teamSize === 2
@@ -85,6 +88,28 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         p1: player(m.p1UserId, m.id, 1), p2: player(m.p2UserId, m.id, 2),
         winnerUid: m.winnerUserId, status: m.status,
         selfMatch: !!m.p1UserId && m.p1UserId === m.p2UserId,
+      }))
+  }
+
+  // ── empty round-1 slots for manual add (solo events) ──
+  let emptySlots: EmptySlot[] = []
+  if (!isTeamEvent && drawn) {
+    const firstRoundOf = new Map<string, number>()
+    for (const m of all) {
+      const k = `${m.stage}|${m.groupKey}|${m.bracket}`
+      const cur = firstRoundOf.get(k)
+      if (cur == null || m.round < cur) firstRoundOf.set(k, m.round)
+    }
+    emptySlots = all
+      .filter(m => m.round === firstRoundOf.get(`${m.stage}|${m.groupKey}|${m.bracket}`))
+      .filter(m => !m.p1UserId || !m.p2UserId)
+      .map(m => ({
+        matchId: m.id, groupKey: m.groupKey,
+        groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
+        bracket: m.bracket, slot: m.slot,
+        filledWith: m.p1UserId ? (getUserById(m.p1UserId)?.tag ? '@' + getUserById(m.p1UserId)!.tag : undefined)
+          : m.p2UserId ? (getUserById(m.p2UserId)?.tag ? '@' + getUserById(m.p2UserId)!.tag : undefined) : undefined,
+        state: bracketState(c.id, m.groupKey, m.bracket),
       }))
   }
 
@@ -174,6 +199,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       />
 
       {!isTeamEvent && drawn && <RunPanel compId={c.id} matches={runMatches} />}
+      {!isTeamEvent && drawn && <AddPlayerPanel compId={c.id} slots={emptySlots} />}
 
       <Card><FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} /></Card>
 

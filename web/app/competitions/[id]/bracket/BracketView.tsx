@@ -1,15 +1,26 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
 import RadialBracket from './RadialBracket'
 
 // ── types coming from the server ──
-export type Player = { uid: string; tag: string; name: string } | null
+export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number } | null
 export type MatchDTO = {
   id: string; stage: 'prelim' | 'final'; groupKey: string; bracket: number; round: number; slot: number
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
+}
+
+// Small ×N / #k badge — only for accounts holding more than one سهم.
+function EntryBadge({ p }: { p: Player }) {
+  if (!p || !p.attempts || p.attempts <= 1) return null
+  return (
+    <span dir="ltr" style={{ fontFamily: DISP, fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 5, padding: '0 4px', marginInlineStart: 5, flexShrink: 0 }}>
+      ×{p.attempts}{p.entry && p.entry > 1 ? ` #${p.entry}` : ''}
+    </span>
+  )
 }
 type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string> }
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
@@ -173,6 +184,7 @@ function RoundsView({ bMatches, rounds, totalPlayers, maxRound, meUid, myPathOnl
 }
 
 function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: string; isAdmin?: boolean; compId: string }) {
+  const router = useRouter()
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
   const [busy, setBusy] = useState(false)
   const canPick = isAdmin && m.status === 'ready' && m.p1 && m.p2
@@ -181,8 +193,8 @@ function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: stri
     if (busy) return
     setBusy(true)
     try {
-      const res = await fetch('/api/admin/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: m.id, winnerUserId: winnerUid, score: '' }) })
-      if (res.ok) location.reload()
+      const res = await fetch('/api/admin/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: m.id, winnerUserId: winnerUid }) })
+      if (res.ok) { router.refresh(); setBusy(false) }
       else { const j = await res.json(); alert(j.error || 'ثبت نشد'); setBusy(false) }
     } catch { setBusy(false) }
   }
@@ -215,9 +227,10 @@ function PlayerLine({ p, win, me, score }: { p: Player; win?: boolean; me?: bool
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: win ? C.goldSoft : 'transparent' }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: win ? C.gold : p ? C.line2 : C.line, flexShrink: 0 }} />
-      <span dir="ltr" style={{ flex: 1, fontFamily: DISP, fontSize: 14, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontSize: 14, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {p ? p.tag : '—'}{me ? ' (تو)' : ''}
       </span>
+      <EntryBadge p={p} />
       {score != null && score !== '' && <span style={{ fontFamily: DISP, fontSize: 13, fontWeight: 800, color: win ? C.gold : C.tbody }}>{score}</span>}
     </div>
   )
@@ -350,7 +363,8 @@ function TreeCard({ m, meUid, mine }: { m: MatchDTO; meUid?: string; mine: boole
 function TreeSlot({ p, win, me, score }: { p: Player; win?: boolean; me?: boolean; score?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : 'transparent' }}>
-      <span dir="ltr" style={{ flex: 1, fontFamily: DISP, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.tag : '—'}</span>
+      <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.tag : '—'}</span>
+      <EntryBadge p={p} />
       {score != null && score !== '' && <span style={{ fontFamily: DISP, fontWeight: 800, color: win ? C.gold : C.tbody }}>{score}</span>}
     </div>
   )
