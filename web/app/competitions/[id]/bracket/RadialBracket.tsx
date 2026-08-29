@@ -22,8 +22,16 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
 
     const angleOf: Record<string, number> = {}
     const matchPos: Record<string, { x: number; y: number }> = {}
-    const nodes: { x: number; y: number; player: Player; win: boolean; me: boolean }[] = []
+    const nodes: { x: number; y: number; ang: number; player: Player; win: boolean; me: boolean }[] = []
     const links: { x1: number; y1: number; x2: number; y2: number; gold: boolean; me: boolean }[] = []
+
+    const roundName = (players: number) =>
+      players === 2 ? 'فینال' : players === 4 ? 'نیمه‌نهایی' : players === 8 ? 'یک‌چهارم' :
+      players === 16 ? 'یک‌هشتم' : players === 32 ? 'مرحلهٔ ۳۲' : players === 64 ? 'مرحلهٔ ۶۴' : `${players} نفره`
+    const rings = rounds.map((_, ri) => ({
+      r: ringR(ri),
+      label: roundName(Math.max(2, Math.round(leaves / Math.pow(2, ri)))),
+    }))
 
     rounds.forEach((rd, ri) => {
       bMatches.filter(m => m.round === rd).forEach(m => {
@@ -46,7 +54,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
         const x = cx + outerR * Math.cos(ang), y = cy + outerR * Math.sin(ang)
         const win = m.status === 'done' && !!p && m.winnerUid === p?.uid
         const me = !!meUid && p?.uid === meUid
-        nodes.push({ x, y, player: p, win, me })
+        nodes.push({ x, y, ang, player: p, win, me })
         links.push({ x1: x, y1: y, x2: mp.x, y2: mp.y, gold: win, me })
       })
     })
@@ -69,7 +77,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
     const champ: Player = finalM && finalM.status === 'done'
       ? (finalM.winnerUid === finalM.p1?.uid ? finalM.p1 : finalM.p2) : null
 
-    return { SIZE, cx, cy, nodes, links, champ }
+    return { SIZE, cx, cy, outerR, nodes, links, rings, champ }
   }, [bMatches, rounds, meUid])
 
   const [rot, setRot] = useState(0)
@@ -82,7 +90,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
   const zoom = (f: number) => setScale(s => Math.min(3, Math.max(0.5, s * f)))
   const reset = () => { setRot(0); setScale(1) }
 
-  const { SIZE, cx, cy, nodes, links, champ } = geo
+  const { SIZE, cx, cy, outerR, nodes, links, rings, champ } = geo
 
   return (
     <div>
@@ -99,6 +107,13 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="100%" height="100%" style={{ transform: `scale(${scale})`, transition: drag.current ? 'none' : 'transform .15s', maxWidth: '100%', maxHeight: '100%' }}>
             <g transform={`rotate(${rot} ${cx} ${cy})`}>
+              {/* faint round rings + labels */}
+              {rings.map((rg, i) => (
+                <g key={'ring' + i}>
+                  <circle cx={cx} cy={cy} r={rg.r} fill="none" stroke={C.line} strokeWidth={1} strokeDasharray="3 6" opacity={0.5} />
+                  <text x={cx} y={cy - rg.r} textAnchor="middle" dominantBaseline="central" fontFamily={DISP} fontSize={12} fill={C.tmut} transform={`rotate(${-rot} ${cx} ${cy - rg.r})`}>{rg.label}</text>
+                </g>
+              ))}
               {links.map((l, i) => (
                 <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
                   stroke={l.me ? C.accent : l.gold ? C.gold : C.line2} strokeWidth={l.me ? 5 : l.gold ? 4 : 2.5} strokeLinecap="round" />
@@ -106,23 +121,31 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
               {/* center trophy / champion */}
               <circle cx={cx} cy={cy} r={40} fill={C.sf2} stroke={champ ? C.gold : C.line2} strokeWidth={3} />
               {champ
-                ? <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontFamily={DISP} fontSize={30} fontWeight={800} fill={C.gold} transform={`rotate(${-rot} ${cx} ${cy})`}>{champ.tag[0]?.toUpperCase()}</text>
+                ? <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontFamily={DISP} fontSize={champ.tag.length > 8 ? 15 : 22} fontWeight={800} fill={C.gold} transform={`rotate(${-rot} ${cx} ${cy})`}>{champ.tag}</text>
                 : <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={34} transform={`rotate(${-rot} ${cx} ${cy})`}>🏆</text>}
-              {/* player leaves */}
-              {nodes.map((n, i) => (
-                <g key={i}>
-                  <circle cx={n.x} cy={n.y} r={16} fill={n.win ? C.gold : n.player ? C.sf2 : C.ink} stroke={n.me ? C.accent : n.win ? C.gold : C.line2} strokeWidth={n.me ? 4 : 2} />
-                  <text x={n.x} y={n.y} textAnchor="middle" dominantBaseline="central" fontFamily={DISP} fontSize={15} fontWeight={800} fill={n.win ? C.ink : n.player ? C.thi : C.tmut} transform={`rotate(${-rot} ${n.x} ${n.y})`}>
-                    {n.player ? n.player.tag[0]?.toUpperCase() : '—'}
-                  </text>
-                </g>
-              ))}
+              {/* player leaves — dot + full @tag pushed outward */}
+              {nodes.map((n, i) => {
+                const lx = cx + (outerR + 30) * Math.cos(n.ang), ly = cy + (outerR + 30) * Math.sin(n.ang)
+                const rightSide = Math.cos(n.ang) >= 0
+                return (
+                  <g key={i}>
+                    <circle cx={n.x} cy={n.y} r={7} fill={n.win ? C.gold : n.player ? C.sf2 : C.ink} stroke={n.me ? C.accent : n.win ? C.gold : C.line2} strokeWidth={n.me ? 3 : 1.5} />
+                    {n.player && (
+                      <text x={lx} y={ly} textAnchor={rightSide ? 'start' : 'end'} dominantBaseline="central" fontFamily={DISP} fontSize={12} fontWeight={n.win ? 800 : 500}
+                        fill={n.me ? C.accent : n.win ? C.gold : C.tbody} transform={`rotate(${-rot} ${lx} ${ly})`}>
+                        {n.player.tag}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
             </g>
           </svg>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: C.tmut, textAlign: 'center', marginTop: 8 }}>
-        دایرهٔ بیرونی = بازیکن‌ها · هرچی به مرکز نزدیک‌تر، مرحلهٔ بالاتر · وسط = قهرمان{meUid ? ' · مسیرِ تو بنفشه' : ''}
+      <div style={{ fontSize: 11, color: C.tmut, textAlign: 'center', marginTop: 8, lineHeight: 1.7 }}>
+        بازیکن‌ها روی حلقهٔ بیرونی · هر حلقه یک مرحله (برچسب بالای حلقه) · وسط = قهرمان
+        {meUid ? ' · مسیرِ تو بنفشه' : ''} · خطِ طلایی = برنده
       </div>
     </div>
   )

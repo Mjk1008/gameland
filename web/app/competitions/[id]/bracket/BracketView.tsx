@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
@@ -77,7 +77,8 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
   const [bracket, setBracketState] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
   const bracket_ = bracketIds.includes(bracket) ? bracket : (myBracket ?? bracketIds[0] ?? 0)
   const setBracket = setBracketState
-  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('radial')
+  // Admins land on the reliable list view; players get the poster-style radial (MD-10).
+  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>(isAdmin ? 'rounds' : 'radial')
   const [myPathOnly, setMyPathOnly] = useState(false)
 
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
@@ -282,9 +283,17 @@ function TreeView({ bMatches, rounds, totalPlayers, maxRound, meUid }: {
   const canvasH = (bMatches.filter(m => m.round === firstRound).length) * ROW_H + ROW_H
 
   const viewportRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const [t, setT] = useState({ scale: 1, x: 20, y: 10 })
-  const drag = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
-  const pinch = useRef<{ d: number; scale: number } | null>(null)
+  const tRef = useRef(t); tRef.current = t
+  const drag = useRef<{ x: number; y: number; tx: number; ty: number; cx: number; cy: number } | null>(null)
+  const raf = useRef<number | null>(null)
+
+  // Write the transform straight to the DOM during a drag — no React re-render
+  // of the ~127 nodes per frame (MD-9).
+  const applyTransform = (x: number, y: number, scale: number) => {
+    if (canvasRef.current) canvasRef.current.style.transform = `translate(${x}px,${y}px) scale(${scale})`
+  }
 
   const fit = useCallback(() => {
     const vp = viewportRef.current; if (!vp) return
@@ -302,14 +311,29 @@ function TreeView({ bMatches, rounds, totalPlayers, maxRound, meUid }: {
 
   const onPointerDown = (e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture?.(e.pointerId)
-    drag.current = { x: e.clientX, y: e.clientY, tx: t.x, ty: t.y }
+    drag.current = { x: e.clientX, y: e.clientY, tx: tRef.current.x, ty: tRef.current.y, cx: tRef.current.x, cy: tRef.current.y }
   }
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current) return
-    setT(p => ({ ...p, x: drag.current!.tx + (e.clientX - drag.current!.x), y: drag.current!.ty + (e.clientY - drag.current!.y) }))
+    const d = drag.current; if (!d) return
+    d.cx = d.tx + (e.clientX - d.x); d.cy = d.ty + (e.clientY - d.y)
+    if (raf.current == null) {
+      raf.current = requestAnimationFrame(() => {
+        raf.current = null
+        if (drag.current) applyTransform(drag.current.cx, drag.current.cy, tRef.current.scale)
+      })
+    }
   }
-  const onPointerUp = () => { drag.current = null }
-  const onWheel = (e: React.WheelEvent) => { if (e.ctrlKey || e.metaKey) { e.preventDefault() } zoom(e.deltaY < 0 ? 1.12 : 0.89) }
+  const onPointerUp = () => {
+    const d = drag.current; drag.current = null
+    if (raf.current != null) { cancelAnimationFrame(raf.current); raf.current = null }
+    if (d) setT(p => ({ ...p, x: d.cx, y: d.cy }))   // commit once
+  }
+  const wheelRaf = useRef<number | null>(null)
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault()
+    const dir = e.deltaY < 0 ? 1.12 : 0.89
+    if (wheelRaf.current == null) wheelRaf.current = requestAnimationFrame(() => { wheelRaf.current = null; zoom(dir) })
+  }
 
   return (
     <div>
@@ -328,39 +352,55 @@ function TreeView({ bMatches, rounds, totalPlayers, maxRound, meUid }: {
           background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14, cursor: 'grab', touchAction: 'none',
         }}
       >
-        <div style={{ position: 'absolute', top: 0, left: 0, transform: `translate(${t.x}px,${t.y}px) scale(${t.scale})`, transformOrigin: '0 0', width: canvasW, height: canvasH, direction: 'ltr' }}>
-          {/* connectors */}
-          <svg width={canvasW} height={canvasH} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
-            {bMatches.map(m => {
-              const ri = rounds.indexOf(m.round)
-              if (ri === 0) return null
-              const me = pos[m.id]; if (!me) return null
-              const kids = bMatches.filter(k => k.round === rounds[ri - 1] && (k.slot === m.slot * 2 || k.slot === m.slot * 2 + 1))
-              return kids.map(k => {
-                const kp = pos[k.id]; if (!kp) return null
-                const x1 = kp.x + CARD_W, y1 = kp.y, x2 = me.x, y2 = me.y, midx = (x1 + x2) / 2
-                const onPath = meUid && (k.winnerUid === meUid)
-                return <path key={m.id + k.id} d={`M${x1},${y1} H${midx} V${y2} H${x2}`} fill="none" stroke={onPath ? C.accent : C.line2} strokeWidth={onPath ? 2 : 1.2} />
-              })
-            })}
-          </svg>
-          {/* nodes */}
-          {bMatches.map(m => {
-            const p = pos[m.id]; if (!p) return null
-            const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
-            return (
-              <div key={m.id} style={{ position: 'absolute', left: p.x, top: p.y - CARD_H / 2, width: CARD_W }}>
-                <TreeCard m={m} meUid={meUid} mine={mine} />
-              </div>
-            )
-          })}
+        <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, transform: `translate(${t.x}px,${t.y}px) scale(${t.scale})`, transformOrigin: '0 0', width: canvasW, height: canvasH, direction: 'ltr', willChange: 'transform' }}>
+          <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} />
+          <Nodes bMatches={bMatches} pos={pos} meUid={meUid} />
         </div>
       </div>
     </div>
   )
 }
 
-function TreeCard({ m, meUid, mine }: { m: MatchDTO; meUid?: string; mine: boolean }) {
+// Memoised so a pan/zoom (which never changes these props) doesn't re-render
+// every node in the tree (MD-9).
+type Pos = Record<string, { x: number; y: number }>
+const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, canvasH, meUid }: {
+  bMatches: MatchDTO[]; rounds: number[]; pos: Pos; canvasW: number; canvasH: number; meUid?: string
+}) {
+  return (
+    <svg width={canvasW} height={canvasH} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+      {bMatches.map(m => {
+        const ri = rounds.indexOf(m.round)
+        if (ri === 0) return null
+        const me = pos[m.id]; if (!me) return null
+        const kids = bMatches.filter(k => k.round === rounds[ri - 1] && (k.slot === m.slot * 2 || k.slot === m.slot * 2 + 1))
+        return kids.map(k => {
+          const kp = pos[k.id]; if (!kp) return null
+          const x1 = kp.x + CARD_W, y1 = kp.y, x2 = me.x, y2 = me.y, midx = (x1 + x2) / 2
+          const onPath = meUid && (k.winnerUid === meUid)
+          return <path key={m.id + k.id} d={`M${x1},${y1} H${midx} V${y2} H${x2}`} fill="none" stroke={onPath ? C.accent : C.line2} strokeWidth={onPath ? 2 : 1.2} />
+        })
+      })}
+    </svg>
+  )
+})
+const Nodes = memo(function Nodes({ bMatches, pos, meUid }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string }) {
+  return (
+    <>
+      {bMatches.map(m => {
+        const p = pos[m.id]; if (!p) return null
+        const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
+        return (
+          <div key={m.id} style={{ position: 'absolute', left: p.x, top: p.y - CARD_H / 2, width: CARD_W }}>
+            <TreeCard m={m} meUid={meUid} mine={mine} />
+          </div>
+        )
+      })}
+    </>
+  )
+})
+
+const TreeCard = memo(function TreeCard({ m, meUid, mine }: { m: MatchDTO; meUid?: string; mine: boolean }) {
   return (
     <div style={{ background: C.sf1, border: `1.5px solid ${mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none' }}>
       <TreeSlot p={m.p1} win={m.winnerUid === m.p1?.uid && m.status === 'done'} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
@@ -368,7 +408,7 @@ function TreeCard({ m, meUid, mine }: { m: MatchDTO; meUid?: string; mine: boole
       <TreeSlot p={m.p2} win={m.winnerUid === m.p2?.uid && m.status === 'done'} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
     </div>
   )
-}
+})
 function TreeSlot({ p, win, me, score }: { p: Player; win?: boolean; me?: boolean; score?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : 'transparent' }}>
