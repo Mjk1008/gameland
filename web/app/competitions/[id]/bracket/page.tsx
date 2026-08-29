@@ -70,7 +70,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
-          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} />
+          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} />
         </div>
       </div>
     )

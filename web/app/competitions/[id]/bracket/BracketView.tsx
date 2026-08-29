@@ -22,7 +22,7 @@ function EntryBadge({ p }: { p: Player }) {
     </span>
   )
 }
-type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string> }
+type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string>; schedules?: Record<string, { date?: string; time?: string; note?: string }> }
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
@@ -42,7 +42,7 @@ function roundName(playersInRound: number): string {
   }
 }
 
-export default function BracketView({ matches, meUid, isAdmin, compId, venueLabels }: Props) {
+export default function BracketView({ matches, meUid, isAdmin, compId, venueLabels, schedules }: Props) {
   // Build navigable scopes: one per prelim group (city/province) + the final.
   const scopes = useMemo<Scope[]>(() => {
     const out: Scope[] = []
@@ -137,6 +137,15 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
             📍 {venueLabels[scope.groupKey]}
           </div>
         )}
+        {(() => {
+          const s = schedules?.[`${scope?.groupKey ?? ''}#${bracket_}`]
+          if (!s || (!s.date && !s.time && !s.note)) return null
+          return (
+            <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 11px', lineHeight: 1.7 }}>
+              🗓 {[s.date, s.time].filter(Boolean).join(' · ')}{s.note ? ` — ${s.note}` : ''}
+            </div>
+          )
+        })()}
       </div>
 
       {mode === 'rounds'

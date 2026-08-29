@@ -193,7 +193,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       <TournamentPanel
         compId={c.id} drawn={drawn} regCount={regs.length}
         bracketMode={bracketModeOf(c.id)}
-        groupMode={cfg.groupMode} brackets={brackets}
+        groupMode={cfg.groupMode} brackets={brackets} bracketSchedule={cfg.bracketSchedule}
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
       />

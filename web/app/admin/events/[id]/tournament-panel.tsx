@@ -7,11 +7,13 @@ import type { PrelimVenue } from '@/lib/store'
 import PrelimVenuePanel from './prelim-venue-panel'
 
 export type BracketInfo = { groupKey: string; groupLabel: string; bracket: number; players: number; done: number; total: number; qualify: number; complete: boolean }
+export type BracketSchedule = Record<string, { date?: string; time?: string; note?: string }>
 type Props = {
   compId: string; drawn: boolean; regCount: number
   bracketMode: 'prelims' | 'direct'
   groupMode: 'city' | 'province'
   brackets: BracketInfo[]
+  bracketSchedule?: BracketSchedule
   qualifierCount: number
   finalExists: boolean; finalSeats: number
   prelimVenues?: Record<string, PrelimVenue>
@@ -50,6 +52,10 @@ export default function TournamentPanel(p: Props) {
   async function setQualify(b: BracketInfo, count: number) {
     await post('/api/admin/qualify', { compId: p.compId, groupKey: b.groupKey, bracket: b.bracket, count }, `q${b.groupKey}${b.bracket}`)
   }
+  async function saveSchedule(groupKey: string, bracket: number, v: { date: string; time: string; note: string }) {
+    await post('/api/admin/bracket-schedule', { compId: p.compId, groupKey, bracket, ...v }, `sch${groupKey}${bracket}`)
+  }
+  const schedOf = (groupKey: string, bracket: number) => p.bracketSchedule?.[`${groupKey}#${bracket}`] ?? {}
 
   // group brackets by group for display
   const groups = new Map<string, { label: string; brackets: BracketInfo[] }>()
@@ -81,9 +87,15 @@ export default function TournamentPanel(p: Props) {
         </button>
         {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن، بعد جدول رو بساز.</div>}
         {direct && p.drawn && (
-          <Link href={`/competitions/${p.compId}/bracket`} style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 12.5, color: C.accent, textDecoration: 'none', fontWeight: 700 }}>
-            دیدن جدول و ثبت نتیجه‌ها →
-          </Link>
+          <>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>تاریخ و ساعت برگزاری جدول</div>
+              <ScheduleEditor init={schedOf('', 0)} disabled={busy != null} onSave={v => saveSchedule('', 0, v)} />
+            </div>
+            <Link href={`/competitions/${p.compId}/bracket`} style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 12.5, color: C.accent, textDecoration: 'none', fontWeight: 700 }}>
+              دیدن جدول و ثبت نتیجه‌ها →
+            </Link>
+          </>
         )}
       </Section>
 
@@ -96,12 +108,17 @@ export default function TournamentPanel(p: Props) {
                 <div style={{ fontSize: 12.5, fontWeight: 800, color: C.thi, marginBottom: 7 }}>{g.label} <span style={{ color: C.tmut, fontWeight: 400 }}>· {g.brackets.length} براکت</span></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {g.brackets.map(b => (
-                    <div key={b.bracket} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 11px' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.tbody, minWidth: 58 }}>براکت {b.bracket}</span>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
-                        {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
-                      </span>
-                      <Stepper value={b.qualify} disabled={busy != null} onChange={n => setQualify(b, n)} />
+                    <div key={b.bracket} style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 11px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.tbody, minWidth: 58 }}>براکت {b.bracket}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
+                          {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
+                        </span>
+                        <Stepper value={b.qualify} disabled={busy != null} onChange={n => setQualify(b, n)} />
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <ScheduleEditor init={schedOf(b.groupKey, b.bracket)} disabled={busy != null} onSave={v => saveSchedule(b.groupKey, b.bracket, v)} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -138,6 +155,22 @@ export default function TournamentPanel(p: Props) {
     </div>
   )
 }
+
+function ScheduleEditor({ init, onSave, disabled }: { init: { date?: string; time?: string; note?: string }; onSave: (v: { date: string; time: string; note: string }) => void; disabled?: boolean }) {
+  const [date, setDate] = useState(init.date ?? '')
+  const [time, setTime] = useState(init.time ?? '')
+  const [note, setNote] = useState(init.note ?? '')
+  const dirty = date !== (init.date ?? '') || time !== (init.time ?? '') || note !== (init.note ?? '')
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      <input value={date} onChange={e => setDate(e.target.value)} placeholder="۱۶ شهریور" style={schInp(96)} />
+      <input value={time} onChange={e => setTime(e.target.value)} placeholder="۱۸:۰۰" dir="ltr" style={schInp(64)} />
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder="یادداشت (اختیاری)" style={{ ...schInp(0), flex: 1, minWidth: 90 }} />
+      {dirty && <button type="button" disabled={disabled} onClick={() => onSave({ date, time, note })} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 7, padding: '5px 10px' }}>ذخیره</button>}
+    </div>
+  )
+}
+const schInp = (w: number): React.CSSProperties => ({ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 8, padding: '7px 9px', color: C.thi, fontSize: 12.5, outline: 'none', width: w || undefined, boxSizing: 'border-box' })
 
 function Stepper({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled?: boolean }) {
   return (
