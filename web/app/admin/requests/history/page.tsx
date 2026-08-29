@@ -1,4 +1,4 @@
-import { allRegistrations, getUserById, getEvent, hasReceipt } from '@/lib/store'
+import { allRegistrations, getUserById, getEvent, hasReceipt, isTeamPartnerReg } from '@/lib/store'
 import { C, BackHeader } from '@/components/ui'
 import HistoryList from './list'
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // Admin-only via app/admin/layout.tsx guard.
 export default function RequestHistoryPage() {
   const rows = allRegistrations()
-    .filter(r => r.status !== 'pending')
+    .filter(r => r.status !== 'pending' && !isTeamPartnerReg(r))
     .sort((a, b) => b.createdAt - a.createdAt)
     .map(r => {
       const u = getUserById(r.userId)

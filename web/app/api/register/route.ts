@@ -64,9 +64,9 @@ export async function POST(req: Request) {
     REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
     ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
     INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
-    ALREADY_REGISTERED: 'قبلاً برای این مسابقه ثبت‌نام کردی',
-    INVALID_PARTNER: 'تگِ هم‌تیمی درست نیست — یا پیدا نشد یا خودتی',
-    PARTNER_ALREADY_REGISTERED: 'هم‌تیمی‌ای که انتخاب کردی قبلاً تو این مسابقه ثبت‌نام کرده',
+    ALREADY_REGISTERED: 'قبلاً به‌صورت انفرادی تو این مسابقه ثبت‌نام کردی — نمی‌شه همون رو تیمی کرد',
+    INVALID_PARTNER: 'تگِ هم‌تیمی پیدا نشد — درستشو بزن (یا نمی‌تونه خودت باشی)',
+    PARTNER_ALREADY_REGISTERED: 'این هم‌تیمی از قبل تو این مسابقه ثبت‌نام داره — یکی دیگه رو انتخاب کن',
   }
 
   if (isTeamEvent) {
@@ -81,8 +81,8 @@ export async function POST(req: Request) {
       await persist.user.insertAsync(u)
       await persist.reg.insertAsync(r)
       const paid = attempts - free
-      pushNotif(uid, 'registration', 'تیم ساخته شد',
-        `تیمت برای «${c.title}» ساخته شد — ${attempts} بلیط برای خودت (${free} رایگان + ${paid} پرداختی). هم‌تیمیت باید دعوت رو قبول کنه و سهمِ خودش رو جدا پرداخت کنه.`)
+      pushNotif(uid, 'registration', 'تیمت ثبت شد',
+        `تیمت برای «${c.title}» با ${attempts} سهم ثبت شد (${free} رایگانِ دعوت + ${paid} پرداختی). کلِّ هزینه‌ی تیم رو تو دادی — هم‌تیمیت خودکار اضافه شد و پرداختی نداره.${paid > 0 ? ' برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : ''}`)
       fireTicketSelect(uid, u, c, attempts)
       return NextResponse.json({ ok: true, registration: r, freeUsed: free })
     } catch (e: any) {

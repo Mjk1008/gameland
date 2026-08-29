@@ -3,11 +3,10 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, prizeBreakdown } from '@/lib/mock-data'
-import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, teamMemberOf, getCompetition } from '@/lib/store'
+import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, getCompetition } from '@/lib/store'
 import { prelimVenueForUser } from '@/lib/prelim-venue'
 import { rulesForDisc } from '@/lib/discipline-rules'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
-import TeamInviteBanner from './team-invite-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,9 +20,6 @@ export default async function CompetitionPage({ params }: { params: { id: string
   const reg = uid ? getRegistration(uid, params.id) : undefined
   const remainingLeft = uid ? remainingTickets(uid, params.id) : 0
   const myTeam = uid ? teamForUser(uid, params.id) : undefined
-  const myTeamMember = myTeam && uid ? teamMemberOf(uid, myTeam.id) : undefined
-  const pendingInvite = myTeam && myTeamMember?.status === 'invited' ? myTeam : undefined
-  const captain = pendingInvite ? getUserById(pendingInvite.captainId) : undefined
 
   const cfg = getEventConfig(params.id)
   const me = uid ? getUserById(uid) : undefined
@@ -78,10 +74,6 @@ export default async function CompetitionPage({ params }: { params: { id: string
               <span style={{ fontSize: 13, color: C.tbody }}>{c.date}</span>
             </div>
           )}
-          {pendingInvite && (
-            <TeamInviteBanner teamId={pendingInvite.id} teamName={pendingInvite.name} captainTag={captain?.tag} />
-          )}
-
           {myVenue && (
             <div style={{ background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: '14px 16px' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6 }}>محل برگزاری مقدماتیِ تو</div>
@@ -98,15 +90,15 @@ export default async function CompetitionPage({ params }: { params: { id: string
             </div>
           )}
 
-          {c.status !== 'done' && !pendingInvite && (
+          {c.status !== 'done' && (
             reg && reg.status !== 'rejected'
               ? <>
                   <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
                   {/* top-up path — the store allows up to 6 سهم per discipline
                       until the draw; without this the buyer hits a dead end */}
-                  {!drawn && remainingLeft > 0 && (
+                  {!drawn && remainingLeft > 0 && !(myTeam && myTeam.captainId !== uid) && (
                     <Link href={`/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, background: C.goldSoft, border: `1px solid ${C.gold}66`, borderRadius: 12, color: C.gold, fontWeight: 800, fontSize: 13.5 }}>
-                      + خرید سهمِ بیشتر <span className="gl-num" style={{ opacity: .8 }}>({remainingLeft} تا مونده)</span>
+                      {myTeam ? '+ افزودنِ سهمِ تیم' : '+ خرید سهمِ بیشتر'} <span className="gl-num" style={{ opacity: .8 }}>({remainingLeft} تا مونده)</span>
                     </Link>
                   )}
                 </>

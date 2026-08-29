@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { allUsers, allRegistrations, allEvents, getUserById, referralLeaderboard } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, referralLeaderboard, isTeamPartnerReg } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
@@ -40,7 +40,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
     return priceCache.get(compId)!
   }
 
-  const regs: RegRec[] = allRegistrations().map(r => {
+  const regs: RegRec[] = allRegistrations().filter(r => !isTeamPartnerReg(r)).map(r => {
     const u = getUserById(r.userId)
     const city = (u?.city || '').trim() || 'نامشخص'
     return {

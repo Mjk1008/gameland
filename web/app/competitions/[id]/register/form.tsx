@@ -123,9 +123,9 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطوری کار می‌کنه؟</div>
           {isTeamEvent ? (
             <>
-              <div>• این یه مسابقهٔ <b style={{ color: C.thi }}>دو به دو</b>ست — تیمت رو با یه هم‌تیمی می‌سازی</div>
-              <div>• تو کاپیتانی: سهمِ خودت رو الان می‌خری، هم‌تیمیت دعوت می‌شه تا سهمِ خودش رو جدا بخره</div>
-              <div>• هر دو نفر باید تاییدِ ادمین بگیرن تا تیمتون وارد قرعه‌کشی بشه</div>
+              <div>• این یه مسابقهٔ <b style={{ color: C.thi }}>دو به دو</b>ست — مثل بقیهٔ مسابقه‌ها، فقط هر تیم دو نفره</div>
+              <div>• تو کاپیتانی: <b style={{ color: C.thi }}>۱ تا ۶ سهم</b> برای تیم می‌گیری و <b style={{ color: C.thi }}>کلِّ هزینه رو یک‌بار</b> می‌دی</div>
+              <div>• هم‌تیمی رو با تگ اضافه می‌کنی — خودکار به تیم می‌چسبه و <b style={{ color: C.thi }}>پرداختی نداره</b></div>
             </>
           ) : (
             <>
@@ -147,7 +147,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
               <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>تگِ هم‌تیمی</div>
               <input dir="ltr" value={partnerTag} onChange={e => setPartnerTag(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
                 style={{ background: C.sf2, border: `1px solid ${partnerTag ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
-              {partnerTag && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ دعوت برای @{partnerTag} فرستاده می‌شه</div>}
+              {partnerTag && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ @{partnerTag} هم‌تیمیِ تو می‌شه — پرداختی نداره</div>}
             </div>
           </>
         )}
@@ -213,7 +213,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
         {canSetRef && (
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ دعوت (اختیاری) — اگه رفیقی معرفیت کرده، تگش رو بزن</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ معرّف (اختیاری) — اگه کسی تو رو به گیم‌لند آورده، تگش رو بزن</div>
             <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
               style={{ background: C.sf2, border: `1px solid ${ref ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
             {ref && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ این خرید به‌نامِ @{ref} ثبت می‌شه</div>}
@@ -221,7 +221,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: '13px 15px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>مبلغ قابل پرداخت</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>{isTeamEvent ? 'مبلغ قابل پرداخت (کلِّ تیم)' : 'مبلغ قابل پرداخت'}</span>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
             <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(payableTotal)}</span>
             <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>
@@ -231,7 +231,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
         <Button onClick={submit} disabled={busy} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
-          {busy ? 'یه لحظه…' : isTeamEvent ? `ساختِ تیم و پرداختِ سهمِ خودت (${attempts} سهم)` : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
+          {busy ? 'یه لحظه…' : isTeamEvent ? (owned > 0 ? `افزودنِ ${attempts} سهمِ تیم` : `ساختِ تیم و پرداخت (${attempts} سهم)`) : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
         </Button>
       </div>
     </div>

@@ -119,6 +119,7 @@ function ensureHydrated() {
     loadPromoterCodeRequest: (r: unknown) => { require('./promoter').hydratePromoterCodeRequest(r as any) },
   }).then(() => {
     reconcileDefaultPromos()
+    reconcileTeams()
     seedRankingIfEmpty()
     // Heavy seeds must not block auth (whenReady).
     setImmediate(() => {
@@ -823,20 +824,42 @@ export function setRegistrationStatus(regId: string, status: RegStatus, rejectRe
   if (status === 'approved') r.paidAttempts = r.attempts
   persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null, paidAttempts: r.paidAttempts ?? null } as any)
   bumpNationalRanking(r.userId)
+  syncTeamMirrorFrom(r)
   return r
 }
 
 // Admin-adjust the ticket count (سهم) on a registration — fixes over/under-paid
 // selections and lets someone top up before the draw. Locked once the bracket is
 // drawn (attempts feed the seat distribution → changing it would corrupt matches).
-export function setRegistrationAttempts(regId: string, attempts: number): Registration {
+export function setRegistrationAttempts(regId: string, attempts: number, opts?: { allowPostDraw?: boolean }): Registration {
   const r = getRegistrationById(regId)
   if (!r) throw new Error('REG_NOT_FOUND')
-  if (matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
+  // Post-draw is normally locked; the re-entry flow (MD-5b) opts in explicitly.
+  if (!opts?.allowPostDraw && matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
   r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
   persist.reg.update(r.id, { attempts: r.attempts } as any)
   bumpNationalRanking(r.userId)
+  syncTeamMirrorFrom(r)
   return r
+}
+
+// Mark every سهم on the row as paid (used when a re-entry فیش is approved —
+// the row is already 'approved', only the payment balance changes).
+export function settleRegistrationAttempts(regId: string): Registration {
+  const r = getRegistrationById(regId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  r.paidAttempts = r.attempts
+  persist.reg.update(r.id, { paidAttempts: r.paidAttempts } as any)
+  return r
+}
+
+// If this registration belongs to a team CAPTAIN, push its attempts/status
+// onto the partner's mirrored row. No-op for solo registrations and for a
+// partner's own mirror (mirrorCaptainToPartner is defined lower — hoisted).
+function syncTeamMirrorFrom(r: Registration): void {
+  if (!r.teamId) return
+  const t = teams.get(r.teamId)
+  if (t && t.captainId === r.userId) mirrorCaptainToPartner(t)
 }
 
 export function getRegistration(userId: string, compId: string): Registration | undefined {
@@ -862,8 +885,13 @@ export function approvedRegistrationsForComp(compId: string): Registration[] {
 }
 
 // All pending requests across events (admin approval queue), newest first.
+// A team shows up once — as its captain's row. The partner's mirrored row
+// follows the captain's status automatically, so it never needs its own
+// queue entry.
 export function pendingRegistrations(): Registration[] {
-  return Array.from(regs.values()).filter(r => r.status === 'pending').sort((a, b) => b.createdAt - a.createdAt)
+  return Array.from(regs.values())
+    .filter(r => r.status === 'pending' && !isTeamPartnerReg(r))
+    .sort((a, b) => b.createdAt - a.createdAt)
 }
 
 export function getRegistrationById(id: string): Registration | undefined {
@@ -928,7 +956,7 @@ const teamMembers: TeamMember[] = []
 export function getTeam(id: string): Team | undefined { return teams.get(id) }
 
 export function teamsForComp(compId: string): Team[] {
-  return Array.from(teams.values()).filter(t => t.compId === compId)
+  return Array.from(teams.values()).filter(t => t.compId === compId && t.status !== 'disbanded')
 }
 
 // The active (non-superseded) member for each slot — exactly what "is this
@@ -952,106 +980,162 @@ export function teamForUser(userId: string, compId: string): Team | undefined {
 // /me team-status card (one user is rarely on more than one active team,
 // but this stays correct across events without a per-event lookup).
 export function teamsForUser(userId: string): Team[] {
-  return Array.from(teams.values()).filter(t => currentTeamMembers(t.id).some(m => m.userId === userId))
+  return Array.from(teams.values()).filter(t => t.status !== 'disbanded' && currentTeamMembers(t.id).some(m => m.userId === userId))
+}
+// True for the auto-mirrored registration of a team's PARTNER (not its
+// captain). The captain's registration is the one real request: it carries
+// the payment and is the only row the admin queue shows for a team. The
+// partner's row exists only so the draw and the leaderboard see two people.
+export function isTeamPartnerReg(r: Registration): boolean {
+  if (!r.teamId) return false
+  const t = teams.get(r.teamId)
+  return !!t && t.captainId !== r.userId
 }
 export function teamMemberOf(userId: string, teamId: string): TeamMember | undefined {
   return currentTeamMembers(teamId).find(m => m.userId === userId)
 }
 
-// Async — the team row must be committed before its member rows insert, or
-// the FK on app_team_members.team_id can race a fire-and-forget team insert
-// and fail (same class of bug as the clearMatchesForComp fix earlier: two
-// independent fire-and-forget writes have no ordering guarantee against each
-// other).
+// A 2v2 event is an ordinary tournament whose unit is a two-person team.
+// The captain registers exactly like a solo player — picks 1..6 سهم and pays
+// once, for the whole team. The partner is added by tag and gets an
+// auto-mirrored, already-settled registration (they owe nothing) so the draw
+// and the leaderboard see two people. No invite, no accept, no second
+// payment. `mirrorCaptainToPartner` keeps the partner's row in lockstep with
+// the captain's (attempts + status) at every point the captain's row changes.
+function mirrorCaptainToPartner(team: Team): void {
+  if (team.status === 'disbanded') return
+  const partnerMem = currentTeamMembers(team.id).find(m => m.slot === 1)
+  if (!partnerMem) return
+  const cap = getRegistration(team.captainId, team.compId)
+  if (!cap) return
+  const key = partnerMem.userId + '|' + team.compId
+  const existing = regs.get(key)
+  // Never clobber a registration the partner owns in their own right (a solo
+  // entry, or a different team's row) — that's their data, not a mirror.
+  if (existing && existing.teamId !== team.id) return
+  if (existing) {
+    existing.attempts = cap.attempts
+    // Follow the captain's status, but never downgrade a partner who was
+    // already approved under the old invite/accept flow — seatability is
+    // gated on the captain's own row anyway, so this only protects a
+    // partner who paid early from being bounced back to pending.
+    existing.status = existing.status === 'approved' && cap.status !== 'approved' ? 'approved' : cap.status
+    existing.teamId = team.id
+    existing.freeAttempts = 0
+    existing.paidAttempts = cap.attempts   // owes nothing — the captain paid for the team
+    persist.reg.update(existing.id, { attempts: existing.attempts, status: existing.status, teamId: team.id, freeAttempts: 0, paidAttempts: existing.paidAttempts } as any)
+    bumpNationalRanking(partnerMem.userId)
+    return
+  }
+  const pr: Registration = {
+    id: 'r_' + Math.random().toString(36).slice(2, 10),
+    userId: partnerMem.userId, compId: team.compId,
+    attempts: cap.attempts, status: cap.status,
+    seedsEarned: 0, prelimsCompleted: 0,
+    teamId: team.id,
+    freeAttempts: 0, paidAttempts: cap.attempts,
+    createdAt: Date.now(),
+  }
+  indexReg(pr)
+  persist.reg.insert(pr)
+  bumpNationalRanking(partnerMem.userId)
+}
+
+// One-time boot reconcile: normalise teams made by the older invite/accept
+// flow to the captain-does-everything model. Any member that didn't
+// explicitly decline counts as in; every such team gets its partner mirror
+// created/refreshed. Idempotent — safe to run on every hydration.
+export function reconcileTeams(): void {
+  for (const t of teams.values()) {
+    if (t.status === 'disbanded') continue
+    const members = currentTeamMembers(t.id)
+    if (members.length !== 2 || members.some(m => m.status === 'declined')) continue
+    for (const m of members) {
+      if (m.status !== 'accepted') { m.status = 'accepted'; persist.teamMember.update(t.id, m.userId, { status: 'accepted' }) }
+    }
+    if (t.status !== 'complete') { t.status = 'complete'; persist.team.update(t.id, { status: 'complete' }) }
+    mirrorCaptainToPartner(t)
+  }
+}
+
+// Async — the team row must be committed before its member rows insert, or the
+// FK on app_team_members.team_id can race a fire-and-forget team insert.
 export async function createTeam(compId: string, captainId: string, name: string, partnerTag: string, attempts: number): Promise<{ team: Team; registration: Registration }> {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
-  if (getRegistration(captainId, compId)) throw new Error('ALREADY_REGISTERED')
   const partner = getUserByTag(partnerTag.trim().replace(/^@/, ''))
   if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')   // must exist, no self-pairing
+
+  // Captain already runs a team for this event → a سهم top-up on the same row,
+  // exactly like a solo top-up. Never a second team.
+  const existingTeam = teamForUser(captainId, compId)
+  if (existingTeam && existingTeam.captainId === captainId) {
+    const reg = createRegistration(captainId, compId, attempts, existingTeam.id)   // caps at 6 total
+    existingTeam.attempts = reg.attempts
+    persist.team.update(existingTeam.id, { attempts: reg.attempts } as any)
+    mirrorCaptainToPartner(existingTeam)
+    return { team: existingTeam, registration: reg }
+  }
+  // Captain holds a solo (non-team) registration for this event — can't fold it
+  // into a team.
+  if (getRegistration(captainId, compId)) throw new Error('ALREADY_REGISTERED')
+  // Partner already has an entry of their own for this event.
   if (getRegistration(partner.id, compId)) throw new Error('PARTNER_ALREADY_REGISTERED')
 
   const t: Team = {
     id: 't_' + Math.random().toString(36).slice(2, 10),
     compId, name: (name || '').trim().slice(0, 40) || 'تیمِ بی‌نام', captainId,
-    status: 'forming', attempts, createdAt: Date.now(),
+    status: 'complete', attempts, createdAt: Date.now(),
   }
   teams.set(t.id, t)
   await persist.team.insertAsync(t)
 
   const captainMember: TeamMember = { teamId: t.id, userId: captainId, slot: 0, status: 'accepted' }
-  const partnerMember: TeamMember = { teamId: t.id, userId: partner.id, slot: 1, status: 'invited' }
+  const partnerMember: TeamMember = { teamId: t.id, userId: partner.id, slot: 1, status: 'accepted' }
   teamMembers.push(captainMember, partnerMember)
   persist.teamMember.insert(captainMember)
   persist.teamMember.insert(partnerMember)
 
   const reg = createRegistration(captainId, compId, attempts, t.id)
+  mirrorCaptainToPartner(t)
+
   const captain = users.get(captainId)
-  pushNotif(partner.id, 'announcement', 'دعوتِ تیمی',
-    `@${captain?.tag ?? ''} تو رو برای تیمِ «${t.name}» تو یه مسابقهٔ دو به دو دعوت کرده — از صفحهٔ مسابقه قبول کن.`)
+  pushNotif(partner.id, 'announcement', 'به یه تیم اضافه شدی',
+    `@${captain?.tag ?? ''} تو رو هم‌تیمیِ «${t.name}» کرد برای «${getEvent(compId)?.title ?? 'یه مسابقهٔ دو به دو'}». پرداختی نداری — کاپیتان سهمِ تیم رو داده. وضعیتت رو تو صفحهٔ «من» ببین.`)
   return { team: t, registration: reg }
 }
 
-export function acceptTeamInvite(userId: string, teamId: string): Registration {
-  const t = teams.get(teamId)
-  if (!t) throw new Error('TEAM_NOT_FOUND')
-  if (matchesForComp(t.compId).length > 0) throw new Error('REG_LOCKED')
-  const mem = teamMemberOf(userId, teamId)
-  if (!mem || mem.status !== 'invited') throw new Error('NOT_INVITED')
-  mem.status = 'accepted'
-  persist.teamMember.update(teamId, userId, { status: 'accepted' })
-  const reg = createRegistration(userId, t.compId, t.attempts, teamId)
-  if (currentTeamMembers(teamId).every(m => m.status === 'accepted')) {
-    t.status = 'complete'
-    persist.team.update(t.id, { status: 'complete' })
-  }
-  return reg
-}
-
-export function declineTeamInvite(userId: string, teamId: string): void {
-  const mem = teamMemberOf(userId, teamId)
-  if (!mem || mem.status !== 'invited') throw new Error('NOT_INVITED')
-  mem.status = 'declined'
-  persist.teamMember.update(teamId, userId, { status: 'declined' })
-  const t = teams.get(teamId)
-  const captainMember = t ? currentTeamMembers(teamId).find(m => m.slot === 0) : undefined
-  if (t && captainMember) {
-    pushNotif(captainMember.userId, 'announcement', 'هم‌تیمی رد کرد',
-      `دعوتِ تیمِ «${t.name}» رد شد — از صفحهٔ مسابقه یه هم‌تیمیِ جدید دعوت کن.`)
-  }
-}
-
-// Pre-draw only (same lock idiom as setRegistrationAttempts). Adds a new
-// invite row for the partner slot — never touches the old member's own
-// Registration (docs/27 §3.3: "no cascade-delete of a paid row").
+// Captain swaps the partner, pre-draw only. Non-destructive: the outgoing
+// partner's MIRRORED row is removed (never a row they own independently), the
+// new partner is added already-in and mirrored.
 export function replaceTeamPartner(captainId: string, teamId: string, newPartnerTag: string): TeamMember {
   const t = teams.get(teamId)
-  if (!t) throw new Error('TEAM_NOT_FOUND')
+  if (!t || t.status === 'disbanded') throw new Error('TEAM_NOT_FOUND')
   if (t.captainId !== captainId) throw new Error('NOT_CAPTAIN')
   if (matchesForComp(t.compId).length > 0) throw new Error('REG_LOCKED')
   const partner = getUserByTag(newPartnerTag.trim().replace(/^@/, ''))
   if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')
   if (getRegistration(partner.id, t.compId)) throw new Error('PARTNER_ALREADY_REGISTERED')
-  // A user who already has ANY row on this team (even a declined one) can't be
-  // re-invited: reusing that row would need reordering the "last row per slot
-  // wins" history (currentTeamMembers) in a way that can't survive a restart,
-  // since DB createdAt wouldn't move with an in-place status update. Pick
-  // someone else instead — a narrow, acceptable restriction for a rare edge case.
   if (teamMembers.some(m => m.teamId === teamId && m.userId === partner.id)) throw new Error('INVALID_PARTNER')
-  const mem: TeamMember = { teamId, userId: partner.id, slot: 1, status: 'invited' }
+  const prev = currentTeamMembers(teamId).find(m => m.slot === 1)
+  if (prev) {
+    const pr = regs.get(prev.userId + '|' + t.compId)
+    if (pr && pr.teamId === teamId) { deindexReg(pr); regs.delete(prev.userId + '|' + t.compId); persist.reg.delete(pr.id); bumpNationalRanking(prev.userId) }
+  }
+  const mem: TeamMember = { teamId, userId: partner.id, slot: 1, status: 'accepted' }
   teamMembers.push(mem)
   persist.teamMember.insert(mem)
-  t.status = 'forming'
-  persist.team.update(t.id, { status: 'forming' })
-  pushNotif(partner.id, 'announcement', 'دعوتِ تیمی',
-    `@${users.get(captainId)?.tag ?? ''} تو رو برای تیمِ «${t.name}» تو یه مسابقهٔ دو به دو دعوت کرده — از صفحهٔ مسابقه قبول کن.`)
+  t.status = 'complete'
+  persist.team.update(t.id, { status: 'complete' })
+  mirrorCaptainToPartner(t)
+  pushNotif(partner.id, 'announcement', 'به یه تیم اضافه شدی',
+    `@${users.get(captainId)?.tag ?? ''} تو رو هم‌تیمیِ «${t.name}» کرد. پرداختی نداری — کاپیتان سهمِ تیم رو داده.`)
   return mem
 }
 
-// Every team not yet seatable: either a slot isn't 'accepted', or an accepted
-// member's own Registration isn't 'approved' yet. Shown to the admin above
-// the draw controls — non-negotiable (docs/27 §3.3): without it, rejecting
-// one person silently kills a paying team with no signal anywhere.
+// Teams the admin still can't seat: fewer than two members, or a member whose
+// registration isn't approved yet. Shown above the draw controls so rejecting
+// one person can't silently kill a paying team.
 export function incompleteTeamsForComp(compId: string): { team: Team; members: { user?: User; member: TeamMember; registration?: Registration }[] }[] {
   return teamsForComp(compId)
     .map(t => ({
@@ -1062,19 +1146,69 @@ export function incompleteTeamsForComp(compId: string): { team: Team; members: {
         registration: getRegistration(m.userId, compId),
       })),
     }))
-    .filter(({ members }) =>
-      members.length < 2 ||
-      !members.every(m => m.member.status === 'accepted' && m.registration?.status === 'approved'))
+    .filter(({ members }) => members.length < 2 || !members.every(m => m.registration?.status === 'approved'))
 }
 
-// The exact inverse of incompleteTeamsForComp — teams the draw is allowed to
-// seat. Both current members 'accepted' and both hold an 'approved'
-// Registration (docs/27 §3.3's seatability rule).
+// The inverse — teams the draw may seat: two members, both registrations approved.
 export function seatableTeamsForComp(compId: string): Team[] {
   return teamsForComp(compId).filter(t => {
     const members = currentTeamMembers(t.id)
-    return members.length === 2 && members.every(m => m.status === 'accepted' && getRegistration(m.userId, compId)?.status === 'approved')
+    return members.length === 2 && members.every(m => getRegistration(m.userId, compId)?.status === 'approved')
   })
+}
+
+// ─── User-initiated ticket changes (pre-draw only) ─────────────────────────
+// Kept intentionally low-key in the UI — we'd rather players not shrink their
+// entry — but honest and self-serve. Everything here locks the moment the
+// bracket is drawn (matchesForComp > 0), same as every other pre-draw edit.
+
+// Lower a registration's سهم count. Strictly a reduction (1..current-1). On a
+// team, only the captain can do it, and it cascades to the partner's mirror.
+export function reduceRegistrationAttempts(userId: string, compId: string, newAttempts: number): Registration {
+  const r = getRegistration(userId, compId)
+  if (!r || r.status === 'rejected') throw new Error('REG_NOT_FOUND')
+  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
+  if (r.teamId) {
+    const t = teams.get(r.teamId)
+    if (t && t.captainId !== userId) throw new Error('TEAM_PARTNER_LOCKED')
+  }
+  const n = Math.round(newAttempts)
+  if (!(n >= 1 && n < r.attempts)) throw new Error('BAD_COUNT')
+  r.attempts = n
+  if ((r.paidAttempts ?? 0) > n) r.paidAttempts = n
+  if ((r.freeAttempts ?? 0) > n - (r.paidAttempts ?? 0)) r.freeAttempts = Math.max(0, n - (r.paidAttempts ?? 0))
+  persist.reg.update(r.id, { attempts: r.attempts, paidAttempts: r.paidAttempts, freeAttempts: r.freeAttempts } as any)
+  bumpNationalRanking(userId)
+  if (r.teamId) {
+    const t = teams.get(r.teamId)
+    if (t && t.captainId === userId) { t.attempts = n; persist.team.update(t.id, { attempts: n } as any); mirrorCaptainToPartner(t) }
+  }
+  return r
+}
+
+// Full withdrawal. On a team, only the captain can withdraw — it disbands the
+// team and drops both registrations (rows kept flagged 'disbanded' for audit).
+export function cancelRegistration(userId: string, compId: string): void {
+  const r = getRegistration(userId, compId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
+  const drop = (uid: string) => {
+    const rr = regs.get(uid + '|' + compId)
+    if (!rr) return
+    deindexReg(rr); regs.delete(uid + '|' + compId); persist.reg.delete(rr.id)
+    bumpNationalRanking(uid)
+  }
+  if (r.teamId) {
+    const t = teams.get(r.teamId)
+    if (t && t.captainId !== userId) throw new Error('TEAM_PARTNER_LOCKED')
+    if (t) {
+      for (const m of currentTeamMembers(t.id)) drop(m.userId)
+      t.status = 'disbanded'
+      persist.team.update(t.id, { status: 'disbanded' })
+      return
+    }
+  }
+  drop(userId)
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────────

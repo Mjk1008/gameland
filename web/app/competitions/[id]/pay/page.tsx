@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, getRegistration, getUserById, hasReceipt } from '@/lib/store'
+import { getEvent, getRegistration, getUserById, hasReceipt, isTeamPartnerReg } from '@/lib/store'
 import { regPayableAmount } from '@/lib/promoter'
 import PayView from './pay-view'
 
@@ -15,6 +15,9 @@ export default async function PayPage({ params }: { params: { id: string } }) {
   if (!uid || !getUserById(uid)) redirect(`/login?callbackUrl=/competitions/${params.id}/pay`)
   const reg = getRegistration(uid, params.id)
   if (!reg) redirect(`/competitions/${params.id}/register`)
+  // A 2v2 partner owes nothing — the captain paid for the whole team. Nothing
+  // to do on the payment screen; send them to their status page.
+  if (isTeamPartnerReg(reg)) redirect(`/competitions/${params.id}/me`)
   const u = getUserById(uid)!
   const pay = regPayableAmount(reg)
 

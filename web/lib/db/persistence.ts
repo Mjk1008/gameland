@@ -722,10 +722,11 @@ export const persist = {
         id: t.id, compId: t.compId, name: t.name, captainId: t.captainId, status: t.status as any, attempts: t.attempts,
       }).onConflictDoNothing()
     },
-    update(id: string, patch: { status?: string }) {
+    update(id: string, patch: { status?: string; attempts?: number }) {
       const d = db(); if (!d) return
       const set: any = {}
       if (patch.status !== undefined) set.status = patch.status
+      if (patch.attempts !== undefined) set.attempts = patch.attempts
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.teams).set(set).where(eq(schema.teams.id, id)))
     },

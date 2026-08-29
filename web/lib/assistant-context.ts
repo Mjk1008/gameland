@@ -2,7 +2,7 @@ import {
   getUserById, approvedReferralCount, allUsers,
   allEvents, allCompetitions, registrationsForUser, notifsForUser,
   remainingTickets, getSetting, AI_KNOWLEDGE_KEY, approvedRegistrationsForComp,
-  activeNews,
+  activeNews, isTeamPartnerReg,
 } from '@/lib/store'
 import { computeRankingTotals } from '@/lib/ranking-store'
 import { DISC } from '@/lib/mock-data'
@@ -32,7 +32,7 @@ export function buildAssistantEntities(uid: string): AssistantEntities {
     .map(e => {
       const parent = e.competitionId ? comps.get(e.competitionId) : undefined
       const reg = regByComp.get(e.id)
-      const approved = approvedRegistrationsForComp(e.id)
+      const approved = approvedRegistrationsForComp(e.id).filter(r => !isTeamPartnerReg(r))
       const approvedShares = approved.reduce((s, r) => s + r.attempts, 0)
       return {
         id: e.id,

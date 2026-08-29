@@ -30,9 +30,11 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   if ((owned > 0 && remaining === 0) || drawn) redirect(`/competitions/${params.id}/me`)
 
   const isTeamEvent = getEventConfig(c.id).teamSize === 2
-  // A partner who's already invited (or declined) to a team for this event
-  // must accept/decline from the invite banner, not create a second team here.
-  if (isTeamEvent && teamForUser(uid, c.id) && !owned) redirect(`/competitions/${params.id}`)
+  // On a 2v2 event the partner has nothing to do here — the captain runs the
+  // team's سهم and payment. Send them to their status page. (The captain falls
+  // through and can top up the same team.)
+  const myTeam = isTeamEvent ? teamForUser(uid, c.id) : undefined
+  if (myTeam && myTeam.captainId !== uid) redirect(`/competitions/${params.id}/me`)
 
   // A complete gamer profile is required before joining any competition.
   const pc = profileCompletion(u)

@@ -1,4 +1,4 @@
-import { allUsers, allRegistrations, allEvents, getUserById } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, isTeamPartnerReg } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
@@ -28,7 +28,7 @@ export default function BehaviorPage({ searchParams }: { searchParams: { bdays?:
   const events = allEvents()
   const eventDisc = new Map(events.map(e => [e.id, e.disc]))
 
-  const regs: RegRec[] = allRegistrations().map(r => {
+  const regs: RegRec[] = allRegistrations().filter(r => !isTeamPartnerReg(r)).map(r => {
     const u = getUserById(r.userId)
     const city = (u?.city || '').trim() || 'نامشخص'
     return {
