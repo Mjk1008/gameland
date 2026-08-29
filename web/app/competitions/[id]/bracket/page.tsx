@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser } from '@/lib/store'
+import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, getRegistration } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
+import { bracketModeOf, entryCapFor, notStartedBracketsForUser } from '@/lib/bracket'
 import { prelimVenueForGroupKey } from '@/lib/prelim-venue'
 import { C, BackHeader } from '@/components/ui'
 import BracketView, { type MatchDTO, type Player } from './BracketView'
+import ReentryBuy from './ReentryBuy'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,10 +68,19 @@ export default async function BracketPage({ params }: { params: { id: string } }
       p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
       winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status,
     }))
+    // re-entry offer (prelims only): viewer has an approved reg, سهم budget left, and a not-started bracket
+    let reentryMax = 0
+    if (!isTeamEvent && uid && bracketModeOf(c.id) === 'prelims') {
+      const myReg = getRegistration(uid, c.id)
+      if (myReg?.status === 'approved') {
+        reentryMax = Math.max(0, Math.min(entryCapFor(c.id) - myReg.attempts, notStartedBracketsForUser(c.id, uid)))
+      }
+    }
     return (
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
+          {reentryMax > 0 && <ReentryBuy compId={c.id} max={reentryMax} />}
           <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} />
         </div>
       </div>

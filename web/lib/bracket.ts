@@ -307,6 +307,40 @@ export function correctMatchResult(matchId: string, newWinnerUserId: string): Ma
   return m
 }
 
+// ── re-entry (MD-5b): seat a returning player into later not-started brackets ──
+// Places up to `n` new entries for `userId`, one per not-started bracket in the
+// player's own prelim group (lowest bracket index first — same "early first" as
+// the original draw). Uses the empty round-1 / bye slots; skips a bracket with
+// no free slot. Returns how many were actually placed and where.
+export function placeReentrySeats(compId: string, userId: string, n: number): { placed: number; brackets: number[] } {
+  const mode: GroupMode = getEventConfig(compId).groupMode ?? 'city'
+  const gk = groupKeyOf(userId, mode)
+  const all = matchesForComp(compId)
+  const bracketIdxs = Array.from(new Set(all.filter(m => m.stage === 'prelim' && m.groupKey === gk).map(m => m.bracket))).sort((a, b) => a - b)
+  const placedBrackets: number[] = []
+  for (const b of bracketIdxs) {
+    if (placedBrackets.length >= n) break
+    if (bracketState(compId, gk, b) !== 'not-started') continue
+    const first = Math.min(...all.filter(m => m.stage === 'prelim' && m.groupKey === gk && m.bracket === b).map(m => m.round))
+    const slot = all.find(m =>
+      m.stage === 'prelim' && m.groupKey === gk && m.bracket === b && m.round === first &&
+      (!m.p1UserId || !m.p2UserId) && m.p1UserId !== userId && m.p2UserId !== userId,
+    )
+    if (!slot) continue
+    try { addPlayerToSlot(compId, gk, b, slot.slot, userId); placedBrackets.push(b) } catch { /* slot filled meanwhile */ }
+  }
+  return { placed: placedBrackets.length, brackets: placedBrackets }
+}
+
+// Count of not-started prelim brackets in a player's group (for the re-entry
+// eligibility check).
+export function notStartedBracketsForUser(compId: string, userId: string): number {
+  const mode: GroupMode = getEventConfig(compId).groupMode ?? 'city'
+  const gk = groupKeyOf(userId, mode)
+  const idxs = Array.from(new Set(matchesForComp(compId).filter(m => m.stage === 'prelim' && m.groupKey === gk).map(m => m.bracket)))
+  return idxs.filter(b => bracketState(compId, gk, b) === 'not-started').length
+}
+
 // ── manually place a player into an empty round-1 slot (admin "افزودن") ──
 export function addPlayerToSlot(compId: string, groupKey: string, bracket: number, slot: number, userId: string): Match {
   const m = matchesForComp(compId).find(x => x.groupKey === groupKey && x.bracket === bracket && x.round === 1 && x.slot === slot)
