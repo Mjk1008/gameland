@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { approvedRegistrationsForComp, seatableTeamsForComp, currentTeamMembers, getEventConfig, pushNotif } from '@/lib/store'
-import { generatePrelims, isDrawn } from '@/lib/bracket'
+import { generatePrelims, generateDirectBracket, bracketModeOf, isDrawn } from '@/lib/bracket'
 import { generateTeamPrelims } from '@/lib/bracket-team'
 
 export async function POST(req: Request) {
@@ -27,8 +27,15 @@ export async function POST(req: Request) {
   const regs = approvedRegistrationsForComp(compId)
   if (regs.length === 0) return NextResponse.json({ error: 'هیچ ثبت‌نام تاییدشده‌ای نداریم' }, { status: 400 })
 
+  // Direct disciplines (everything except EA FC 26) → one bracket, no grouping.
+  if (bracketModeOf(compId) === 'direct') {
+    const result = await generateDirectBracket({ compId, registrations: regs })
+    for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی انجام شد', 'جدول مسابقه چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
+    return NextResponse.json({ ok: true, mode: 'direct', ...result, redrawn: isDrawn(compId) })
+  }
+
   const result = await generatePrelims({ compId, registrations: regs, groupMode: mode })
   for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
 
-  return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })
+  return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
 }

@@ -19,7 +19,11 @@
     "ranking:demo": "npx tsx scripts/demo-ranking.ts",
     "icons": "node scripts/gen-icons.mjs",
     "arena:seed": "curl -s -X POST http://localhost:3000/api/arena/seed",
-    "assistant:eval": "npx tsx scripts/assistant-eval.ts"
+    "assistant:eval": "npx tsx scripts/assistant-eval.ts",
+    "rehearsal:preflight": "node scripts/rehearsal/preflight.mjs",
+    "rehearsal:clone": "node scripts/rehearsal/clone.mjs",
+    "rehearsal:reset": "node scripts/rehearsal/reset-brackets.mjs",
+    "rehearsal:deploy": "node scripts/rehearsal/deploy.mjs"
   },
   "engines": {
     "node": ">=20"

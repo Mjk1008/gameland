@@ -1561,6 +1561,17 @@ export interface EventConfig {
   teamSize?: number
   // Pre-draw venue announcement per city/province group — label only, no bracket impact.
   prelimVenues?: Record<string, PrelimVenue>
+  // Tournament shape: 'prelims' = city/province prelim brackets → assembled final
+  // (only EA FC 26 / fc26 by default); 'direct' = one single-elim bracket, no
+  // grouping, everyone seeded straight in. undefined ⇒ defaultBracketMode(disc).
+  // Frozen once isDrawn(compId) — enforced in the edit route.
+  bracketMode?: 'prelims' | 'direct'
+  // Max distinct entries one account can carry into the final (= سهم cap).
+  // undefined ⇒ 6. See lib/bracket.ts spreadSeats / computeQualifiers.
+  entryCap?: number
+  // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
+  // drives bracketState() 'not-started' checks for re-entry (MD-5b).
+  bracketSchedule?: Record<string, { date?: string; time?: string; note?: string }>
 }
 const eventConfigs = new Map<string, EventConfig>()
 

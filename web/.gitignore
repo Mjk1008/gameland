@@ -9,3 +9,5 @@ next-env.d.ts
 # Liara installs from its own npm mirror; a lockfile pinned to registry.npmjs.org
 # URLs hangs the Iran-side build. Resolve against the mirror instead.
 package-lock.json
+
+.npmcache

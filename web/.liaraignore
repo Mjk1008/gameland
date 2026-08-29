@@ -6,3 +6,6 @@ node_modules
 .tsbuildinfo
 scripts/demo-ranking.ts
 .claude
+
+# local npm cache — never deploy (114MB, breaks upload)
+.npmcache

@@ -24,3 +24,22 @@ export function buildDisciplineTitle(compTitle: string, gameName: string, teamSi
 export function formatModeLabel(teamSize?: number | null): '۱به۱' | '۲به۲' {
   return normalizeTeamSize(teamSize) === 2 ? '۲به۲' : '۱به۱'
 }
+
+// ── tournament shape ──────────────────────────────────────────────────────────
+export type BracketMode = 'prelims' | 'direct'
+
+// Only EA FC 26 (disc id `fc26`) runs city/province prelim brackets. Every other
+// discipline is a single direct bracket — everyone seeded straight in, that one
+// bracket IS the tournament. Admin can override per-event until the draw.
+export const PRELIM_DISCIPLINES = new Set(['fc26'])
+
+export function defaultBracketMode(disc: string): BracketMode {
+  return PRELIM_DISCIPLINES.has(disc) ? 'prelims' : 'direct'
+}
+
+export function bracketModeLabel(mode: BracketMode): string {
+  return mode === 'prelims' ? 'مقدماتی استانی + فینال' : 'تک‌براکت مستقیم'
+}
+
+/** Max distinct entries one account carries into the final (= سهم cap). */
+export const DEFAULT_ENTRY_CAP = 6
