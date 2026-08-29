@@ -1,5 +1,5 @@
 'use client'
-import { memo, useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
@@ -252,12 +252,15 @@ function StatusPill({ status }: { status: MatchDTO['status'] }) {
   return <span style={{ fontSize: 10, fontWeight: 700, color: c, background: s, padding: '2px 8px', borderRadius: 6 }}>{label}</span>
 }
 
-// ─────────────────────────── TREE VIEW (zoom + pan canvas) ─────────────────────
-function TreeView({ bMatches, rounds, totalPlayers, maxRound, meUid }: {
-  bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number; maxRound: number; meUid?: string
+// ─────────────────────────── TREE VIEW (native scroll, button zoom) ────────────
+// No custom pan/zoom gesture code: the container is a plain scrollable div, so
+// pan is native (trackpad / touch-drag / scrollbars) and can't fight React or a
+// passive wheel listener. Zoom is just three buttons that set a scale state
+// (clicks, not per-frame) — MD-9.
+function TreeView({ bMatches, rounds, meUid }: {
+  bMatches: MatchDTO[]; rounds: number[]; totalPlayers?: number; maxRound?: number; meUid?: string
 }) {
   const firstRound = rounds[0] ?? 1
-  // compute node positions: round r (index i from firstRound) → x; slot → y (centered on children)
   const pos = useMemo(() => {
     const p: Record<string, { x: number; y: number }> = {}
     const yByRound: Record<number, Record<number, number>> = {}
@@ -282,79 +285,29 @@ function TreeView({ bMatches, rounds, totalPlayers, maxRound, meUid }: {
   const canvasW = rounds.length * (CARD_W + COL_GAP) + CARD_W
   const canvasH = (bMatches.filter(m => m.round === firstRound).length) * ROW_H + ROW_H
 
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const [t, setT] = useState({ scale: 1, x: 20, y: 10 })
-  const tRef = useRef(t); tRef.current = t
-  const drag = useRef<{ x: number; y: number; tx: number; ty: number; cx: number; cy: number } | null>(null)
-  const raf = useRef<number | null>(null)
-
-  // Write the transform straight to the DOM during a drag — no React re-render
-  // of the ~127 nodes per frame (MD-9).
-  const applyTransform = (x: number, y: number, scale: number) => {
-    if (canvasRef.current) canvasRef.current.style.transform = `translate(${x}px,${y}px) scale(${scale})`
-  }
-
-  const fit = useCallback(() => {
-    const vp = viewportRef.current; if (!vp) return
-    const s = Math.min(1, Math.min(vp.clientWidth / (canvasW + 40), vp.clientHeight / (canvasH + 20)))
-    setT({ scale: s, x: (vp.clientWidth - canvasW * s) / 2, y: 12 })
-  }, [canvasW, canvasH])
-  useEffect(() => { fit() }, [fit])
-
-  const zoom = (factor: number) => setT(p => {
-    const vp = viewportRef.current; if (!vp) return p
-    const cx = vp.clientWidth / 2, cy = vp.clientHeight / 2
-    const ns = Math.min(2.2, Math.max(0.18, p.scale * factor))
-    return { scale: ns, x: cx - (cx - p.x) * (ns / p.scale), y: cy - (cy - p.y) * (ns / p.scale) }
-  })
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId)
-    drag.current = { x: e.clientX, y: e.clientY, tx: tRef.current.x, ty: tRef.current.y, cx: tRef.current.x, cy: tRef.current.y }
-  }
-  const onPointerMove = (e: React.PointerEvent) => {
-    const d = drag.current; if (!d) return
-    d.cx = d.tx + (e.clientX - d.x); d.cy = d.ty + (e.clientY - d.y)
-    if (raf.current == null) {
-      raf.current = requestAnimationFrame(() => {
-        raf.current = null
-        if (drag.current) applyTransform(drag.current.cx, drag.current.cy, tRef.current.scale)
-      })
-    }
-  }
-  const onPointerUp = () => {
-    const d = drag.current; drag.current = null
-    if (raf.current != null) { cancelAnimationFrame(raf.current); raf.current = null }
-    if (d) setT(p => ({ ...p, x: d.cx, y: d.cy }))   // commit once
-  }
-  const wheelRaf = useRef<number | null>(null)
-  const onWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) e.preventDefault()
-    const dir = e.deltaY < 0 ? 1.12 : 0.89
-    if (wheelRaf.current == null) wheelRaf.current = requestAnimationFrame(() => { wheelRaf.current = null; zoom(dir) })
-  }
+  const [scale, setScale] = useState(1)
+  const zoom = (f: number) => setScale(s => Math.min(1.6, Math.max(0.3, Math.round(s * f * 20) / 20)))
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        <button onClick={() => zoom(1.2)} style={zoomBtn}>+</button>
-        <button onClick={() => zoom(0.83)} style={zoomBtn}>−</button>
-        <button onClick={fit} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12 }}>نمای کامل</button>
-        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>بکش برای جابه‌جایی · +/− زوم</span>
+        <button onClick={() => zoom(1.25)} style={zoomBtn}>+</button>
+        <button onClick={() => zoom(0.8)} style={zoomBtn}>−</button>
+        <button onClick={() => setScale(1)} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12 }}>۱۰۰٪</button>
+        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>اسکرول کن برای جابه‌جایی · +/− زوم</span>
       </div>
       <div
-        ref={viewportRef}
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-        onWheel={onWheel}
         style={{
-          position: 'relative', width: '100%', height: 'min(72vh, 560px)', overflow: 'hidden',
-          background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14, cursor: 'grab', touchAction: 'none',
+          width: '100%', height: 'min(72vh, 560px)', overflow: 'auto',
+          background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14,
+          WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
         }}
       >
-        <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, transform: `translate(${t.x}px,${t.y}px) scale(${t.scale})`, transformOrigin: '0 0', width: canvasW, height: canvasH, direction: 'ltr', willChange: 'transform' }}>
-          <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} />
-          <Nodes bMatches={bMatches} pos={pos} meUid={meUid} />
+        <div style={{ width: canvasW * scale, height: canvasH * scale, direction: 'ltr', flexShrink: 0 }}>
+          <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
+            <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} />
+            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} />
+          </div>
         </div>
       </div>
     </div>
