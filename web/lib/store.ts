@@ -871,6 +871,16 @@ export function getRegistrationById(id: string): Registration | undefined {
   return undefined
 }
 
+// Reconnect the `seedsEarned` field to the multi-entry final: it now means
+// "this account's count of still-alive entries in the assembled final".
+// Recomputed by lib/bracket.ts (syncFinalEntries) whenever the final changes.
+export function setRegSeeds(userId: string, compId: string, n: number): void {
+  const r = regs.get(userId + '|' + compId)
+  if (!r || r.seedsEarned === n) return
+  r.seedsEarned = n
+  persist.reg.update(r.id, { seedsEarned: n } as any)
+}
+
 export function recordPrelimOutcome(regId: string, outcome: 'advance' | 'eliminate'): Registration {
   const r = getRegistrationById(regId)
   if (!r) throw new Error('REG_NOT_FOUND')

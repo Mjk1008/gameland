@@ -9,6 +9,7 @@ import PrelimVenuePanel from './prelim-venue-panel'
 export type BracketInfo = { groupKey: string; groupLabel: string; bracket: number; players: number; done: number; total: number; qualify: number; complete: boolean }
 type Props = {
   compId: string; drawn: boolean; regCount: number
+  bracketMode: 'prelims' | 'direct'
   groupMode: 'city' | 'province'
   brackets: BracketInfo[]
   qualifierCount: number
@@ -35,10 +36,12 @@ export default function TournamentPanel(p: Props) {
     finally { setBusy(null) }
   }
 
+  const direct = p.bracketMode === 'direct'
+
   async function draw() {
     if (p.drawn && !confirm('براکت‌های قبلی پاک می‌شن و از نو چیده می‌شن. مطمئنی؟')) return
     const j = await post('/api/admin/draw', { compId: p.compId, groupMode: mode }, 'draw')
-    if (j) setMsg({ ok: true, text: `چیده شد · ${j.groups} گروه · ${j.brackets} براکت` })
+    if (j) setMsg({ ok: true, text: direct ? `جدول چیده شد · ${j.players ?? j.seats} نفر` : `چیده شد · ${j.groups} گروه · ${j.brackets} براکت` })
   }
   async function assemble() {
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
@@ -58,25 +61,34 @@ export default function TournamentPanel(p: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Section title="۰ · محل برگزاری مقدماتی" sub="قبل از قرعه‌کشی اعلام کن هر شهر/استان کجا بازی می‌کنه — فقط برچسب، روی براکت اثری نداره">
-        <PrelimVenuePanel compId={p.compId} groupMode={p.groupMode} prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
-      </Section>
+      {!direct && (
+        <Section title="۰ · محل برگزاری مقدماتی" sub="قبل از قرعه‌کشی اعلام کن هر شهر/استان کجا بازی می‌کنه — فقط برچسب، روی براکت اثری نداره">
+          <PrelimVenuePanel compId={p.compId} groupMode={p.groupMode} prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
+        </Section>
+      )}
 
       {/* 1) draw / group mode */}
-      <Section title="۱ · مرحلهٔ مقدماتی" sub="بازیکن‌ها بر اساس شهر یا استان گروه‌بندی و براکت‌بندی می‌شن">
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          {(['city', 'province'] as const).map(m => (
-            <button key={m} type="button" onClick={() => setMode(m)} style={seg(mode === m)}>{m === 'city' ? 'بر اساس شهر' : 'بر اساس استان'}</button>
-          ))}
-        </div>
+      <Section title={direct ? '۱ · قرعه‌کشی' : '۱ · مرحلهٔ مقدماتی'} sub={direct ? 'همهٔ بازیکن‌های تاییدشده در یک جدول واحد چیده می‌شن — سهم‌های هر نفر پخش می‌شن که زود به هم نخورن' : 'بازیکن‌ها بر اساس شهر یا استان گروه‌بندی و براکت‌بندی می‌شن'}>
+        {!direct && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            {(['city', 'province'] as const).map(m => (
+              <button key={m} type="button" onClick={() => setMode(m)} style={seg(mode === m)}>{m === 'city' ? 'بر اساس شهر' : 'بر اساس استان'}</button>
+            ))}
+          </div>
+        )}
         <button onClick={draw} disabled={busy != null || p.regCount === 0} style={primaryBtn(p.drawn, busy === 'draw' || p.regCount === 0)}>
-          {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? 'چیدن مجدد براکت‌های مقدماتی' : 'ساخت براکت‌های مقدماتی'}
+          {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? (direct ? 'چیدن مجدد جدول' : 'چیدن مجدد براکت‌های مقدماتی') : (direct ? 'ساخت جدول مسابقه' : 'ساخت براکت‌های مقدماتی')}
         </button>
-        {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن، بعد براکت‌ها رو بساز.</div>}
+        {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن، بعد جدول رو بساز.</div>}
+        {direct && p.drawn && (
+          <Link href={`/competitions/${p.compId}/bracket`} style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 12.5, color: C.accent, textDecoration: 'none', fontWeight: 700 }}>
+            دیدن جدول و ثبت نتیجه‌ها →
+          </Link>
+        )}
       </Section>
 
-      {/* 2) brackets + qualify */}
-      {p.drawn && (
+      {/* 2) brackets + qualify — prelims only */}
+      {!direct && p.drawn && (
         <Section title="۲ · براکت‌ها و کوالیفای" sub="برای هر براکت تعیین کن چند نفرِ برتر به فینال برن">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[...groups.entries()].map(([gk, g]) => (
@@ -102,8 +114,8 @@ export default function TournamentPanel(p: Props) {
         </Section>
       )}
 
-      {/* 3) assemble final */}
-      {p.drawn && (
+      {/* 3) assemble final — prelims only (direct bracket IS the final) */}
+      {!direct && p.drawn && (
         <Section title="۳ · فینال ۱۲۸ نفره" sub="از میان کوالیفای‌شده‌های همهٔ شهرها/براکت‌ها">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <Stat label="کوالیفای‌شده" value={p.qualifierCount} c={C.accent} />

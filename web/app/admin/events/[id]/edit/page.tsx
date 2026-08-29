@@ -1,7 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, getEventConfig, registrationsForComp } from '@/lib/store'
+import { getEvent, getEventConfig, registrationsForComp, matchesForComp } from '@/lib/store'
+import { defaultBracketMode } from '@/lib/discipline-format'
 import EditEventForm, { type EventInit } from './form'
 
 export const dynamic = 'force-dynamic'
@@ -21,9 +22,12 @@ export default async function EditEventPage({ params }: { params: { id: string }
     tier: e.tier, status: e.status,
     teamSize: cfg.teamSize === 2 ? 2 : 1,
     ticketPrice: cfg.ticketPrice, ticketOriginal: cfg.ticketOriginal,
+    bracketMode: cfg.bracketMode ?? defaultBracketMode(e.disc),
     // Format is frozen once anyone has registered (docs/27 §1.5) — the form
     // disables the selector using this, never re-derived on the client.
     formatLocked: registrationsForComp(e.id).length > 0,
+    // bracketMode is frozen once the draw has run.
+    bracketLocked: matchesForComp(e.id).length > 0,
   }
   return <EditEventForm init={init} />
 }

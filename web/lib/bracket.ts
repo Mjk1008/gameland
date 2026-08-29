@@ -15,7 +15,7 @@
 import {
   Registration, Match, GroupMode,
   clearMatchesForComp, clearMatchesByStage, pushMatch, saveMatch, matchesForComp, getMatch,
-  findNextMatch, getUserById, prelimGroupKeys, getRegistration,
+  findNextMatch, getUserById, prelimGroupKeys, approvedRegistrationsForComp, setRegSeeds,
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
 } from './store'
 import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './discipline-format'
@@ -240,6 +240,7 @@ export async function generateDirectBracket(
     buildTree(compId, 'final', '', 0, seats, seedFrom(compId + 'direct-tree'), true)
   }
   setEventConfig(compId, { bracketMode: 'direct' })
+  syncFinalEntries(compId)
   return {
     seats: seats.filter(Boolean).length,
     players: entries.length,
@@ -274,6 +275,7 @@ export function setMatchWinner(matchId: string, winnerUserId: string, score?: st
   if (m.stage === 'prelim' && !findNextMatch(m)) {
     pushNotif(winnerUserId, 'advance', 'قهرمان براکت مقدماتی', 'به مرحلهٔ بعد صعود کردی — منتظر مونتاژ فینال باش.')
   }
+  if (m.stage === 'final') syncFinalEntries(m.compId)
   return m
 }
 
@@ -301,6 +303,7 @@ export function correctMatchResult(matchId: string, newWinnerUserId: string): Ma
   saveMatch(m)
   feedWinner(m)
   resolveByes(m.compId, m.stage, m.groupKey, m.bracket)
+  if (m.stage === 'final') syncFinalEntries(m.compId)
   return m
 }
 
@@ -366,6 +369,14 @@ export function computeQualifiers(compId: string): Qualifier[] {
   return out
 }
 
+// Recompute Registration.seedsEarned (= live final entries) for every approved
+// account in the comp. Call after any change to the final bracket.
+export function syncFinalEntries(compId: string): void {
+  for (const r of approvedRegistrationsForComp(compId)) {
+    setRegSeeds(r.userId, compId, liveFinalEntries(compId, r.userId))
+  }
+}
+
 // Count of an account's still-alive entries in the assembled final (0 if the
 // final isn't built or the account isn't in it). Feeds Registration.seedsEarned
 // display on the player pages.
@@ -418,6 +429,7 @@ export async function assembleFinal(compId: string): Promise<{ seats: number; pl
   await clearMatchesByStage(compId, 'final')
   const seats = spreadSeats(kept, seedFrom(compId + 'final-tree'))
   if (seats.filter(Boolean).length >= 2) buildTree(compId, 'final', '', 0, seats, seedFrom(compId + 'final-tree'), true)
+  syncFinalEntries(compId)
   return { seats: seatSum, players: kept.length, capped }
 }
 

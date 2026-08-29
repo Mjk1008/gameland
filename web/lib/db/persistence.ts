@@ -699,6 +699,13 @@ export const persist = {
       if (Object.keys(set).length === 0) return
       await d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id))
     },
+    // Hard-delete a registration row. Only reached from the pre-draw
+    // withdraw/cancel path (cancelRegistration) — the bracket lock means a
+    // seated registration can never get here.
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.registrations).where(eq(schema.registrations.id, id)))
+    },
   },
   team: {
     insert(t: { id: string; compId: string; name: string; captainId: string; status: string; attempts: number }) {

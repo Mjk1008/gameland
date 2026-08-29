@@ -11,7 +11,9 @@ export type EventInit = {
   prize: number; teams: number; format: string; date: string; finalSize: number
   tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done'
   teamSize: 1 | 2; ticketPrice?: number; ticketOriginal?: number
+  bracketMode: 'prelims' | 'direct'
   formatLocked: boolean
+  bracketLocked: boolean
 }
 const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته' }
 
@@ -28,6 +30,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>(init.tier)
   const [status, setStatus] = useState<'open' | 'soon' | 'live' | 'done'>(init.status)
   const [teamSize, setTeamSize] = useState<1 | 2>(init.teamSize)
+  const [bracketMode, setBracketMode] = useState<'prelims' | 'direct'>(init.bracketMode)
   const [ticketPrice, setTicketPrice] = useState(init.ticketPrice != null ? String(init.ticketPrice) : '')
   const [ticketOriginal, setTicketOriginal] = useState(init.ticketOriginal != null ? String(init.ticketOriginal) : '')
   const [busy, setBusy] = useState(false)
@@ -37,7 +40,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true); setSaved(false)
     try {
-      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize: init.formatLocked ? undefined : teamSize, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
+      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize: init.formatLocked ? undefined : teamSize, bracketMode: init.bracketLocked ? undefined : bracketMode, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setSaved(true); router.refresh()
@@ -90,6 +93,15 @@ export default function EditEventForm({ init }: { init: EventInit }) {
           {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
             const on = teamSize === k
             return <button key={k} type="button" disabled={init.formatLocked} onClick={() => setTeamSize(k)} style={{ all: 'unset', cursor: init.formatLocked ? 'not-allowed' : 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
+          })}
+        </div>
+      </Field>
+
+      <Field label="نوع جدول" hint={init.bracketLocked ? 'قرعه‌کشی انجام شده — دیگه قابل تغییر نیست' : 'مقدماتی = براکت‌های استانی → فینال (فقط EA FC 26). مستقیم = یک جدول واحد، همه توش.'}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: init.bracketLocked ? 0.5 : 1 }}>
+          {([['prelims', 'مقدماتی + فینال'], ['direct', 'تک‌براکت مستقیم']] as const).map(([k, label]) => {
+            const on = bracketMode === k
+            return <button key={k} type="button" disabled={init.bracketLocked} onClick={() => setBracketMode(k)} style={{ all: 'unset', cursor: init.bracketLocked ? 'not-allowed' : 'pointer', textAlign: 'center', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${on ? C.accent : C.line}`, borderRadius: 10, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, fontWeight: 700, fontSize: 12.5 }}>{label}</button>
           })}
         </div>
       </Field>

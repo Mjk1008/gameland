@@ -1,12 +1,14 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover } from '@/lib/store'
-import { computeQualifiers } from '@/lib/bracket'
+import { computeQualifiers, bracketModeOf } from '@/lib/bracket'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
+import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
+import RunPanel, { type RunMatch } from './run-panel'
 import TournamentPanel, { type BracketInfo } from './tournament-panel'
 import DeleteEventButton from './delete-button'
 import PrizeEditor from './prize-editor'
@@ -52,6 +54,40 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: cfg.qualify[qualifyKey(gk, b)] ?? 2, complete: ms.every(m => m.status === 'done') })
     }
   }
+  // ── run-panel: playable + recorded matches (solo events only) ──
+  let runMatches: RunMatch[] = []
+  if (!isTeamEvent && drawn) {
+    const attemptsMap = attemptsForComp(c.id)
+    const entryMap = entryIndexForComp(c.id)
+    const roundSizes = new Map<string, number>()   // stage|gk|bracket → round-1 match count
+    for (const m of all) {
+      const k = `${m.stage}|${m.groupKey}|${m.bracket}`
+      const first = Math.min(...all.filter(x => x.stage === m.stage && x.groupKey === m.groupKey && x.bracket === m.bracket).map(x => x.round))
+      if (m.round === first) roundSizes.set(k, (roundSizes.get(k) ?? 0) + 1)
+    }
+    const label = (m: (typeof all)[number]) => {
+      const k = `${m.stage}|${m.groupKey}|${m.bracket}`
+      const rounds = all.filter(x => x.stage === m.stage && x.groupKey === m.groupKey && x.bracket === m.bracket).map(x => x.round)
+      const first = Math.min(...rounds)
+      const inRound = (roundSizes.get(k) ?? 1) * 2 / Math.pow(2, m.round - first)
+      return inRound === 2 ? 'فینال' : inRound === 4 ? 'نیمه‌نهایی' : inRound === 8 ? 'یک‌چهارم' : inRound === 16 ? 'یک‌هشتم' : `مرحلهٔ ${inRound}`
+    }
+    const player = (uid: string | undefined, mId: string, side: 1 | 2): RunMatch['p1'] => {
+      if (!uid) return null
+      const u = getUserById(uid)
+      return { uid, tag: u?.tag || uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`) }
+    }
+    runMatches = all
+      .filter(m => m.status === 'ready' || m.status === 'done')
+      .map(m => ({
+        id: m.id, groupKey: m.groupKey, groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
+        bracket: m.bracket, round: m.round, slot: m.slot, roundLabel: label(m),
+        p1: player(m.p1UserId, m.id, 1), p2: player(m.p2UserId, m.id, 2),
+        winnerUid: m.winnerUserId, status: m.status,
+        selfMatch: !!m.p1UserId && m.p1UserId === m.p2UserId,
+      }))
+  }
+
   const qualifierCount = isTeamEvent ? computeTeamQualifiers(c.id).length : computeQualifiers(c.id).length
   const finalExists = all.some(m => m.stage === 'final')
   const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [seatOf(m, 1), seatOf(m, 2)].filter(Boolean))).size
@@ -131,10 +167,13 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
 
       <TournamentPanel
         compId={c.id} drawn={drawn} regCount={regs.length}
+        bracketMode={bracketModeOf(c.id)}
         groupMode={cfg.groupMode} brackets={brackets}
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
       />
+
+      {!isTeamEvent && drawn && <RunPanel compId={c.id} matches={runMatches} />}
 
       <Card><FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} /></Card>
 

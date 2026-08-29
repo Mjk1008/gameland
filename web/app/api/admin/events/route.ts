@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createEvent, updateEvent, getUserById, getEvent, setEventConfig, registrationsForComp, isDisciplineSlotTaken } from '@/lib/store'
+import { createEvent, updateEvent, getUserById, getEvent, setEventConfig, registrationsForComp, isDisciplineSlotTaken, matchesForComp } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
+import { defaultBracketMode } from '@/lib/discipline-format'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -38,9 +39,15 @@ export async function POST(req: Request) {
     competitionId,
     finalSize,
   })
-  if (teamSize !== undefined || ticketPrice !== undefined || ticketOriginal !== undefined) {
-    setEventConfig(e.id, { teamSize, ticketPrice, ticketOriginal })
-  }
+  const bracketMode = b.bracketMode === 'prelims' || b.bracketMode === 'direct'
+    ? b.bracketMode
+    : defaultBracketMode(b.disc)
+  setEventConfig(e.id, {
+    bracketMode,
+    ...(teamSize !== undefined ? { teamSize } : {}),
+    ...(ticketPrice !== undefined ? { ticketPrice } : {}),
+    ...(ticketOriginal !== undefined ? { ticketOriginal } : {}),
+  })
   return NextResponse.json({ ok: true, event: e })
 }
 
@@ -85,6 +92,14 @@ export async function PATCH(req: Request) {
     const ticketPrice = b.ticketPrice != null && b.ticketPrice !== '' ? Number(b.ticketPrice) : undefined
     const ticketOriginal = b.ticketOriginal != null && b.ticketOriginal !== '' ? Number(b.ticketOriginal) : undefined
     setEventConfig(id, { ticketPrice, ticketOriginal })
+  }
+
+  // bracketMode is frozen once the draw has run — a drawn tree's shape can't flip.
+  if (b.bracketMode === 'prelims' || b.bracketMode === 'direct') {
+    if (matchesForComp(id).length > 0) {
+      return NextResponse.json({ error: 'قرعه‌کشی انجام شده — نوع جدول دیگه قابل تغییر نیست' }, { status: 409 })
+    }
+    setEventConfig(id, { bracketMode: b.bracketMode })
   }
 
   try {
