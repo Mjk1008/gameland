@@ -36,8 +36,9 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const gRef = useRef<SVGGElement>(null)
-  const view = useRef({ x: 0, y: 0, k: 1 })
-  const [, force] = useState(0)          // only to reflect k in the readout
+  // committed transform (buttons / gesture-end) + a live ref the gesture mutates
+  const [view, setView] = useState({ x: 0, y: 0, k: 1 })
+  const vRef = useRef(view)
   const raf = useRef(0)
 
   // active pointers (screen coords) + pinch memory
@@ -53,32 +54,39 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
     return r && r.width ? SIZE / r.width : 1
   }, [])
 
+  // write vRef → DOM. Called directly (safe when rAF is throttled, e.g. tab
+  // hidden) and also via rAF for smoothness during a live gesture.
   const apply = useCallback(() => {
     raf.current = 0
     const g = gRef.current
     if (g) {
-      const v = view.current
+      const v = vRef.current
       g.setAttribute('transform', `translate(${v.x} ${v.y}) scale(${v.k})`)
     }
   }, [])
   const schedule = useCallback(() => {
+    if (typeof requestAnimationFrame !== 'function') { apply(); return }
     if (!raf.current) raf.current = requestAnimationFrame(apply)
   }, [apply])
+  // commit the live ref to React state (buttons + gesture-end) — the effect below
+  // then guarantees the DOM is in sync even if the last rAF never fired
+  const commit = useCallback(() => setView({ ...vRef.current }), [])
+  useEffect(() => { vRef.current = view; apply() }, [view, apply])
 
   const clampK = (k: number) => Math.min(MAX_K, Math.max(MIN_K, k))
 
   // zoom about a focal point given in viewBox-user coords (measured from svg origin)
   const zoomAt = useCallback((nextK: number, fx: number, fy: number) => {
-    const v = view.current
+    const v = vRef.current
     const k2 = clampK(nextK)
     v.x = fx - (fx - v.x) * (k2 / v.k)
     v.y = fy - (fy - v.y) * (k2 / v.k)
     v.k = k2
-    schedule()
-  }, [schedule])
+    commit()
+  }, [commit])
 
   const onPointerDown = (e: React.PointerEvent) => {
-    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    try { (e.currentTarget as Element).setPointerCapture?.(e.pointerId) } catch { /* synthetic / unknown pointer */ }
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     tap.current = { x: e.clientX, y: e.clientY, moved: false }
     if (ptrs.current.size === 2) {
@@ -103,7 +111,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
       const fx = (mid.x - rect.left) * scale
       const fy = (mid.y - rect.top) * scale
       const ratio = pinch.current.dist ? dist / pinch.current.dist : 1
-      const v = view.current
+      const v = vRef.current
       const k2 = clampK(v.k * ratio)
       v.x = fx - (fx - v.x) * (k2 / v.k) + (mid.x - pinch.current.mid.x) * scale
       v.y = fy - (fy - v.y) * (k2 / v.k) + (mid.y - pinch.current.mid.y) * scale
@@ -117,14 +125,14 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
     // one finger → pan
     const dx = (cur.x - prev.x) * scale
     const dy = (cur.y - prev.y) * scale
-    view.current.x += dx
-    view.current.y += dy
+    vRef.current.x += dx
+    vRef.current.y += dy
     if (tap.current && Math.hypot(cur.x - tap.current.x, cur.y - tap.current.y) > 6) tap.current.moved = true
     schedule()
   }
 
   const endPointer = (e: React.PointerEvent) => {
-    ;(e.currentTarget as Element).releasePointerCapture?.(e.pointerId)
+    try { (e.currentTarget as Element).releasePointerCapture?.(e.pointerId) } catch { /* noop */ }
     ptrs.current.delete(e.pointerId)
     if (ptrs.current.size < 2) pinch.current = null
 
@@ -132,7 +140,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
     if (ptrs.current.size === 0 && tap.current && !tap.current.moved) {
       const rect = wrapRef.current!.getBoundingClientRect()
       const scale = f()
-      const v = view.current
+      const v = vRef.current
       let best: { d: number; n: Node } | null = null
       for (const n of geo.nodes) {
         if (!n.player) continue
@@ -147,17 +155,17 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
       }
     }
     tap.current = null
-    if (ptrs.current.size === 0) force(x => x + 1)  // sync readout
+    if (ptrs.current.size === 0) commit()   // sync state + guarantee DOM apply
   }
 
-  const btnZoom = (factor: number) => zoomAt(view.current.k * factor, SIZE / 2, SIZE / 2)
-  const reset = () => { view.current = { x: 0, y: 0, k: 1 }; schedule(); force(x => x + 1) }
+  const btnZoom = (factor: number) => zoomAt(vRef.current.k * factor, SIZE / 2, SIZE / 2)
+  const reset = () => { vRef.current = { x: 0, y: 0, k: 1 }; commit() }
 
   useEffect(() => () => { if (raf.current) cancelAnimationFrame(raf.current) }, [])
   // re-fit transform if the bracket data changes underneath us
-  useEffect(() => { view.current = { x: 0, y: 0, k: 1 }; apply() }, [geo, apply])
+  useEffect(() => { vRef.current = { x: 0, y: 0, k: 1 }; setView({ x: 0, y: 0, k: 1 }) }, [geo])
 
-  const kPct = Math.round(view.current.k * 100)
+  const kPct = Math.round(view.k * 100)
 
   return (
     <div>
@@ -212,7 +220,9 @@ function seatsInRound(bMatches: MatchDTO[], rounds: number[], round: number): nu
 // ── the heavy, static SVG body — never re-rendered by a gesture ───────────────
 const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
   const { cx, cy, outerR, nodes, links, rings, champ } = geo
-  const showLabels = nodes.length <= 48       // past this, dots only (tap to read)
+  // ≤20 seats: every name fits. More: only the ones that matter (advanced or you),
+  // the rest are dots — tap to read, or pinch in. Keeps the ring from turning to mush.
+  const labelAll = nodes.length <= 20
 
   return (
     <>
@@ -259,7 +269,7 @@ const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
               stroke={n.me ? C.accent : n.win ? C.gold : C.line2}
               strokeWidth={n.me ? 3.5 : 1.5}
             />
-            {n.player && showLabels && (
+            {n.player && (labelAll || n.win || n.me) && (
               <text
                 x={lx} y={ly}
                 textAnchor={rightSide ? 'start' : 'end'} dominantBaseline="central"

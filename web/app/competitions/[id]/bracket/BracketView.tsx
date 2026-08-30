@@ -439,6 +439,9 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
           width: '100%', height: 'min(72vh, 560px)', overflow: 'auto',
           background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14,
           WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
+          // the RTL page would otherwise open this scroller pinned to the far
+          // side — force LTR so it starts on round 1 and scrollLeft math is sane
+          direction: 'ltr',
         }}
       >
         <div style={{ width: canvasW * scale, height: canvasH * scale, direction: 'ltr', flexShrink: 0 }}>
