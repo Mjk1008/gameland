@@ -1,9 +1,10 @@
 'use client'
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
 import RadialBracket from './RadialBracket'
+import MatchSheet, { roundLabel } from './MatchSheet'
 
 // ── types coming from the server ──
 export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number } | null
@@ -26,24 +27,11 @@ type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: s
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
-const CARD_W = 156, CARD_H = 52, COL_GAP = 52, ROW_H = 70
+const CARD_W = 156, CARD_H = 52, COL_GAP = 54, ROW_H = 70
 
-// Persian round name from how many players are in that round
-function roundName(playersInRound: number): string {
-  switch (playersInRound) {
-    case 2:  return 'فینال'
-    case 4:  return 'نیمه‌نهایی'
-    case 8:  return 'یک‌چهارم نهایی'
-    case 16: return 'یک‌هشتم نهایی'
-    case 32: return 'مرحلهٔ ۳۲'
-    case 64: return 'مرحلهٔ ۶۴'
-    case 128:return 'مرحلهٔ ۱۲۸'
-    default: return `${playersInRound} نفره`
-  }
-}
+const roundName = roundLabel
 
 export default function BracketView({ matches, meUid, isAdmin, compId, venueLabels, schedules }: Props) {
-  // Build navigable scopes: one per prelim group (city/province) + the final.
   const scopes = useMemo<Scope[]>(() => {
     const out: Scope[] = []
     const prelimKeys = Array.from(new Set(matches.filter(m => m.stage === 'prelim').map(m => m.groupKey)))
@@ -52,7 +40,6 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
     return out
   }, [matches])
 
-  // default to the scope the viewer is in, else final, else first
   const myScopeKey = useMemo(() => {
     if (meUid) {
       const mine = matches.find(m => m.p1?.uid === meUid || m.p2?.uid === meUid)
@@ -62,8 +49,8 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
   }, [matches, meUid, scopes])
 
   const [scopeKey, setScopeKey] = useState<string>(myScopeKey)
-
   useEffect(() => { track('bracket_view', { compId }) }, [compId])
+
   const scope = scopes.find(s => s.key === scopeKey) ?? scopes[0]
   const scopeMatches = useMemo(() => scope ? matches.filter(m => m.stage === scope.stage && m.groupKey === scope.groupKey) : [], [matches, scope])
 
@@ -74,12 +61,13 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
     return mine ? mine.bracket : null
   }, [scopeMatches, meUid])
 
-  const [bracket, setBracketState] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
+  const [bracket, setBracket] = useState<number>(myBracket ?? bracketIds[0] ?? 0)
   const bracket_ = bracketIds.includes(bracket) ? bracket : (myBracket ?? bracketIds[0] ?? 0)
-  const setBracket = setBracketState
-  // Admins land on the reliable list view; players get the poster-style radial (MD-10).
-  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>(isAdmin ? 'rounds' : 'radial')
+
+  // Default: list («مرحله‌ای») for everyone — it never breaks and answers "where am I".
+  const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('rounds')
   const [myPathOnly, setMyPathOnly] = useState(false)
+  const [sel, setSel] = useState<MatchDTO | null>(null)
 
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
   const rounds = useMemo(() => Array.from(new Set(bMatches.map(m => m.round))).sort((a, b) => a - b), [bMatches])
@@ -87,7 +75,6 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
   const r1count = bMatches.filter(m => m.round === (rounds[0] ?? 1)).length
   const totalPlayers = r1count * 2
 
-  // the set of matches on the viewer's path (round by round, following wins)
   const myPath = useMemo(() => {
     if (!meUid) return new Set<string>()
     const ids = new Set<string>()
@@ -95,9 +82,15 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
     return ids
   }, [bMatches, meUid])
 
+  // champion's winning path (match ids) — used to make the tree/connectors legible
+  const winPath = useMemo(() => computeWinPath(bMatches, rounds), [bMatches, rounds])
+
+  const seatsInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* controls */}
+      {meUid && myBracket === bracket_ && <MyStatusCard bMatches={bMatches} rounds={rounds} meUid={meUid} totalPlayers={totalPlayers} onOpen={setSel} />}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['rounds', 'tree', 'radial'] as const).map(v => (
@@ -106,7 +99,6 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
             </button>
           ))}
         </div>
-        {/* scope: which city's prelim, or the final */}
         {scopes.length > 1 && (
           <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
             {scopes.map(s => (
@@ -150,54 +142,178 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
       </div>
 
       {mode === 'rounds'
-        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} isAdmin={isAdmin} compId={compId} />
+        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} isAdmin={isAdmin} onOpen={setSel} />
         : mode === 'tree'
-        ? <TreeView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} maxRound={maxRound} meUid={meUid} />
+        ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={setSel} />
         : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
-    </div>
-  )
-}
 
-// ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ──────────
-function RoundsView({ bMatches, rounds, totalPlayers, maxRound, meUid, myPathOnly, myPath, isAdmin, compId }: {
-  bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number; maxRound: number
-  meUid?: string; myPathOnly: boolean; myPath: Set<string>; isAdmin?: boolean; compId: string
-}) {
-  const [sel, setSel] = useState<number>(rounds[0] ?? 1)
-  useEffect(() => { if (!rounds.includes(sel)) setSel(rounds[0] ?? 1) }, [rounds, sel])
-
-  const playersInRound = (r: number) => totalPlayers / Math.pow(2, r - (rounds[0] ?? 1))
-  let list = bMatches.filter(m => m.round === sel)
-  if (myPathOnly) list = list.filter(m => myPath.has(m.id))
-
-  return (
-    <div>
-      {/* round tabs */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
-        {rounds.map(r => (
-          <button key={r} onClick={() => setSel(r)} style={{ ...chip(r === sel), whiteSpace: 'nowrap' }}>
-            {roundName(playersInRound(r))}
-          </button>
-        ))}
-      </div>
-      {list.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '20px 0' }}>
-          {myPathOnly ? 'تو این مرحله بازی‌ای نداری' : 'هنوز بازی‌ای اینجا نیست'}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} isAdmin={isAdmin} compId={compId} />)}
-        </div>
+      {mode !== 'radial' && (
+        <MatchSheet
+          match={sel}
+          roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
+          meUid={meUid}
+          onClose={() => setSel(null)}
+        />
       )}
     </div>
   )
 }
 
-function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: string; isAdmin?: boolean; compId: string }) {
+// walk back from the final's winner: the set of match ids on the champion's road
+function computeWinPath(bMatches: MatchDTO[], rounds: number[]): Set<string> {
+  const ids = new Set<string>()
+  if (!rounds.length) return ids
+  const finalM = bMatches.find(m => m.round === rounds[rounds.length - 1])
+  if (!finalM || finalM.status !== 'done' || !finalM.winnerUid) return ids
+  let cur: MatchDTO | null = finalM
+  for (let ri = rounds.length - 1; cur && ri >= 0; ri--) {
+    ids.add(cur.id)
+    if (ri === 0) break
+    const w: string | undefined = cur.winnerUid
+    const cs: number = cur.slot
+    const kids: MatchDTO[] = bMatches.filter(k => k.round === rounds[ri - 1] && (k.slot === cs * 2 || k.slot === cs * 2 + 1))
+    cur = kids.find(k => k.status === 'done' && k.winnerUid === w) ?? null
+  }
+  return ids
+}
+
+// ─────────────────────────── MY STATUS (always on top, any mode) ──────────────
+function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
+  bMatches: MatchDTO[]; rounds: number[]; meUid: string; totalPlayers: number; onOpen: (m: MatchDTO) => void
+}) {
+  const mine = useMemo(
+    () => bMatches.filter(m => m.p1?.uid === meUid || m.p2?.uid === meUid).sort((a, b) => a.round - b.round),
+    [bMatches, meUid],
+  )
+  if (!mine.length) return null
+  const seatsInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
+  const opp = (m: MatchDTO) => (m.p1?.uid === meUid ? m.p2 : m.p1)
+
+  const next = mine.find(m => m.status !== 'done')
+  const last = mine[mine.length - 1]
+  const wonLast = last.status === 'done' && last.winnerUid === meUid
+  const isFinalRound = last.round === rounds[rounds.length - 1]
+
+  let tone: 'live' | 'gold' | 'out' = 'live'
+  let head = ''
+  let body: React.ReactNode = null
+  let jump: MatchDTO | null = null
+
+  if (next) {
+    tone = 'live'
+    head = next.status === 'ready' ? 'بازی بعدی تو — آماده' : 'بازی بعدی تو'
+    const o = opp(next)
+    body = <>
+      <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 17, color: C.thi }}>{o ? o.tag : 'حریف نامشخص'}</span>
+      <span style={{ color: C.tmut }}> · {roundLabel(seatsInRound(next.round))}</span>
+    </>
+    jump = next
+  } else if (wonLast && isFinalRound) {
+    tone = 'gold'; head = 'قهرمان براکت 🏆'
+    body = <span style={{ color: C.gold, fontWeight: 700 }}>هر سهمِ تو تا آخر رفت</span>
+  } else {
+    tone = 'out'; head = `حذف در ${roundLabel(seatsInRound(last.round))}`
+    const o = opp(last)
+    body = <>باختی به <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, color: C.tbody }}>{o ? o.tag : '—'}</span></>
+    jump = last
+  }
+
+  const col = tone === 'gold' ? C.gold : tone === 'out' ? C.tmut : C.accent
+  const bg = tone === 'gold' ? C.goldSoft : tone === 'out' ? C.sf2 : C.accentSoft
+
+  return (
+    <button
+      onClick={() => jump && onOpen(jump)}
+      style={{
+        all: 'unset', cursor: jump ? 'pointer' : 'default', display: 'block',
+        background: bg, border: `1px solid ${col}55`, borderRadius: 14, padding: '13px 15px',
+        position: 'sticky', top: 'calc(env(safe-area-inset-top) + 8px)', zIndex: 5,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 800, color: col, marginBottom: 5 }}>{head}</div>
+      <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.7 }}>{body}</div>
+    </button>
+  )
+}
+
+// ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ─────────
+function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, isAdmin, onOpen }: {
+  bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number
+  meUid?: string; myPathOnly: boolean; myPath: Set<string>; isAdmin?: boolean; onOpen: (m: MatchDTO) => void
+}) {
+  const [sel, setSel] = useState<number>(rounds[0] ?? 1)
+  useEffect(() => { if (!rounds.includes(sel)) setSel(rounds[0] ?? 1) }, [rounds, sel])
+  const playersInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
+
+  // "مسیر من" → a vertical timeline of only my matches, in order
+  if (myPathOnly && meUid) {
+    const mine = bMatches.filter(m => myPath.has(m.id)).sort((a, b) => a.round - b.round)
+    if (!mine.length) return <Empty text="تو این براکت بازی‌ای نداری" />
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {mine.map((m, i) => {
+          const opp = m.p1?.uid === meUid ? m.p2 : m.p1
+          const iWon = m.status === 'done' && m.winnerUid === meUid
+          const iLost = m.status === 'done' && !!m.winnerUid && m.winnerUid !== meUid
+          const dotCol = iWon ? C.win : iLost ? C.live : C.tmut
+          return (
+            <div key={m.id} style={{ display: 'flex', gap: 12, minHeight: 60 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 14, flexShrink: 0 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', background: dotCol, marginTop: 6 }} />
+                {i < mine.length - 1 && <span style={{ flex: 1, width: 2, background: C.line }} />}
+              </div>
+              <button onClick={() => onOpen(m)} style={{ all: 'unset', cursor: 'pointer', flex: 1, paddingBottom: 12, minWidth: 0 }}>
+                <div style={{ background: C.sf1, border: `1px solid ${iWon ? `${C.win}55` : iLost ? `${C.live}44` : C.line}`, borderRadius: 12, padding: '10px 13px' }}>
+                  <div style={{ fontSize: 11, color: C.tmut, marginBottom: 4 }}>{roundLabel(playersInRound(m.round))}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: 700, fontSize: 14, color: C.thi, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {opp ? opp.tag : '—'}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: dotCol }}>
+                      {iWon ? 'بردی' : iLost ? 'باختی' : m.status === 'ready' ? 'آماده' : 'در انتظار'}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  let list = bMatches.filter(m => m.round === sel)
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
+        {rounds.map(r => (
+          <button key={r} onClick={() => setSel(r)} style={{ ...chip(r === sel), whiteSpace: 'nowrap' }}>
+            {roundLabel(playersInRound(r))}
+          </button>
+        ))}
+      </div>
+      {list.length === 0
+        ? <Empty text="هنوز بازی‌ای اینجا نیست" />
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} isAdmin={isAdmin} onOpen={onOpen} />)}
+          </div>
+        )}
+    </div>
+  )
+}
+
+function Empty({ text }: { text: string }) {
+  return <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '20px 0' }}>{text}</div>
+}
+
+function MatchCardRow({ m, meUid, isAdmin, onOpen }: { m: MatchDTO; meUid?: string; isAdmin?: boolean; onOpen: (m: MatchDTO) => void }) {
   const router = useRouter()
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
   const [busy, setBusy] = useState(false)
   const canPick = isAdmin && m.status === 'ready' && m.p1 && m.p2
+  const doneP1 = m.status === 'done' && m.winnerUid === m.p1?.uid
+  const doneP2 = m.status === 'done' && m.winnerUid === m.p2?.uid
 
   async function pick(winnerUid: string) {
     if (busy) return
@@ -210,16 +326,15 @@ function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: stri
   }
 
   return (
-    <div style={{
-      background: C.sf1, border: `1px solid ${mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden',
-      boxShadow: mine ? `0 0 0 1px ${C.accent}55` : 'none',
-    }}>
-      <PlayerLine p={m.p1} win={m.winnerUid === m.p1?.uid && m.status === 'done'} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
-      <div style={{ height: 1, background: C.line }} />
-      <PlayerLine p={m.p2} win={m.winnerUid === m.p2?.uid && m.status === 'done'} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
-        <StatusPill status={m.status} />
-        <span style={{ fontSize: 10, color: C.tmut }}>{m.status === 'done' ? 'انجام شد' : m.status === 'ready' ? 'آماده' : 'در انتظار حریف'}</span>
+    <div style={{ background: C.sf1, border: `1px solid ${mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: mine ? `0 0 0 1px ${C.accent}55` : 'none' }}>
+      <div onClick={() => onOpen(m)} style={{ cursor: 'pointer' }}>
+        <PlayerLine p={m.p1} win={doneP1} lose={m.status === 'done' && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
+        <div style={{ height: 1, background: C.line }} />
+        <PlayerLine p={m.p2} win={doneP2} lose={m.status === 'done' && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
+          <StatusPill status={m.status} />
+          <span style={{ fontSize: 10, color: C.tmut }}>{m.status === 'done' ? 'انجام شد' : m.status === 'ready' ? 'آماده' : 'در انتظار حریف'}</span>
+        </div>
       </div>
       {canPick && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 9px', background: C.ink, borderTop: `1px solid ${C.line}` }}>
@@ -233,9 +348,9 @@ function MatchCardRow({ m, meUid, isAdmin, compId }: { m: MatchDTO; meUid?: stri
 }
 const winBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 38, lineHeight: '38px', fontFamily: DISP, fontWeight: 700, fontSize: 13, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
-function PlayerLine({ p, win, me, score }: { p: Player; win?: boolean; me?: boolean; score?: string }) {
+function PlayerLine({ p, win, lose, me, score }: { p: Player; win?: boolean; lose?: boolean; me?: boolean; score?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: win ? C.goldSoft : 'transparent' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: win ? C.goldSoft : 'transparent', opacity: lose ? 0.5 : 1 }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: win ? C.gold : p ? C.line2 : C.line, flexShrink: 0 }} />
       <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontSize: 14, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {p ? p.tag : '—'}{me ? ' (تو)' : ''}
@@ -252,13 +367,9 @@ function StatusPill({ status }: { status: MatchDTO['status'] }) {
   return <span style={{ fontSize: 10, fontWeight: 700, color: c, background: s, padding: '2px 8px', borderRadius: 6 }}>{label}</span>
 }
 
-// ─────────────────────────── TREE VIEW (native scroll, button zoom) ────────────
-// No custom pan/zoom gesture code: the container is a plain scrollable div, so
-// pan is native (trackpad / touch-drag / scrollbars) and can't fight React or a
-// passive wheel listener. Zoom is just three buttons that set a scale state
-// (clicks, not per-frame) — MD-9.
-function TreeView({ bMatches, rounds, meUid }: {
-  bMatches: MatchDTO[]; rounds: number[]; totalPlayers?: number; maxRound?: number; meUid?: string
+// ─────────────────────────── TREE VIEW (native scroll, button zoom) ───────────
+function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
+  bMatches: MatchDTO[]; rounds: number[]; meUid?: string; winPath: Set<string>; onOpen: (m: MatchDTO) => void
 }) {
   const firstRound = rounds[0] ?? 1
   const pos = useMemo(() => {
@@ -285,18 +396,45 @@ function TreeView({ bMatches, rounds, meUid }: {
   const canvasW = rounds.length * (CARD_W + COL_GAP) + CARD_W
   const canvasH = (bMatches.filter(m => m.round === firstRound).length) * ROW_H + ROW_H
 
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const prevScale = useRef(1)
   const zoom = (f: number) => setScale(s => Math.min(1.6, Math.max(0.3, Math.round(s * f * 20) / 20)))
+
+  // keep the viewport centre fixed across a zoom step (fixes the "jumps to a corner" feel)
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const ratio = scale / prevScale.current
+    if (ratio !== 1) {
+      const cx = el.scrollLeft + el.clientWidth / 2
+      const cy = el.scrollTop + el.clientHeight / 2
+      el.scrollLeft = cx * ratio - el.clientWidth / 2
+      el.scrollTop = cy * ratio - el.clientHeight / 2
+    }
+    prevScale.current = scale
+  }, [scale])
+
+  const centerMine = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const mine = bMatches.find(m => (m.p1?.uid === meUid || m.p2?.uid === meUid))
+    const p = mine && pos[mine.id]
+    if (!p) return
+    el.scrollTo({ left: p.x * scale - el.clientWidth / 2 + CARD_W / 2, top: p.y * scale - el.clientHeight / 2, behavior: 'smooth' })
+  }
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        <button onClick={() => zoom(1.25)} style={zoomBtn}>+</button>
-        <button onClick={() => zoom(0.8)} style={zoomBtn}>−</button>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+        <button onClick={() => zoom(1.25)} style={zoomBtn} aria-label="بزرگ‌نمایی">+</button>
+        <button onClick={() => zoom(0.8)} style={zoomBtn} aria-label="کوچک‌نمایی">−</button>
         <button onClick={() => setScale(1)} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12 }}>۱۰۰٪</button>
-        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>اسکرول کن برای جابه‌جایی · +/− زوم</span>
+        {meUid && <button onClick={centerMine} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12, color: C.accent, borderColor: `${C.accent}55`, background: C.accentSoft }}>بازی من</button>}
+        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>اسکرول = جابه‌جایی</span>
       </div>
       <div
+        ref={scrollRef}
         style={{
           width: '100%', height: 'min(72vh, 560px)', overflow: 'auto',
           background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14,
@@ -305,8 +443,8 @@ function TreeView({ bMatches, rounds, meUid }: {
       >
         <div style={{ width: canvasW * scale, height: canvasH * scale, direction: 'ltr', flexShrink: 0 }}>
           <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
-            <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} />
-            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} />
+            <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} winPath={winPath} />
+            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} />
           </div>
         </div>
       </div>
@@ -314,11 +452,9 @@ function TreeView({ bMatches, rounds, meUid }: {
   )
 }
 
-// Memoised so a pan/zoom (which never changes these props) doesn't re-render
-// every node in the tree (MD-9).
 type Pos = Record<string, { x: number; y: number }>
-const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, canvasH, meUid }: {
-  bMatches: MatchDTO[]; rounds: number[]; pos: Pos; canvasW: number; canvasH: number; meUid?: string
+const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, canvasH, meUid, winPath }: {
+  bMatches: MatchDTO[]; rounds: number[]; pos: Pos; canvasW: number; canvasH: number; meUid?: string; winPath: Set<string>
 }) {
   return (
     <svg width={canvasW} height={canvasH} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
@@ -330,14 +466,26 @@ const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, ca
         return kids.map(k => {
           const kp = pos[k.id]; if (!kp) return null
           const x1 = kp.x + CARD_W, y1 = kp.y, x2 = me.x, y2 = me.y, midx = (x1 + x2) / 2
-          const onPath = meUid && (k.winnerUid === meUid)
-          return <path key={m.id + k.id} d={`M${x1},${y1} H${midx} V${y2} H${x2}`} fill="none" stroke={onPath ? C.accent : C.line2} strokeWidth={onPath ? 2 : 1.2} />
+          // this child feeds the parent only once it's DECIDED and its winner sits in a parent slot
+          const advanced = k.status === 'done' && !!k.winnerUid && (k.winnerUid === m.p1?.uid || k.winnerUid === m.p2?.uid)
+          const onWin = winPath.has(k.id) && winPath.has(m.id)
+          const onMine = meUid && k.winnerUid === meUid && advanced
+
+          if (!advanced) {
+            // undecided → a short faint stub that does NOT reach the next round,
+            // so a not-yet-won player never looks like they've advanced
+            return <path key={m.id + k.id} d={`M${x1},${y1} H${x1 + 16}`} fill="none" stroke={C.line} strokeWidth={1.4} strokeDasharray="2 5" opacity={0.6} />
+          }
+          const strokeCol = onMine ? C.accent : onWin ? C.gold : C.line2
+          const sw = onMine ? 2.4 : onWin ? 2.2 : 1.5
+          return <path key={m.id + k.id} d={`M${x1},${y1} H${midx} V${y2} H${x2}`} fill="none" stroke={strokeCol} strokeWidth={sw} />
         })
       })}
     </svg>
   )
 })
-const Nodes = memo(function Nodes({ bMatches, pos, meUid }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string }) {
+
+const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string; onOpen: (m: MatchDTO) => void }) {
   return (
     <>
       {bMatches.map(m => {
@@ -345,7 +493,7 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid }: { bMatches: MatchDTO
         const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
         return (
           <div key={m.id} style={{ position: 'absolute', left: p.x, top: p.y - CARD_H / 2, width: CARD_W }}>
-            <TreeCard m={m} meUid={meUid} mine={mine} />
+            <TreeCard m={m} meUid={meUid} mine={mine} onOpen={onOpen} />
           </div>
         )
       })}
@@ -353,18 +501,24 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid }: { bMatches: MatchDTO
   )
 })
 
-const TreeCard = memo(function TreeCard({ m, meUid, mine }: { m: MatchDTO; meUid?: string; mine: boolean }) {
+const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO) => void }) {
+  const doneP1 = m.status === 'done' && m.winnerUid === m.p1?.uid
+  const doneP2 = m.status === 'done' && m.winnerUid === m.p2?.uid
   return (
-    <div style={{ background: C.sf1, border: `1.5px solid ${mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none' }}>
-      <TreeSlot p={m.p1} win={m.winnerUid === m.p1?.uid && m.status === 'done'} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
+    <div
+      onClick={() => onOpen(m)}
+      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none' }}
+    >
+      <TreeSlot p={m.p1} win={doneP1} lose={m.status === 'done' && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
       <div style={{ height: 1, background: C.line }} />
-      <TreeSlot p={m.p2} win={m.winnerUid === m.p2?.uid && m.status === 'done'} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
+      <TreeSlot p={m.p2} win={doneP2} lose={m.status === 'done' && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
     </div>
   )
 })
-function TreeSlot({ p, win, me, score }: { p: Player; win?: boolean; me?: boolean; score?: string }) {
+
+function TreeSlot({ p, win, lose, me, score }: { p: Player; win?: boolean; lose?: boolean; me?: boolean; score?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : 'transparent' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : 'transparent', opacity: lose ? 0.45 : 1 }}>
       <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.tag : '—'}</span>
       <EntryBadge p={p} />
       {score != null && score !== '' && <span style={{ fontFamily: DISP, fontWeight: 800, color: win ? C.gold : C.tbody }}>{score}</span>}
