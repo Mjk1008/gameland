@@ -136,6 +136,10 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
   behind the status bar in `display-mode: standalone`, and the bottom nav's height includes
   `env(safe-area-inset-bottom)`.
 - **Use `vh` with a `dvh` intent carefully** — `dvh` is invalid on older iOS; modals use `vh`.
+- **A horizontal `overflow: auto` scroller inherits `dir: rtl` from `<html dir="rtl">`** and opens
+  pinned to the far side — the content looks empty until you scroll, and every `scrollLeft` /
+  `scrollTo` calculation is mirrored. Put `direction: 'ltr'` on the scroll container itself (not just
+  an inner canvas) for any left-to-right widget: the bracket tree view learned this the hard way.
 - Lists are **newest-first** everywhere (admin queue, history, notifications). Keep that.
 - Approve/reject lives **only inside the review sheet** at `/admin/requests` — list cards carry no
   action buttons, so a stray double-tap can't approve the wrong person. Don't "helpfully" add them back.
