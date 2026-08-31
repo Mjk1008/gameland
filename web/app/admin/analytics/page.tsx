@@ -6,6 +6,7 @@ import type { Disc } from '@/lib/mock-data'
 import { BackHeader } from '@/components/ui'
 import HubTabs from '@/components/admin-tabs'
 import AnalyticsClient, { type RegRec, type UserRec } from './client'
+import GamersContent, { type GamerListRec } from './gamers-content'
 import BehaviorContent, { type BehaviorBusiness } from '../behavior/content'
 import MonitorContent from '../ai/monitor-content'
 import PromoterAnalyticsContent from './promoter-content'
@@ -29,7 +30,7 @@ function behaviorBusiness(regs: RegRec[], range: ReturnType<typeof parseBehavior
 
 const VIEWS: BehaviorView[] = ['overview', 'funnel', 'retention', 'paths', 'raw']
 
-export default function AnalyticsHubPage({ searchParams }: { searchParams: { bdays?: string; bfrom?: string; bto?: string; bcity?: string; bdisc?: string; bview?: string } }) {
+export default function AnalyticsHubPage({ searchParams }: { searchParams: { bdays?: string; bfrom?: string; bto?: string; bcity?: string; bdisc?: string; bview?: string; tab?: string } }) {
   const events = allEvents()
   const eventTitle = new Map(events.map(e => [e.id, e.title]))
   const eventDisc = new Map<string, Disc>(events.map(e => [e.id, e.disc]))
@@ -69,6 +70,33 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       }
     })
 
+  const gamerListById = new Map<string, GamerListRec>()
+  for (const r of allRegistrations()) {
+    const u = getUserById(r.userId)
+    if (!u || u.deletedAt) continue
+    const city = (u.city || '').trim() || 'نامشخص'
+    let g = gamerListById.get(u.id)
+    if (!g) {
+      g = {
+        id: u.id,
+        name: u.name,
+        tag: u.tag,
+        phone: u.phone ?? '',
+        city,
+        province: resolveProvince(u.province, city === 'نامشخص' ? '' : city),
+        regs: [],
+      }
+      gamerListById.set(u.id, g)
+    }
+    g.regs.push({
+      event: eventTitle.get(r.compId) ?? 'مسابقهٔ حذف‌شده',
+      disc: (eventDisc.get(r.compId) ?? u.primaryDisc ?? 'fc26') as Disc,
+      status: r.status as GamerListRec['regs'][number]['status'],
+      tickets: r.attempts,
+    })
+  }
+  const gamerList = Array.from(gamerListById.values())
+
   const discOptions = (Object.keys(DISC) as Disc[]).map(d => ({ key: d, name: DISC[d].name }))
   const cityOptions = Array.from(new Set([...regs.map(r => r.city), ...gamers.map(g => g.city)]))
     .filter(c => c !== 'نامشخص')
@@ -98,6 +126,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
         <HubTabs tabs={[
           { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
           { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} referral={referral} showHeader={false} /> },
+          { key: 'gamers', label: 'گیمرها', content: <GamersContent players={gamerList} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} /> },
           { key: 'promoter', label: 'پروموتر', content: <PromoterAnalyticsContent snap={promoterSnap} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },
         ]} />
