@@ -75,7 +75,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
   }, [promoCode, canUsePromo, comp.id])
 
   async function submit() {
-    if (isTeamEvent && !reuseTeam && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
+    if (isTeamEvent && !reuseTeam && owned === 0 && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
     let codeForSubmit = promoOk ? promoLabel : ''
     if (canUsePromo && promoCode.trim()) {
       if (!promoOk) {
@@ -119,28 +119,10 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           <StatusChip status={comp.status} />
         </div>
 
-        <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, fontSize: 12.5, color: C.tbody, lineHeight: 1.9 }}>
-          <div style={{ fontWeight: 700, color: C.thi, marginBottom: 6 }}>چطوری کار می‌کنه؟</div>
-          {isTeamEvent ? (
-            <>
-              <div>• این یه مسابقهٔ <b style={{ color: C.thi }}>دو به دو</b>ست — مثل بقیهٔ مسابقه‌ها، فقط هر تیم دو نفره</div>
-              <div>• تو کاپیتانی: <b style={{ color: C.thi }}>۱ تا ۶ سهم</b> برای تیم می‌گیری و <b style={{ color: C.thi }}>کلِّ هزینه رو یک‌بار</b> می‌دی</div>
-              <div>• هم‌تیمی رو با تگ اضافه می‌کنی — خودکار به تیم می‌چسبه و <b style={{ color: C.thi }}>پرداختی نداره</b></div>
-            </>
-          ) : (
-            <>
-              <div>• می‌تونی <b style={{ color: C.thi }}>۱ تا ۶ بلیط</b> بگیری — هر بلیط یه شانس جداست</div>
-              <div>• توی مقدماتی، بلیط‌هات توی براکت‌های جدا پخش می‌شن</div>
-              <div>• حداکثر <b style={{ color: C.thi }}>۲ seed</b> به فینال می‌رسه</div>
-            </>
-          )}
-        </div>
-
         {isTeamEvent && reuseTeam && (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: C.tbody, lineHeight: 1.8 }}>
             تیمت: <b style={{ color: C.thi }}>{reuseTeam.name}</b>
             {reuseTeam.partnerTag ? <> · هم‌تیمی @{reuseTeam.partnerTag}</> : null}
-            {owned > 0 ? ' — فقط سهم اضافه می‌کنی.' : ' — دوباره سهم می‌گیری، تیم همون می‌مونه.'}
           </div>
         )}
 
@@ -148,14 +130,13 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           <>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>نامِ تیم (اختیاری)</div>
-              <input value={teamName} onChange={e => setTeamName(e.target.value.slice(0, 40))} placeholder="مثلاً تیمِ آتیش"
+              <input value={teamName} onChange={e => setTeamName(e.target.value.slice(0, 40))}
                 style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>تگِ هم‌تیمی</div>
               <input dir="ltr" value={partnerTag} onChange={e => setPartnerTag(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
                 style={{ background: C.sf2, border: `1px solid ${partnerTag ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
-              {partnerTag && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ @{partnerTag} هم‌تیمیِ تو می‌شه — پرداختی نداره</div>}
             </div>
           </>
         )}
@@ -175,15 +156,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
               {(price.offPercent > 0 || promoOk) && price.original > promoUnitPrice && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 13, color: C.tmut, textDecoration: 'line-through' }}>{toman(price.original)}</span>}
             </div>
           </div>
-          <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, textAlign: 'center', lineHeight: 1.5 }}>پیشنهاد<br />محدود</div>
         </div>
-
-        {owned > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: C.thi, lineHeight: 1.8 }}>
-            <span style={{ fontWeight: 700 }}>الان <span className="gl-num" style={{ color: C.accent }}>{owned}</span> سهم داری.</span>
-            <span style={{ color: C.tbody }}>تا سقفِ ۶، می‌تونی <span className="gl-num" style={{ color: C.accent }}>{remaining}</span> سهمِ دیگه بخری.</span>
-          </div>
-        )}
 
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>{owned > 0 ? 'چند سهمِ دیگه؟' : 'تعداد سهم'}</div>
@@ -200,12 +173,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           </div>
         </div>
 
-        {freeTickets > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, fontWeight: 700, color: C.gold }}>
-            🎟 <span className="gl-num">{Math.min(freeTickets, attempts)}</span> سهم از این ثبت‌نام با جایزهٔ دعوتت رایگان حساب می‌شه.
-          </div>
-        )}
-
         {canUsePromo && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کد تخفیف (اختیاری)</div>
@@ -221,15 +188,14 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
         {canSetRef && (
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ معرّف (اختیاری) — اگه کسی تو رو به گیم‌لند آورده، تگش رو بزن</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ معرّف (اختیاری)</div>
             <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
               style={{ background: C.sf2, border: `1px solid ${ref ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
-            {ref && <div style={{ fontSize: 10.5, color: C.accent, marginTop: 5 }}>✓ این خرید به‌نامِ @{ref} ثبت می‌شه</div>}
           </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: '13px 15px' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>{isTeamEvent ? 'مبلغ قابل پرداخت (کلِّ تیم)' : 'مبلغ قابل پرداخت'}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.thi }}>مبلغ قابل پرداخت</span>
           <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
             <span className="gl-num" style={{ fontSize: 24, fontWeight: 800, color: C.accent }}>{toman(payableTotal)}</span>
             <span style={{ fontSize: 11, color: C.tbody }}>تومان</span>

@@ -28,8 +28,7 @@ export default function ReentryPanel({ rows }: { rows: ReentryRow[] }) {
 
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 14, padding: 15 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: C.gold, marginBottom: 3 }}>شانس مجدد — در انتظار تأیید فیش</div>
-      <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 10 }}>بعد از تأیید، بازیکن توی اولین براکت‌های شروع‌نشده جای‌گذاری می‌شه.</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: C.gold, marginBottom: 10 }}>شانس مجدد — در انتظار تأیید فیش</div>
       {msg && <div style={{ fontSize: 12, color: C.tbody, background: C.sf2, borderRadius: 8, padding: 8, marginBottom: 8 }}>{msg}</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map(r => (

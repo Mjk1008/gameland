@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, getRegistration, captainTeamFor } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage } from '@/lib/promoter'
@@ -41,11 +41,8 @@ export async function POST(req: Request) {
   if (ref && !u.referredBy) setReferrerByTag(uid, ref)
 
   const promoRaw = (body.promoCode ?? '').toString().trim()
-  const existingBefore = getRegistration(uid, compId)
-  const isTopUp = !!(existingBefore && existingBefore.status !== 'rejected' && existingBefore.attempts > 0)
   let promo: ReturnType<typeof validatePromoCode> | undefined
   if (promoRaw) {
-    if (isTopUp) return NextResponse.json({ error: promoErrorMessage('PROMO_TOPUP') }, { status: 400 })
     try { promo = validatePromoCode(promoRaw, uid, compId) }
     catch (e: any) { return NextResponse.json({ error: promoErrorMessage(e.message) }, { status: 400 }) }
   }
@@ -73,7 +70,8 @@ export async function POST(req: Request) {
     const teamName = (body.teamName ?? '').toString().trim()
     const partnerTag = (body.partnerTag ?? '').toString().trim()
     const existingTeam = captainTeamFor(uid, compId)
-    if (!existingTeam && !partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
+    const live = getRegistration(uid, compId)
+    if (!existingTeam && !partnerTag && !(live && live.status !== 'rejected')) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
       if (promo) await attachPromoToRegistration(r, promo)
@@ -83,7 +81,7 @@ export async function POST(req: Request) {
       await persist.reg.insertAsync(r)
       const paid = attempts - free
       pushNotif(uid, 'registration', 'تیمت ثبت شد',
-        `تیمت برای «${c.title}» با ${attempts} سهم ثبت شد (${free} رایگانِ دعوت + ${paid} پرداختی). کلِّ هزینه‌ی تیم رو تو دادی — هم‌تیمیت خودکار اضافه شد و پرداختی نداره.${paid > 0 ? ' برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : ''}`)
+        `${c.title} با ${attempts} بلیط ثبت شد.${paid > 0 ? ' پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.' : ''}`)
       fireTicketSelect(uid, u, c, attempts)
       return NextResponse.json({ ok: true, registration: r, freeUsed: free })
     } catch (e: any) {

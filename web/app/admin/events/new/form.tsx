@@ -71,15 +71,9 @@ export default function NewEventForm({ competitions }: { competitions: CompOptio
         <span style={{ fontSize: 18, fontWeight: 800, color: C.thi }}>مسابقهٔ جدید</span>
       </div>
 
-      <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px', lineHeight: 1.85 }}>
-        برای اضافه کردن رشته به رویداد موجود (مثل THE BEST IV)، از{' '}
-        <Link href="/admin/events?tab=competitions" style={{ color: C.accent, fontWeight: 700 }}>رویدادها › افزودن رشته</Link>
-        {' '}استفاده کن — کاربر فقط یک کارت رویداد می‌بینه، نه چند مسابقهٔ جدا.
-      </div>
-
-      <Field label="عضویت در رویداد (پیشنهادی)" hint="رشته زیرمجموعهٔ همون رویداد می‌شه — روی صفحهٔ مسابقات جدا نشون داده نمی‌شه.">
+      <Field label="عضویت در رویداد">
         <select value={competitionId} onChange={e => { setCompetitionId(e.target.value); setTitleManual(false) }} style={{ ...inp, appearance: 'none' as const }}>
-          <option value="">— مسابقهٔ مستقل (جدا از رویدادها) —</option>
+          <option value="">— مسابقهٔ مستقل —</option>
           {competitions.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
       </Field>
@@ -117,7 +111,7 @@ export default function NewEventForm({ competitions }: { competitions: CompOptio
 
       <Field label="فرمت (متن نمایشی)"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="مقدماتی (شهری) + فینال" /></Field>
 
-      <Field label="فرمت بازی" hint="براکت‌ها تیم‌به‌تیم چیده می‌شن. هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.">
+      <Field label="فرمت بازی">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
             const on = teamSize === k
@@ -128,11 +122,11 @@ export default function NewEventForm({ competitions }: { competitions: CompOptio
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
-        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
+        <Field label="قیمت هر سهم (تومان)"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
       </div>
 
-      <Field label="سایزِ براکتِ فینال" hint="FIFA معمولاً ۱۲۸ · بقیهٔ رشته‌ها ۳۲">
+      <Field label="سایزِ براکتِ فینال">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
           {[16, 32, 64, 128].map(n => {
             const on = finalSize === n
@@ -140,11 +134,6 @@ export default function NewEventForm({ competitions }: { competitions: CompOptio
           })}
         </div>
       </Field>
-
-      {/* how it runs — the fixed tournament structure */}
-      <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px', lineHeight: 1.9 }}>
-        <b style={{ color: C.thi }}>نحوهٔ برگزاری:</b> بعد از بسته‌شدنِ ثبت‌نام، «قرعه‌کشی» رو تو صفحهٔ همین مسابقه می‌زنی → بازیکن‌ها بر اساس <b>شهر</b> به براکت‌های <b>مقدماتی</b> (تا ۶ براکت) تقسیم می‌شن (ممکنه روزها/شهرهای مختلف). برگزیده‌های هر براکت به <b>فینالِ {finalSize} نفره</b> می‌رن. همه‌چی بعداً هم قابلِ ویرایشه.
-      </div>
 
       <Field label="تاریخِ برگزاری"><JalaliRangePicker value={date} onChange={d => setDate(d)} /></Field>
 

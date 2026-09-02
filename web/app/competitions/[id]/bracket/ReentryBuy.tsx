@@ -33,13 +33,10 @@ export default function ReentryBuy({ compId, max }: { compId: string; max: numbe
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12 }}>
       {!open ? (
         <button type="button" onClick={() => setOpen(true)} style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: C.accent }}>
-          باختی؟ شانس مجدد بخر →
+          شانس مجدد
         </button>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <div style={{ fontSize: 12, color: C.tbody, lineHeight: 1.7 }}>
-            سهمِ جدید توی براکت‌های شروع‌نشده جای‌گذاری می‌شه. بعد از خرید، فیش پرداخت رو بارگذاری کن تا ادمین تایید کنه.
-          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: C.tmut }}>تعداد:</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -23,9 +23,11 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
         <div>
           <div style={{ fontSize: 21, fontWeight: 800, color: C.thi }}>{comp.title}</div>
-          <div style={{ fontSize: 12.5, color: comp.location ? C.tmut : C.gold, marginTop: 5 }}>
-            {[comp.location, comp.date].filter(Boolean).join(' · ') || '⚠ محل و تاریخ ثبت نشده — دستیار و کارت‌ها چیزی برای نشون‌دادن ندارن'}
-          </div>
+          {([comp.location, comp.date].filter(Boolean).join(' · ')) && (
+            <div style={{ fontSize: 12.5, color: C.tmut, marginTop: 5 }}>
+              {[comp.location, comp.date].filter(Boolean).join(' · ')}
+            </div>
+          )}
         </div>
         <EditCompetition id={comp.id} title={comp.title} location={comp.location} date={comp.date} childCount={discEvents.length} />
       </div>
@@ -41,7 +43,7 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
 
         {discEvents.length === 0 ? (
           <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '18px 0 20px', background: C.sf1, border: `1px dashed ${C.line}`, borderRadius: 12, marginBottom: 12 }}>
-            هنوز رشته‌ای اضافه نشده — از پایین اولین رشته رو اضافه کن.
+            هنوز رشته‌ای اضافه نشده.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -64,10 +66,6 @@ export default function CompetitionAdmin({ params }: { params: { id: string } })
         )}
 
         <AddDisciplineForm compId={comp.id} compTitle={comp.title} compDate={comp.date} existingSlots={existingSlots} />
-      </div>
-
-      <div style={{ fontSize: 11.5, color: C.tmut, lineHeight: 1.9, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px' }}>
-        هر رشته یه مسابقهٔ مستقل با براکتِ خودشه — روی هرکدوم بزن تا جایزه، قرعه‌کشی و فینالش رو مدیریت کنی.
       </div>
     </div>
   )

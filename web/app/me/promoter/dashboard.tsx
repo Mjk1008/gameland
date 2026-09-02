@@ -253,7 +253,6 @@ function RequestForm({ events, onDone }: { events: { id: string; title: string }
   return (
     <form onSubmit={submit} style={{ background: C.sf1, border: `1px solid ${C.accent}44`, borderRadius: 14, padding: 14, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: C.thi }}>درخواست کد کمپین</div>
-      <div style={{ fontSize: 11, color: C.tmut, lineHeight: 1.7 }}>کد کمپین فقط برای یک رویدادِ تک‌به‌تک کار می‌کنه — مسابقه‌های دو به دو شامل نمی‌شن. ادمین بررسی و تأیید می‌کنه.</div>
       <select value={compId} onChange={e => setCompId(e.target.value)} style={inp}>
         <option value="">— انتخاب رویداد —</option>
         {events.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}

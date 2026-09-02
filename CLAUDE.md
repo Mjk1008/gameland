@@ -166,6 +166,10 @@ lives in `~/.glq`. Connect with `ssl: false` (the server rejects SSL). Read-only
 
 - The user is the PM. **Propose product/UX solutions, don't add a button per request** — this app is
   meant to be professional and sustainable, not a feature factory. Dev/test tooling never ships.
+- **Never invent UI copy.** No helper paragraphs, hints, legends, how-it-works boxes, or extra
+  sentences on screens. If a control or error is unusable without a label, use the shortest
+  existing wording — do not write new explanations unless the user wrote or asked for the
+  exact text.
 - Act autonomously; don't ask for step-by-step confirmation. **Ask before deploying** when the user
   has said to hold.
 - Before claiming something works, verify it live (HTTP codes, served asset sizes, HTML markers).

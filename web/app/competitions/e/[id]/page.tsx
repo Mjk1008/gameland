@@ -28,23 +28,23 @@ export default async function CompetitionSetPage({ params }: { params: { id: str
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(20,17,13,.05) 0%, rgba(20,17,13,.94) 100%)' }} />
             <div style={{ position: 'absolute', insetInline: 14, bottom: 12 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: C.thi, textShadow: '0 2px 10px rgba(0,0,0,.8)' }}>{comp.title}</div>
-              <div style={{ fontSize: 12, color: '#fff', opacity: .85, marginTop: 4 }}>
-                {[comp.location, comp.date].filter(Boolean).join(' · ') || 'رویدادِ چندرشته‌ای'}
-              </div>
+              {([comp.location, comp.date].filter(Boolean).join(' · ')) && (
+                <div style={{ fontSize: 12, color: '#fff', opacity: .85, marginTop: 4 }}>
+                  {[comp.location, comp.date].filter(Boolean).join(' · ')}
+                </div>
+              )}
             </div>
           </div>
         ) : (
         <div>
           <div style={{ fontSize: 21, fontWeight: 800, color: C.thi }}>{comp.title}</div>
-          <div style={{ fontSize: 12.5, color: C.tmut, marginTop: 5 }}>
-            {[comp.location, comp.date].filter(Boolean).join(' · ') || 'رویدادِ چندرشته‌ای'}
-          </div>
+          {([comp.location, comp.date].filter(Boolean).join(' · ')) && (
+            <div style={{ fontSize: 12.5, color: C.tmut, marginTop: 5 }}>
+              {[comp.location, comp.date].filter(Boolean).join(' · ')}
+            </div>
+          )}
         </div>
         )}
-
-        <div style={{ fontSize: 12.5, color: C.tbody, lineHeight: 1.8 }}>
-          رشته و فرمت (۱به۱ یا ۲به۲) رو انتخاب کن — همه زیر همین رویدادن، ولی هر رشته براکت و جایزهٔ خودش رو داره.
-        </div>
 
         {discs.length === 0 ? (
           <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>

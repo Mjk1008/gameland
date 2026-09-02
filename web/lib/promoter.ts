@@ -755,7 +755,6 @@ const PROMO_ERRORS: Record<string, string> = {
   PROMO_WRONG_EVENT: 'این کد برای این رشته نیست',
   PROMO_TEAM_EVENT: 'کد کمپین روی مسابقهٔ دو به دو کار نمی‌کنه',
   PROMO_SELF: 'نمی‌تونی از کد خودت استفاده کنی',
-  PROMO_TOPUP: 'کد تخفیف فقط برای ثبت‌نام اول کار می‌کنه',
 }
 
 export function promoErrorMessage(code: string): string {
@@ -831,6 +830,13 @@ export async function updatePromoterCode(id: string, patch: Partial<Pick<Promote
 }
 
 export async function attachPromoToRegistration(reg: Registration, promo: PromoterCode) {
+  if (reg.promoterCodeId === promo.id) {
+    if (reg.discountPercent !== promo.discountPercent) {
+      reg.discountPercent = promo.discountPercent
+      await persist.reg.updateAsync(reg.id, { discountPercent: promo.discountPercent } as Partial<Registration>)
+    }
+    return
+  }
   reg.promoterCodeId = promo.id
   reg.discountPercent = promo.discountPercent
   promo.useCount += 1

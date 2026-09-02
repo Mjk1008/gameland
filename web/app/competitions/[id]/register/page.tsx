@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser, captainTeamFor, currentTeamMembers } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser, captainTeamFor, currentTeamMembers, getTeam } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { C } from '@/components/ui'
 import Link from 'next/link'
@@ -34,10 +34,13 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   // team's سهم and payment. Send them to their status page. (The captain falls
   // through and can top up the same team.)
   const myTeam = isTeamEvent ? teamForUser(uid, c.id) : undefined
-  if (myTeam && myTeam.captainId !== uid) redirect(`/competitions/${params.id}/me`)
-  const reuseTeam = isTeamEvent ? captainTeamFor(uid, c.id) : undefined
-  const reusePartner = reuseTeam
-    ? currentTeamMembers(reuseTeam.id).find(m => m.slot === 1)
+  if (myTeam && myTeam.captainId !== uid && existingReg?.status !== 'rejected') redirect(`/competitions/${params.id}/me`)
+  const reuseTeam = isTeamEvent
+    ? (captainTeamFor(uid, c.id) ?? (existingReg && existingReg.status !== 'rejected' && existingReg.teamId ? getTeam(existingReg.teamId) : undefined))
+    : undefined
+  const reuseLive = reuseTeam && reuseTeam.status !== 'disbanded' ? reuseTeam : undefined
+  const reusePartner = reuseLive
+    ? currentTeamMembers(reuseLive.id).find(m => m.slot === 1)
     : undefined
   const reusePartnerTag = reusePartner ? getUserById(reusePartner.userId)?.tag : undefined
 
@@ -70,5 +73,5 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   }
 
   const price = ticketPriceFor(c.id)
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo={owned === 0} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseTeam ? { name: reuseTeam.name, partnerTag: reusePartnerTag } : undefined} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} />
 }

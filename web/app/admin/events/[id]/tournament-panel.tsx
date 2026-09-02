@@ -68,13 +68,13 @@ export default function TournamentPanel(p: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {!direct && (
-        <Section title="۰ · محل برگزاری مقدماتی" sub="قبل از قرعه‌کشی اعلام کن هر شهر/استان کجا بازی می‌کنه — فقط برچسب، روی براکت اثری نداره">
+        <Section title="۰ · محل برگزاری مقدماتی">
           <PrelimVenuePanel compId={p.compId} groupMode={p.groupMode} prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
         </Section>
       )}
 
       {/* 1) draw / group mode */}
-      <Section title={direct ? '۱ · قرعه‌کشی' : '۱ · مرحلهٔ مقدماتی'} sub={direct ? 'همهٔ بازیکن‌های تاییدشده در یک جدول واحد چیده می‌شن — سهم‌های هر نفر پخش می‌شن که زود به هم نخورن' : 'بازیکن‌ها بر اساس شهر یا استان گروه‌بندی و براکت‌بندی می‌شن'}>
+      <Section title={direct ? '۱ · قرعه‌کشی' : '۱ · مرحلهٔ مقدماتی'}>
         {!direct && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             {(['city', 'province'] as const).map(m => (
@@ -85,7 +85,6 @@ export default function TournamentPanel(p: Props) {
         <button onClick={draw} disabled={busy != null || p.regCount === 0} style={primaryBtn(p.drawn, busy === 'draw' || p.regCount === 0)}>
           {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? (direct ? 'چیدن مجدد جدول' : 'چیدن مجدد براکت‌های مقدماتی') : (direct ? 'ساخت جدول مسابقه' : 'ساخت براکت‌های مقدماتی')}
         </button>
-        {p.regCount === 0 && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 8 }}>اول باید ثبت‌نام‌ها تایید بشن، بعد جدول رو بساز.</div>}
         {direct && p.drawn && (
           <>
             <div style={{ marginTop: 12 }}>
@@ -101,7 +100,7 @@ export default function TournamentPanel(p: Props) {
 
       {/* 2) brackets + qualify — prelims only */}
       {!direct && p.drawn && (
-        <Section title="۲ · براکت‌ها و کوالیفای" sub="برای هر براکت تعیین کن چند نفرِ برتر به فینال برن">
+        <Section title="۲ · براکت‌ها و کوالیفای">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[...groups.entries()].map(([gk, g]) => (
               <div key={gk}>
@@ -133,21 +132,15 @@ export default function TournamentPanel(p: Props) {
 
       {/* 3) assemble final — prelims only (direct bracket IS the final) */}
       {!direct && p.drawn && (
-        <Section title="۳ · فینال ۱۲۸ نفره" sub="از میان کوالیفای‌شده‌های همهٔ شهرها/براکت‌ها">
+        <Section title="۳ · فینال ۱۲۸ نفره">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <Stat label="کوالیفای‌شده" value={p.qualifierCount} c={C.accent} />
             <Stat label="ظرفیت فینال فعلی" value={totalQualify} c={C.gold} />
             {p.finalExists && <Stat label="در فینال" value={p.finalSeats} c={C.win} />}
           </div>
-          {p.qualifierCount !== 128 && (
-            <div style={{ fontSize: 11.5, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}55`, borderRadius: 9, padding: 9, marginBottom: 10, lineHeight: 1.7 }}>
-              الان {p.qualifierCount} نفر کوالیفای شدن (نه دقیقاً ۱۲۸). می‌تونی همینو ببندی یا سیت براکت‌ها رو تنظیم کنی تا به ۱۲۸ برسه.
-            </div>
-          )}
           <button onClick={assemble} disabled={busy != null || p.qualifierCount < 2} style={primaryBtn(p.finalExists, busy === 'assemble' || p.qualifierCount < 2)}>
             {busy === 'assemble' ? 'در حال چیدن…' : p.finalExists ? 'چیدن مجدد فینال' : 'مونتاژ فینال'}
           </button>
-          <div style={{ fontSize: 11, color: C.tmut, marginTop: 8 }}>هر بار که نتایج مقدماتی عوض شد، دوباره مونتاژ کن.</div>
         </Section>
       )}
 
@@ -184,7 +177,7 @@ function Stepper({ value, onChange, disabled }: { value: number; onChange: (n: n
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 15 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: C.thi }}>{title}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: C.thi, marginBottom: sub ? 3 : 12 }}>{title}</div>
       {sub && <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 3, marginBottom: 12, lineHeight: 1.7 }}>{sub}</div>}
       {children}
     </div>

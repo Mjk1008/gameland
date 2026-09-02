@@ -196,11 +196,6 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
         </svg>
       </div>
 
-      <div style={{ fontSize: 11, color: C.tmut, textAlign: 'center', marginTop: 8, lineHeight: 1.7 }}>
-        بازیکن‌ها روی حلقهٔ بیرونی · وسط = قهرمان · با دو انگشت زوم کن، با یک انگشت بکش
-        {meUid ? ' · مسیرِ تو بنفشه' : ''} · خطِ طلایی = برنده · روی نقطهٔ هر بازیکن بزن
-      </div>
-
       <MatchSheet
         match={sel}
         roundName={sel ? roundLabel(seatsInRound(bMatches, rounds, sel.round)) : undefined}

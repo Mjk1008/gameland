@@ -105,7 +105,7 @@ function MatchRow({ m, busy, confirmUid, editing, onPick, onCancel, onConfirm, o
     <div style={{ background: C.ink, border: `1px solid ${m.selfMatch ? C.gold + '66' : C.line}`, borderRadius: 11, padding: '9px 11px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
         <span style={{ fontSize: 10, color: C.tmut }}>{meta}</span>
-        {m.selfMatch && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, borderRadius: 5, padding: '1px 6px' }}>خودی — کدوم ورودی ادامه بده؟</span>}
+        {m.selfMatch && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, borderRadius: 5, padding: '1px 6px' }}>خودی</span>}
       </div>
 
       {m.status === 'done' && !editing ? (

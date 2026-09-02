@@ -123,7 +123,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           )}
         </div>
         <div style={{ fontSize: 11, color: C.tmut }}>
-          {scope?.stage === 'final' ? 'فینال' : scope?.label} · {totalPlayers} نفر · {rounds.length} مرحله{meUid ? ' · ' : ''}{meUid && <span style={{ color: C.accent }}>بازی‌های تو بنفشه</span>}
+          {scope?.stage === 'final' ? 'فینال' : scope?.label} · {totalPlayers} نفر · {rounds.length} مرحله
         </div>
         {scope?.stage === 'prelim' && venueLabels?.[scope.groupKey] && (
           <div style={{ fontSize: 11.5, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 11px', lineHeight: 1.7 }}>
@@ -201,7 +201,7 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
 
   if (next) {
     tone = 'live'
-    head = next.status === 'ready' ? 'بازی بعدی تو — آماده' : 'بازی بعدی تو'
+    head = 'بازی بعدی تو'
     const o = opp(next)
     body = <>
       <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 17, color: C.thi }}>{o ? o.tag : 'حریف نامشخص'}</span>
@@ -210,7 +210,7 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
     jump = next
   } else if (wonLast && isFinalRound) {
     tone = 'gold'; head = 'قهرمان براکت 🏆'
-    body = <span style={{ color: C.gold, fontWeight: 700 }}>هر سهمِ تو تا آخر رفت</span>
+    body = null
   } else {
     tone = 'out'; head = `حذف در ${roundLabel(seatsInRound(last.round))}`
     const o = opp(last)
@@ -230,8 +230,8 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
         position: 'sticky', top: 'calc(env(safe-area-inset-top) + 8px)', zIndex: 5,
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 800, color: col, marginBottom: 5 }}>{head}</div>
-      <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.7 }}>{body}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: col, marginBottom: body ? 5 : 0 }}>{head}</div>
+      {body && <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.7 }}>{body}</div>}
     </button>
   )
 }
@@ -431,7 +431,6 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
         <button onClick={() => zoom(0.8)} style={zoomBtn} aria-label="کوچک‌نمایی">−</button>
         <button onClick={() => setScale(1)} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12 }}>۱۰۰٪</button>
         {meUid && <button onClick={centerMine} style={{ ...zoomBtn, width: 'auto', padding: '0 12px', fontSize: 12, color: C.accent, borderColor: `${C.accent}55`, background: C.accentSoft }}>بازی من</button>}
-        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>اسکرول = جابه‌جایی</span>
       </div>
       <div
         ref={scrollRef}

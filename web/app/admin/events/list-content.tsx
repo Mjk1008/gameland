@@ -9,7 +9,6 @@ export default function EventsListContent() {
     <div style={{ padding: '0 16px 28px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, marginBottom: 14 }}>
         <Link href="/admin/events/new" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: C.ink, background: C.accent, padding: '8px 13px', borderRadius: 10 }}>+ مسابقهٔ مستقل</Link>
-        <span style={{ fontSize: 11, color: C.tmut, textAlign: 'end', lineHeight: 1.6 }}>برای THE BEST IV و رویدادهای چندرشته‌ای → تب «رویدادها»</span>
       </div>
 
       {all.length === 0 ? (

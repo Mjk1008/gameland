@@ -95,14 +95,10 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
     <form onSubmit={submit} style={{ background: C.sf1, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 13 }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 800, color: C.thi }}>رشتهٔ جدید</div>
-        <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 4, lineHeight: 1.7 }}>
-          زیرمجموعهٔ «{compTitle}» — همون رویداد، براکت جدا. می‌تونی همون بازی رو هم ۱به۱ و هم ۲به۲ داشته باشی.
-        </div>
       </div>
 
       <CoverUploader
         label="کاور رشته (اختیاری)"
-        hint="۱۶:۹ · اگه نذاری، عکس پیش‌فرض بازی نشون داده می‌شه"
         previewSrc={coverData ?? undefined}
         onUpload={async dataUrl => { setCoverData(dataUrl) }}
       />
@@ -126,7 +122,7 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
         </div>
       </Field>
 
-      <Field label="فرمت بازی" hint="براکت‌های ۲به۲ تیم‌به‌تیمه — هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.">
+      <Field label="فرمت بازی">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
             const on = teamSize === k
@@ -146,8 +142,8 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
-        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
+        <Field label="قیمت هر سهم (تومان)"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
       </div>
 
       <Field label="تایر (امتیازبندی)">
@@ -159,7 +155,7 @@ export default function AddDisciplineForm({ compId, compTitle, compDate, existin
         </div>
       </Field>
 
-      <Field label="سایزِ فینال" hint="FIFA معمولاً ۱۲۸ · بقیه ۳۲">
+      <Field label="سایزِ فینال">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
           {[16, 32, 64, 128].map(n => {
             const on = finalSize === n

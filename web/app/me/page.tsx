@@ -154,14 +154,15 @@ export default async function MePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {openEvents.map(c => {
               const reg = regs.find(r => r.compId === c.id)
+              const live = !!reg && reg.status !== 'rejected'
               return (
-                <Link key={c.id} href={reg ? `/competitions/${c.id}/me` : `/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+                <Link key={c.id} href={live ? `/competitions/${c.id}/me` : `/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
                   <GameBadge disc={c.disc} size={26} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: C.thi }}>{c.title}</div>
-                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 2 }}>{reg ? `${reg.attempts} بلیط · ${reg.seedsEarned} seed` : c.statusLabel}</div>
+                    <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 2 }}>{live ? `${reg!.attempts} بلیط · ${reg!.seedsEarned} seed` : c.statusLabel}</div>
                   </div>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: reg ? C.gold : C.accent }}>{reg ? 'مشاهده' : 'ثبت‌نام ›'}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: live ? C.gold : C.accent }}>{live ? 'مشاهده' : 'ثبت‌نام ›'}</span>
                 </Link>
               )
             })}

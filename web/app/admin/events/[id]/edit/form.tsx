@@ -88,7 +88,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
 
       <Field label="فرمت"><input value={format} onChange={e => setFormat(e.target.value)} style={inp} placeholder="حذفی تک / مقدماتی + فینال" /></Field>
 
-      <Field label="فرمت بازی" hint={init.formatLocked ? 'ثبت‌نامی برای این مسابقه وجود داره — فرمت دیگه قابل تغییر نیست' : 'براکت‌ها تیم‌به‌تیم چیده می‌شن. هر بازیکن سهمِ خودش رو جدا پرداخت می‌کنه.'}>
+      <Field label="فرمت بازی" hint={init.formatLocked ? 'ثبت‌نامی برای این مسابقه وجود داره — فرمت دیگه قابل تغییر نیست' : undefined}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: init.formatLocked ? 0.5 : 1 }}>
           {([[1, '۱ به ۱ (انفرادی)'], [2, '۲ به ۲ (تیمی)']] as const).map(([k, label]) => {
             const on = teamSize === k
@@ -97,7 +97,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
         </div>
       </Field>
 
-      <Field label="نوع جدول" hint={init.bracketLocked ? 'قرعه‌کشی انجام شده — دیگه قابل تغییر نیست' : 'مقدماتی = براکت‌های استانی → فینال (فقط EA FC 26). مستقیم = یک جدول واحد، همه توش.'}>
+      <Field label="نوع جدول" hint={init.bracketLocked ? 'قرعه‌کشی انجام شده — دیگه قابل تغییر نیست' : undefined}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: init.bracketLocked ? 0.5 : 1 }}>
           {([['prelims', 'مقدماتی + فینال'], ['direct', 'تک‌براکت مستقیم']] as const).map(([k, label]) => {
             const on = bracketMode === k
@@ -107,8 +107,8 @@ export default function EditEventForm({ init }: { init: EventInit }) {
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <Field label="قیمت هر سهم (تومان)" hint="خالی = پیش‌فرض ۵۰۰٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
-        <Field label="قیمت قبل از تخفیف" hint="خالی = پیش‌فرض ۷۹۸٬۰۰۰"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
+        <Field label="قیمت هر سهم (تومان)"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
+        <Field label="قیمت قبل از تخفیف"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
       </div>
 
       <Field label="سایزِ براکتِ فینال">

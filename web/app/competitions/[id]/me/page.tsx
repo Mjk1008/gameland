@@ -54,17 +54,14 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
             </div>
           </div>
           <div style={{ background: C.sf1, border: `1px solid ${rejected ? C.live : C.accent}55`, borderRadius: 14, padding: 18, textAlign: 'center' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: rejected ? C.live : C.accent, marginBottom: 8 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: rejected ? C.live : C.accent }}>
               {rejected ? 'ثبت‌نامت رد شد' : 'منتظر تایید پرداخت'}
-            </div>
-            <div style={{ fontSize: 13, color: C.tbody, lineHeight: 1.9 }}>
-              {rejected
-                ? 'فکر می‌کنی اشتباه شده؟ با پشتیبانی حرف بزن تا بررسی کنیم.'
-                : 'مبلغ رو کارت‌به‌کارت کن و رسیدش رو بفرست. بعد از تایید ادمین، براکت و مسیر مسابقه‌ت همین‌جا فعال می‌شه.'}
             </div>
           </div>
           {!rejected && <Button href={`/competitions/${c.id}/pay`}>پرداخت و ارسال رسید ›</Button>}
-          {!rejected && topUpBtn}
+          {rejected
+            ? <Button href={`/competitions/${c.id}/register`}>ثبت‌نام در این مسابقه</Button>
+            : topUpBtn}
           {manageBlock}
         </div>
       </div>

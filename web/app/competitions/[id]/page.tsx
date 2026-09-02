@@ -201,14 +201,10 @@ export default async function CompetitionPage({ params }: { params: { id: string
             ))}
           </div>
 
-          {drawn ? (
+          {drawn && (
             <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 48, background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12, color: C.accent, fontWeight: 700, fontSize: 13.5 }}>
-              جدولِ کامل، مسیرِ من و بقیهٔ گیمرها ›
+              جدول ›
             </Link>
-          ) : (
-            <div style={{ fontSize: 12, color: C.tbody, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', lineHeight: 1.9 }}>
-              بعد از بسته‌شدنِ ثبت‌نام و قرعه‌کشیِ ادمین، جدولِ کامل اینجا باز می‌شه — مسیرِ خودت و همهٔ حریف‌ها رو می‌بینی.
-            </div>
           )}
         </div>
 
