@@ -3,7 +3,7 @@
 import type { Attempt, Competition, Seed } from './schema'
 
 export const MAX_ATTEMPTS_PER_COMPETITION = 6
-export const MAX_SEEDS_TO_FINAL = 3
+export const MAX_SEEDS_TO_FINAL = 2
 export const FINAL_SIZE = 128
 export const PRELIM_COUNT = 6
 
@@ -27,7 +27,7 @@ export function purchaseAttempt(i: AttemptPurchaseInput): AttemptPurchaseResult 
   return { ok: true, coinsCost: i.coinsPerAttempt, attemptNumber: i.alreadyBought + 1 }
 }
 
-// Earn a seed: player's attempt result meets threshold AND player still under cap of 3 seeds.
+// Earn a seed: player's attempt result meets threshold AND player still under cap of 2 seeds.
 export function evaluateAttemptForSeed(opts: {
   wins: number
   seedThreshold: number

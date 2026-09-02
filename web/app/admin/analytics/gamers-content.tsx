@@ -9,6 +9,7 @@ export type GamerRegStatus = 'pending' | 'approved' | 'rejected'
 export interface GamerReg {
   event: string
   disc: Disc
+  teamSize: 1 | 2
   status: GamerRegStatus
   tickets: number
 }
@@ -42,11 +43,11 @@ function shortEvent(title: string) {
 
 export default function GamersContent({ players, discOptions, cityOptions, provinceOptions }: {
   players: GamerListRec[]
-  discOptions: { key: Disc; name: string }[]
+  discOptions: { key: string; name: string; disc: Disc }[]
   cityOptions: string[]
   provinceOptions: string[]
 }) {
-  const [disc, setDisc] = useState<Disc | 'all'>('all')
+  const [disc, setDisc] = useState<string>('all')
   const [province, setProvince] = useState<string | 'all'>('all')
   const [city, setCity] = useState<string | 'all'>('all')
   const [statusOn, setStatusOn] = useState(ALL_STATUS)
@@ -72,7 +73,7 @@ export default function GamersContent({ players, discOptions, cityOptions, provi
       if (province !== 'all' && p.province !== province) continue
       if (city !== 'all' && p.city !== city) continue
       const regs = p.regs.filter(r =>
-        (disc === 'all' || r.disc === disc) && statusOn[r.status]
+        (disc === 'all' || `${r.disc}:${r.teamSize}` === disc) && statusOn[r.status]
       )
       if (regs.length === 0) continue
       if (needle) {
@@ -129,7 +130,7 @@ export default function GamersContent({ players, discOptions, cityOptions, provi
         <Chip on={disc === 'all'} onClick={() => { setDisc('all'); setShown(PAGE) }}>همهٔ رشته‌ها</Chip>
         {discOptions.map(d => (
           <Chip key={d.key} on={disc === d.key} onClick={() => { setDisc(d.key); setShown(PAGE) }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: DISC_DOT[d.key] ?? C.tmut, display: 'inline-block', marginInlineEnd: 6 }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: DISC_DOT[d.disc] ?? C.tmut, display: 'inline-block', marginInlineEnd: 6 }} />
             {d.name}
           </Chip>
         ))}

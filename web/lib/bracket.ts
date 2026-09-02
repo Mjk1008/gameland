@@ -19,6 +19,7 @@ import {
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
 } from './store'
 import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './discipline-format'
+import { MAX_SEEDS_TO_FINAL } from './competition-engine'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
 export function rng(seed: number) {
@@ -377,13 +378,13 @@ export function rankBracket(compId: string, stage: 'prelim' | 'final', groupKey:
 // ── qualifiers across all prelim brackets (only complete brackets contribute) ──
 // One row PER QUALIFICATION, not per player. An account that wins its slot in
 // several prelim brackets qualifies several times → carries that many entries
-// into the final (capped at entryCapFor). `rank` = finishing rank inside that
+// into the final (capped at 2 seeds). `rank` = finishing rank inside that
 // prelim bracket.
 export interface Qualifier { userId: string; groupKey: string; bracket: number; rank: number }
 export function computeQualifiers(compId: string): Qualifier[] {
   const cfg = getEventConfig(compId)
   const all = matchesForComp(compId)
-  const cap = entryCapFor(compId)
+  const cap = cfg.entryCap ?? MAX_SEEDS_TO_FINAL
   const perUser = new Map<string, number>()
   const out: Qualifier[] = []
   for (const gk of prelimGroupKeys(compId)) {

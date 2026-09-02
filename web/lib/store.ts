@@ -725,7 +725,7 @@ export interface Registration {
   rejectReason?: string     // admin's last rejection reason (assistant + UI read this)
   paidAttempts?: number     // tickets already settled (approved). Top-ups bill only the difference.
   status: RegStatus         // pending payment/approval → approved by admin
-  seedsEarned: number       // 0-3 (advances to final)
+  seedsEarned: number       // 0-2 (advances to final)
   prelimsCompleted: number  // 0-attempts
   teamId?: string           // 2v2 events only — set for both members' rows, same team
   promoterCodeId?: string   // affiliate code used at first registration
@@ -775,7 +775,8 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
     existing.status = 'pending'
-    persist.reg.update(existing.id, { attempts: existing.attempts, status: 'pending' } as any)
+    if (teamId !== undefined) existing.teamId = teamId
+    persist.reg.update(existing.id, { attempts: existing.attempts, status: 'pending', teamId: existing.teamId } as any)
     bumpNationalRanking(userId)
     return existing
   }
@@ -914,7 +915,7 @@ export function recordPrelimOutcome(regId: string, outcome: 'advance' | 'elimina
   if (!r) throw new Error('REG_NOT_FOUND')
   if (r.prelimsCompleted >= r.attempts) throw new Error('NO_ATTEMPTS_LEFT')
   if (outcome === 'advance') {
-    if (r.seedsEarned >= 3) throw new Error('MAX_SEEDS_REACHED')
+    if (r.seedsEarned >= 2) throw new Error('MAX_SEEDS_REACHED')
     r.seedsEarned += 1
   }
   r.prelimsCompleted += 1
@@ -957,6 +958,17 @@ export function getTeam(id: string): Team | undefined { return teams.get(id) }
 
 export function teamsForComp(compId: string): Team[] {
   return Array.from(teams.values()).filter(t => t.compId === compId && t.status !== 'disbanded')
+}
+
+/** The 2v2 team this user captains for this event, if any (not disbanded). */
+export function captainTeamFor(userId: string, compId: string): Team | undefined {
+  const r = getRegistration(userId, compId)
+  if (r?.teamId) {
+    const t = teams.get(r.teamId)
+    if (t && t.status !== 'disbanded' && t.captainId === userId && t.compId === compId) return t
+  }
+  const t = teamForUser(userId, compId)
+  return t && t.captainId === userId ? t : undefined
 }
 
 // The active (non-superseded) member for each slot — exactly what "is this
@@ -1063,24 +1075,25 @@ export function reconcileTeams(): void {
 export async function createTeam(compId: string, captainId: string, name: string, partnerTag: string, attempts: number): Promise<{ team: Team; registration: Registration }> {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
-  const partner = getUserByTag(partnerTag.trim().replace(/^@/, ''))
-  if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')   // must exist, no self-pairing
 
-  // Captain already runs a team for this event → a سهم top-up on the same row,
-  // exactly like a solo top-up. Never a second team.
-  const existingTeam = teamForUser(captainId, compId)
-  if (existingTeam && existingTeam.captainId === captainId) {
-    const reg = createRegistration(captainId, compId, attempts, existingTeam.id)   // caps at 6 total
+  // Already the captain → same as a solo top-up. Never ALREADY_REGISTERED;
+  // the only cap is 6 سهم (MAX_TICKETS from createRegistration).
+  const existingTeam = captainTeamFor(captainId, compId)
+  if (existingTeam) {
+    const reg = createRegistration(captainId, compId, attempts, existingTeam.id)
     existingTeam.attempts = reg.attempts
     persist.team.update(existingTeam.id, { attempts: reg.attempts } as any)
     mirrorCaptainToPartner(existingTeam)
     return { team: existingTeam, registration: reg }
   }
-  // Captain holds a solo (non-team) registration for this event — can't fold it
-  // into a team.
-  if (getRegistration(captainId, compId)) throw new Error('ALREADY_REGISTERED')
-  // Partner already has an entry of their own for this event.
-  if (getRegistration(partner.id, compId)) throw new Error('PARTNER_ALREADY_REGISTERED')
+
+  const mine = getRegistration(captainId, compId)
+  if (mine && isTeamPartnerReg(mine)) throw new Error('TEAM_PARTNER_LOCKED')
+
+  const partner = getUserByTag((partnerTag || '').trim().replace(/^@/, ''))
+  if (!partner || partner.id === captainId) throw new Error('INVALID_PARTNER')
+  const partnerReg = getRegistration(partner.id, compId)
+  if (partnerReg && partnerReg.status !== 'rejected') throw new Error('PARTNER_ALREADY_REGISTERED')
 
   const t: Team = {
     id: 't_' + Math.random().toString(36).slice(2, 10),
@@ -1710,8 +1723,8 @@ export interface EventConfig {
   // grouping, everyone seeded straight in. undefined ⇒ defaultBracketMode(disc).
   // Frozen once isDrawn(compId) — enforced in the edit route.
   bracketMode?: 'prelims' | 'direct'
-  // Max distinct entries one account can carry into the final (= سهم cap).
-  // undefined ⇒ 6. See lib/bracket.ts spreadSeats / computeQualifiers.
+  // Max distinct entries one account can carry into the assembled final.
+  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately 6.
   entryCap?: number
   // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
   // drives bracketState() 'not-started' checks for re-entry (MD-5b).

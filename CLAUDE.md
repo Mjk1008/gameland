@@ -77,7 +77,7 @@ Home is ~45 KB now. If you add an image type, follow this pattern.
   Activity points are **derived, never stored**. Home, leaderboard, profile and the assistant must
   all use the same formula — they do; keep it that way.
 - **Draw**: `lib/bracket.ts` → `distributeSeats()` gives each player *distinct* bracket indices, so
-  one person's سهم can never meet each other. City-grouped prelims, max 3 seeds to the final.
+  one person's سهم can never meet each other. City-grouped prelims, max 2 seeds to the final.
 
 ---
 

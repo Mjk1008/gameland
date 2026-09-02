@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const map: Record<string, string> = {
       REG_NOT_FOUND: 'ثبت‌نام پیدا نشد',
       NO_ATTEMPTS_LEFT: 'بلیطی باقی نمونده',
-      MAX_SEEDS_REACHED: 'حداکثر ۳ seed مجاز',
+      MAX_SEEDS_REACHED: 'حداکثر ۲ seed مجاز',
     }
     return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })
   }

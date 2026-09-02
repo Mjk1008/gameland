@@ -37,7 +37,7 @@ export default function ResultControls({ compId, regs }: { compId: string; regs:
               {!done && (
                 <>
                   <button disabled={busyId === r.id} onClick={() => record(r.id, 'eliminate')} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '6px 10px', background: C.liveSoft, color: C.live, border: `1px solid ${C.live}55`, borderRadius: 8 }}>حذف</button>
-                  <button disabled={busyId === r.id || r.seedsEarned >= 3} onClick={() => record(r.id, 'advance')} style={{ all: 'unset', cursor: r.seedsEarned >= 3 ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700, padding: '6px 10px', background: C.winSoft, color: C.win, border: `1px solid ${C.win}55`, borderRadius: 8, opacity: r.seedsEarned >= 3 ? 0.4 : 1 }}>seed</button>
+                  <button disabled={busyId === r.id || r.seedsEarned >= 2} onClick={() => record(r.id, 'advance')} style={{ all: 'unset', cursor: r.seedsEarned >= 2 ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700, padding: '6px 10px', background: C.winSoft, color: C.win, border: `1px solid ${C.win}55`, borderRadius: 8, opacity: r.seedsEarned >= 2 ? 0.4 : 1 }}>seed</button>
                 </>
               )}
             </div>

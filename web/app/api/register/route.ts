@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, getRegistration } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, getRegistration, captainTeamFor } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage } from '@/lib/promoter'
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
     ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
     INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
-    ALREADY_REGISTERED: 'قبلاً به‌صورت انفرادی تو این مسابقه ثبت‌نام کردی — نمی‌شه همون رو تیمی کرد',
+    TEAM_PARTNER_LOCKED: 'افزودن سهم فقط از طرفِ کاپیتانِ تیم انجام می‌شه',
     INVALID_PARTNER: 'تگِ هم‌تیمی پیدا نشد — درستشو بزن (یا نمی‌تونه خودت باشی)',
     PARTNER_ALREADY_REGISTERED: 'این هم‌تیمی از قبل تو این مسابقه ثبت‌نام داره — یکی دیگه رو انتخاب کن',
   }
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
   if (isTeamEvent) {
     const teamName = (body.teamName ?? '').toString().trim()
     const partnerTag = (body.partnerTag ?? '').toString().trim()
-    if (!partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
+    const existingTeam = captainTeamFor(uid, compId)
+    if (!existingTeam && !partnerTag) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
       if (promo) await attachPromoToRegistration(r, promo)

@@ -5,9 +5,9 @@ import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { toman } from '@/lib/payment'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string } }
 
-export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
@@ -75,7 +75,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
   }, [promoCode, canUsePromo, comp.id])
 
   async function submit() {
-    if (isTeamEvent && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
+    if (isTeamEvent && !reuseTeam && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
     let codeForSubmit = promoOk ? promoLabel : ''
     if (canUsePromo && promoCode.trim()) {
       if (!promoOk) {
@@ -93,7 +93,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
         body: JSON.stringify({
           compId: comp.id, attempts, ref: ref.trim() || undefined,
           promoCode: canUsePromo && codeForSubmit ? codeForSubmit : undefined,
-          ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: partnerTag.trim() } : {}),
+          ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: (reuseTeam?.partnerTag || partnerTag).trim() } : {}),
         }),
       })
       const j = await res.json()
@@ -131,12 +131,20 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
             <>
               <div>• می‌تونی <b style={{ color: C.thi }}>۱ تا ۶ بلیط</b> بگیری — هر بلیط یه شانس جداست</div>
               <div>• توی مقدماتی، بلیط‌هات توی براکت‌های جدا پخش می‌شن</div>
-              <div>• حداکثر <b style={{ color: C.thi }}>۳ seed</b> به فینال می‌رسه</div>
+              <div>• حداکثر <b style={{ color: C.thi }}>۲ seed</b> به فینال می‌رسه</div>
             </>
           )}
         </div>
 
-        {isTeamEvent && (
+        {isTeamEvent && reuseTeam && (
+          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: C.tbody, lineHeight: 1.8 }}>
+            تیمت: <b style={{ color: C.thi }}>{reuseTeam.name}</b>
+            {reuseTeam.partnerTag ? <> · هم‌تیمی @{reuseTeam.partnerTag}</> : null}
+            {owned > 0 ? ' — فقط سهم اضافه می‌کنی.' : ' — دوباره سهم می‌گیری، تیم همون می‌مونه.'}
+          </div>
+        )}
+
+        {isTeamEvent && !reuseTeam && (
           <>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>نامِ تیم (اختیاری)</div>

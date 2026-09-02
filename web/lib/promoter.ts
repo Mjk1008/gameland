@@ -15,7 +15,7 @@
 
 import { persist } from './db/persistence'
 import { ticketPriceFor } from './ticket-price'
-import { getUserById, unpaidAttempts, allRegistrations, getEvent, allEvents, allUsers, type Registration, type User } from './store'
+import { getUserById, unpaidAttempts, allRegistrations, getEvent, allEvents, allUsers, getEventConfig, type Registration, type User } from './store'
 
 export interface PromoterCode {
   id: string
@@ -498,6 +498,18 @@ export function requestsForPromoter(userId: string) {
   return [...codeRequests.values()].filter(r => r.promoterUserId === userId).sort((a, b) => b.createdAt - a.createdAt)
 }
 
+function assertCampaignEligible(compId: string) {
+  if (!getEvent(compId)) throw new Error('COMP_NOT_FOUND')
+  if (getEventConfig(compId).teamSize === 2) throw new Error('PROMO_TEAM_EVENT')
+}
+
+/** Events a campaign (invite) code may be scoped to — 2v2 is out. */
+export function campaignEligibleEvents(): { id: string; title: string }[] {
+  return allEvents()
+    .filter(e => getEventConfig(e.id).teamSize !== 2)
+    .map(e => ({ id: e.id, title: e.title }))
+}
+
 function assertCanAddCampaignCode(promoterUserId: string) {
   if (campaignCodesForPromoter(promoterUserId).length >= MAX_CAMPAIGN_CODES) throw new Error('CODE_LIMIT')
 }
@@ -514,7 +526,7 @@ export async function submitCodeRequest(promoterUserId: string, input: { compId?
   if (!u?.promoterActive) throw new Error('NOT_ACTIVE')
   const compId = input.compId?.trim()
   if (!compId) throw new Error('COMP_REQUIRED')
-  if (!getEvent(compId)) throw new Error('COMP_NOT_FOUND')
+  assertCampaignEligible(compId)
   assertCanAddCampaignCode(promoterUserId)
   assertNoPendingRequest(promoterUserId)
 
@@ -566,7 +578,7 @@ export async function adminIssueCode(
 
   const compId = (input.compId ?? req?.compId ?? '').trim()
   if (!compId) throw new Error('COMP_REQUIRED')
-  if (!getEvent(compId)) throw new Error('COMP_NOT_FOUND')
+  assertCampaignEligible(compId)
   if (!req) assertCanAddCampaignCode(promoterUserId)
 
   const preferred = input.code?.trim() || req?.requestedCode?.trim() || undefined
@@ -710,7 +722,7 @@ export function promoterDashboard(userId: string) {
     canRequestCampaign: campaignCodesForPromoter(userId).length < MAX_CAMPAIGN_CODES && !pendingRequest,
     maxCampaignCodes: MAX_CAMPAIGN_CODES,
     // Events the promoter can scope a campaign-code request to.
-    events: allEvents().map(e => ({ id: e.id, title: e.title })),
+    events: campaignEligibleEvents(),
   }
 }
 
@@ -729,6 +741,8 @@ export function validatePromoCode(raw: string, buyerId: string, compId: string):
   if (c.expiresAt && c.expiresAt < Date.now()) throw new Error('PROMO_EXPIRED')
   if (c.maxUses != null && c.useCount >= c.maxUses) throw new Error('PROMO_EXHAUSTED')
   if (c.compId && c.compId !== compId) throw new Error('PROMO_WRONG_EVENT')
+  // Campaign (event-scoped) codes never apply to 2v2 — captain pays once for the team.
+  if (c.compId && getEventConfig(compId).teamSize === 2) throw new Error('PROMO_TEAM_EVENT')
   if (c.promoterUserId === buyerId) throw new Error('PROMO_SELF')
   return c
 }
@@ -739,6 +753,7 @@ const PROMO_ERRORS: Record<string, string> = {
   PROMO_EXPIRED: 'مهلت این کد تمام شده',
   PROMO_EXHAUSTED: 'ظرفیت این کد پر شده',
   PROMO_WRONG_EVENT: 'این کد برای این رشته نیست',
+  PROMO_TEAM_EVENT: 'کد کمپین روی مسابقهٔ دو به دو کار نمی‌کنه',
   PROMO_SELF: 'نمی‌تونی از کد خودت استفاده کنی',
   PROMO_TOPUP: 'کد تخفیف فقط برای ثبت‌نام اول کار می‌کنه',
 }
@@ -765,6 +780,7 @@ export async function createPromoterCode(input: {
   const discountPercent = Math.round(input.discountPercent)
   const commissionPercent = Math.round(input.commissionPercent)
   assertPercentRange(discountPercent, commissionPercent)
+  if (input.compId) assertCampaignEligible(input.compId)
 
   const c: PromoterCode = {
     id: cid('pc_'),

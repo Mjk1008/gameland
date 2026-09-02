@@ -41,5 +41,5 @@ export function bracketModeLabel(mode: BracketMode): string {
   return mode === 'prelims' ? 'مقدماتی استانی + فینال' : 'تک‌براکت مستقیم'
 }
 
-/** Max distinct entries one account carries into the final (= سهم cap). */
+/** Ticket/سهم buy cap per discipline. Direct-bracket seats also use this. Seed-to-final cap is 2. */
 export const DEFAULT_ENTRY_CAP = 6

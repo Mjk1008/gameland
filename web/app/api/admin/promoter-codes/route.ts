@@ -9,7 +9,7 @@ import {
   updatePromoterTerms, renamePrimaryCode, listActivePromoters, pendingCodeRequests,
   adminIssueCode, rejectCodeRequest, statsForCode, primaryCodeForPromoter,
   campaignCodesForPromoter, markEarningPaid, markAllPendingPaidForPromoter,
-  reconcilePromoterEarnings,
+  reconcilePromoterEarnings, campaignEligibleEvents,
 } from '@/lib/promoter'
 
 async function adminOnly() {
@@ -34,6 +34,7 @@ const MSG: Record<string, string> = {
   CODE_LIMIT: 'سقف کدهای کمپین این پروموتر پر است',
   COMP_REQUIRED: 'برای کد کمپین یک رویداد انتخاب کن',
   COMP_NOT_FOUND: 'این رویداد پیدا نشد',
+  PROMO_TEAM_EVENT: 'کد کمپین روی مسابقهٔ دو به دو صادر نمی‌شه',
   DISCOUNT_RANGE: 'تخفیف باید ۱ تا ۹۰٪ باشد',
   COMMISSION_RANGE: 'کمیسیون باید ۰ تا ۵۰٪ باشد',
   CODE_LENGTH: 'کد باید ۳ تا ۲۴ کاراکتر باشد',
@@ -118,7 +119,7 @@ export async function GET() {
     }
   })
 
-  const events = allEvents().map(e => ({ id: e.id, title: e.title }))
+  const events = campaignEligibleEvents()
 
   return NextResponse.json({ partners, requests, earnings, events, pendingTotal: pendingEarningsTotal() })
 }

@@ -8,6 +8,7 @@ const ERR: Record<string, string> = {
   NOT_ACTIVE: 'پروموتر فعال نیست',
   COMP_REQUIRED: 'یک رویداد برای کد کمپین انتخاب کن',
   COMP_NOT_FOUND: 'این رویداد پیدا نشد',
+  PROMO_TEAM_EVENT: 'کد کمپین روی مسابقهٔ دو به دو صادر نمی‌شه',
   CODE_LIMIT: 'به سقف کدهای کمپین رسیدی',
   REQUEST_PENDING: 'یک درخواست در انتظار تأیید داری',
   CODE_LENGTH: 'کد باید ۳ تا ۲۴ کاراکتر باشد',

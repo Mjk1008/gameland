@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser, captainTeamFor, currentTeamMembers } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { C } from '@/components/ui'
 import Link from 'next/link'
@@ -35,6 +35,11 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   // through and can top up the same team.)
   const myTeam = isTeamEvent ? teamForUser(uid, c.id) : undefined
   if (myTeam && myTeam.captainId !== uid) redirect(`/competitions/${params.id}/me`)
+  const reuseTeam = isTeamEvent ? captainTeamFor(uid, c.id) : undefined
+  const reusePartner = reuseTeam
+    ? currentTeamMembers(reuseTeam.id).find(m => m.slot === 1)
+    : undefined
+  const reusePartnerTag = reusePartner ? getUserById(reusePartner.userId)?.tag : undefined
 
   // A complete gamer profile is required before joining any competition.
   const pc = profileCompletion(u)
@@ -65,5 +70,5 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   }
 
   const price = ticketPriceFor(c.id)
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo={owned === 0} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo={owned === 0} freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseTeam ? { name: reuseTeam.name, partnerTag: reusePartnerTag } : undefined} />
 }

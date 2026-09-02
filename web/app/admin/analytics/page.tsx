@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
-import { allUsers, allRegistrations, allEvents, getUserById, referralLeaderboard, isTeamPartnerReg } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, getEventConfig, referralLeaderboard, isTeamPartnerReg } from '@/lib/store'
+import { disciplineDisplayName, normalizeTeamSize } from '@/lib/discipline-format'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
@@ -91,6 +92,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
     g.regs.push({
       event: eventTitle.get(r.compId) ?? 'مسابقهٔ حذف‌شده',
       disc: (eventDisc.get(r.compId) ?? u.primaryDisc ?? 'fc26') as Disc,
+      teamSize: normalizeTeamSize(getEventConfig(r.compId).teamSize),
       status: r.status as GamerListRec['regs'][number]['status'],
       tickets: r.attempts,
     })
@@ -98,6 +100,19 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
   const gamerList = Array.from(gamerListById.values())
 
   const discOptions = (Object.keys(DISC) as Disc[]).map(d => ({ key: d, name: DISC[d].name }))
+  const slotSeen = new Map<string, { key: string; name: string; disc: Disc }>()
+  for (const e of events) {
+    const teamSize = normalizeTeamSize(getEventConfig(e.id).teamSize)
+    const key = `${e.disc}:${teamSize}`
+    if (!slotSeen.has(key)) {
+      slotSeen.set(key, {
+        key,
+        disc: e.disc,
+        name: disciplineDisplayName(DISC[e.disc]?.name ?? e.disc, teamSize),
+      })
+    }
+  }
+  const discSlotOptions = Array.from(slotSeen.values()).sort((a, b) => a.name.localeCompare(b.name, 'fa') || a.key.localeCompare(b.key))
   const cityOptions = Array.from(new Set([...regs.map(r => r.city), ...gamers.map(g => g.city)]))
     .filter(c => c !== 'نامشخص')
     .sort((a, b) => a.localeCompare(b, 'fa'))
@@ -126,7 +141,7 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
         <HubTabs tabs={[
           { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
           { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} referral={referral} showHeader={false} /> },
-          { key: 'gamers', label: 'گیمرها', content: <GamersContent players={gamerList} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} /> },
+          { key: 'gamers', label: 'گیمرها', content: <GamersContent players={gamerList} discOptions={discSlotOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} /> },
           { key: 'promoter', label: 'پروموتر', content: <PromoterAnalyticsContent snap={promoterSnap} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },
         ]} />
