@@ -180,9 +180,10 @@ export const matches = pgTable('app_matches', {
   bracket:     integer('bracket').notNull(),
   round:       integer('round').notNull(),
   slot:        integer('slot').notNull(),
-  p1UserId:    text('p1_user_id').references(() => users.id, { onDelete: 'set null' }),
-  p2UserId:    text('p2_user_id').references(() => users.id, { onDelete: 'set null' }),
-  winnerUserId:text('winner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  // No FK — these columns also hold rest/cancelled sentinels (__gl_rest:n).
+  p1UserId:    text('p1_user_id'),
+  p2UserId:    text('p2_user_id'),
+  winnerUserId:text('winner_user_id'),
   // Team-format (2v2) sides — no FK (app_teams doesn't exist yet; lands in a
   // later phase). Mutually exclusive with the user columns above per match.
   p1TeamId:    text('p1_team_id'),

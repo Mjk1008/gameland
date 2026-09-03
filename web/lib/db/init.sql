@@ -124,9 +124,9 @@ CREATE TABLE IF NOT EXISTS app_matches (
   bracket         INTEGER NOT NULL,                    -- 0 = final, 1-6 = prelim
   round           INTEGER NOT NULL,
   slot            INTEGER NOT NULL,
-  p1_user_id      TEXT REFERENCES app_users(id) ON DELETE SET NULL,
-  p2_user_id      TEXT REFERENCES app_users(id) ON DELETE SET NULL,
-  winner_user_id  TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+  p1_user_id      TEXT,
+  p2_user_id      TEXT,
+  winner_user_id  TEXT,
   score           TEXT,
   status          match_status NOT NULL DEFAULT 'pending',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

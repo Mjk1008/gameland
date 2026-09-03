@@ -184,6 +184,15 @@ export function startHydration(loaders: {
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p2_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS winner_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS cancelled BOOLEAN NOT NULL DEFAULT false`,
+        // Rest/cancelled sentinels (__gl_rest:n, __gl_cancelled:id) live in the
+        // user-id columns. An FK to app_users rejected those writes, so round-1
+        // rest matches vanished on the next hydrate/deploy.
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_p1_user_id_fkey`,
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_p2_user_id_fkey`,
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_winner_user_id_fkey`,
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_p1_user_id_app_users_id_fk`,
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_p2_user_id_app_users_id_fk`,
+        `ALTER TABLE app_matches DROP CONSTRAINT IF EXISTS app_matches_winner_user_id_app_users_id_fk`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS team_id TEXT`,
         `CREATE TABLE IF NOT EXISTS app_teams (id TEXT PRIMARY KEY, comp_id TEXT NOT NULL REFERENCES app_events(id) ON DELETE CASCADE, name TEXT NOT NULL, captain_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'forming', attempts INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS team_comp_idx ON app_teams (comp_id)`,
