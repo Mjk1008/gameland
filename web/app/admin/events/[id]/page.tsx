@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts } from '@/lib/store'
-import { computeQualifiers, bracketModeOf, bracketState } from '@/lib/bracket'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts, playerName } from '@/lib/store'
+import { computeQualifiers, bracketModeOf, bracketState, seatCountInPrelims } from '@/lib/bracket'
+import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
+import { resolveProvince } from '@/lib/iran-geo'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
@@ -11,8 +13,10 @@ import FinalizeControls from './finalize-controls'
 import RunPanel, { type RunMatch } from './run-panel'
 import AddPlayerPanel, { type EmptySlot } from './add-player-panel'
 import ReentryPanel, { type ReentryRow } from './reentry-panel'
-import TournamentPanel, { type BracketInfo } from './tournament-panel'
+import TournamentPanel, { type BracketInfo, type ProvincePool } from './tournament-panel'
+import { type BatchPlayer } from './prelim-batch-panel'
 import DeleteEventButton from './delete-button'
+import CollapsibleCard from './collapsible-card'
 import PrizeEditor from './prize-editor'
 import EventCoverPanel from './event-cover-panel'
 
@@ -53,7 +57,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
     for (const b of bIdxs) {
       const ms = all.filter(m => m.stage === 'prelim' && m.groupKey === gk && m.bracket === b)
       const r1 = ms.filter(m => m.round === Math.min(...ms.map(x => x.round)))
-      const players = r1.reduce((s, m) => s + (seatOf(m, 1) ? 1 : 0) + (seatOf(m, 2) ? 1 : 0), 0)
+      const players = r1.reduce((s, m) => s + (isRealPlayer(seatOf(m, 1)) ? 1 : 0) + (isRealPlayer(seatOf(m, 2)) ? 1 : 0), 0)
       const done = ms.filter(m => m.status === 'done').length
       brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: cfg.qualify[qualifyKey(gk, b)] ?? 2, complete: ms.every(m => m.status === 'done') })
     }
@@ -78,8 +82,13 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
     }
     const player = (uid: string | undefined, mId: string, side: 1 | 2): RunMatch['p1'] => {
       if (!uid) return null
+      if (isRestSlot(uid)) {
+        const n = restIndex(uid)
+        return { uid, name: `rest${n}`, attempts: 0 }
+      }
+      if (isCancelledSlot(uid)) return { uid, name: 'لغو شده', attempts: 0 }
       const u = getUserById(uid)
-      return { uid, tag: u?.tag || uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`) }
+      return { uid, name: u ? playerName(u) : uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`) }
     }
     runMatches = all
       .filter(m => m.status === 'ready' || m.status === 'done')
@@ -87,7 +96,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         id: m.id, groupKey: m.groupKey, groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
         bracket: m.bracket, round: m.round, slot: m.slot, roundLabel: label(m),
         p1: player(m.p1UserId, m.id, 1), p2: player(m.p2UserId, m.id, 2),
-        winnerUid: m.winnerUserId, status: m.status,
+        winnerUid: m.winnerUserId, status: m.status, cancelled: m.cancelled,
         selfMatch: !!m.p1UserId && m.p1UserId === m.p2UserId,
       }))
   }
@@ -103,7 +112,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
     }
     emptySlots = all
       .filter(m => m.round === firstRoundOf.get(`${m.stage}|${m.groupKey}|${m.bracket}`))
-      .filter(m => !m.p1UserId || !m.p2UserId)
+      .filter(m => !isRealPlayer(m.p1UserId) || !isRealPlayer(m.p2UserId))
       .map(m => ({
         matchId: m.id, groupKey: m.groupKey,
         groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
@@ -126,6 +135,37 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [seatOf(m, 1), seatOf(m, 2)].filter(Boolean))).size
   const incompleteTeams = isTeamEvent ? incompleteTeamsForComp(c.id) : []
   const gamenetOptions = allGamenets().filter(g => g.status === 'verified').map(g => ({ id: g.id, name: g.name, city: g.city, province: g.province }))
+  const batchPlayers: BatchPlayer[] = !isTeamEvent && bracketModeOf(c.id) === 'prelims'
+    ? regs.map(r => {
+        const u = getUserById(r.userId)
+        const seated = seatCountInPrelims(c.id, r.userId)
+        return {
+          userId: r.userId,
+          tag: u?.tag || r.userId,
+          name: u?.name || '?',
+          city: u?.city || 'نامشخص',
+          province: u?.province || 'نامشخص',
+          attempts: r.attempts,
+          seated,
+          assigned: seated >= r.attempts,
+        }
+      })
+    : []
+
+  const byProv = new Map<string, ProvincePool>()
+  for (const r of regs) {
+    const u = getUserById(r.userId)
+    const province = resolveProvince(u?.province, u?.city)
+    const cur = byProv.get(province) ?? { province, players: 0, tickets: 0, maxK: 0, drawn: false }
+    cur.players++
+    cur.tickets += r.attempts
+    cur.maxK = Math.max(cur.maxK, r.attempts)
+    byProv.set(province, cur)
+  }
+  const drawnNames = new Set(prelimGroupKeys(c.id).filter(k => k.startsWith('province:')).map(k => k.slice('province:'.length)))
+  const provincePools = [...byProv.values()]
+    .map(x => ({ ...x, drawn: drawnNames.has(x.province) }))
+    .sort((a, b) => b.tickets - a.tickets || a.province.localeCompare(b.province, 'fa'))
 
   return (
     <div style={{ padding: '16px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -148,13 +188,6 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         <StatusChip status={c.status} />
       </div>
 
-      <EventCoverPanel id={c.id} hasCover={hasEventCover(c.id)} />
-
-      <Link href={`/admin/events/${c.id}/edit`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, background: C.sf2, border: `1px solid ${C.line2}`, borderRadius: 12, color: C.thi, fontWeight: 700, fontSize: 13.5 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-        ویرایش عنوان، جایزه، ظرفیت، تاریخ، وضعیت…
-      </Link>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
         <Stat label="تاییدشده" value={regs.length} color={C.accent} />
         <Stat label="بلیط کل" value={totalAttempts} color={C.tbody} />
@@ -169,13 +202,6 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         </Link>
       )}
 
-      <Card><StatusControl compId={c.id} status={c.status} /></Card>
-
-      <Card><PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} /></Card>
-
-      {/* «تیم‌های ناقص» — non-negotiable (docs/27 §3.3): without this, an admin
-          rejecting one person silently kills a paying team with no signal
-          anywhere else in the UI. Shown above the draw controls on purpose. */}
       {incompleteTeams.length > 0 && (
         <Card>
           <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, marginBottom: 10 }}>⚠ تیم‌های ناقص ({incompleteTeams.length})</div>
@@ -204,13 +230,32 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         groupMode={cfg.groupMode} brackets={brackets} bracketSchedule={cfg.bracketSchedule}
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
+        batchPlayers={batchPlayers}
+        emptySlotCount={emptySlots.length}
+        teamSize={cfg.teamSize} provincePools={provincePools}
       />
 
-      {!isTeamEvent && drawn && <RunPanel compId={c.id} matches={runMatches} />}
+      {!isTeamEvent && drawn && <RunPanel matches={runMatches} />}
       {reentryRows.length > 0 && <ReentryPanel rows={reentryRows} />}
-      {!isTeamEvent && drawn && <AddPlayerPanel compId={c.id} slots={emptySlots} />}
+      {!isTeamEvent && drawn && emptySlots.length > 0 && <AddPlayerPanel compId={c.id} slots={emptySlots} />}
 
-      <Card><FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} /></Card>
+      <FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} />
+
+      <CollapsibleCard title="تنظیمات رشته">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 14 }}>
+          <Link href={`/admin/events/${c.id}/edit`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, background: C.sf2, border: `1px solid ${C.line2}`, borderRadius: 12, color: C.thi, fontWeight: 700, fontSize: 13 }}>
+            ویرایش عنوان، ظرفیت، تاریخ…
+          </Link>
+          <StatusControl compId={c.id} status={c.status} />
+          <PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} />
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard title="کاور">
+        <div style={{ paddingTop: 14 }}>
+          <EventCoverPanel id={c.id} hasCover={hasEventCover(c.id)} />
+        </div>
+      </CollapsibleCard>
 
       <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
         <DeleteEventButton compId={c.id} title={c.title} />

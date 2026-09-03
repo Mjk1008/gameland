@@ -231,18 +231,28 @@ export function buyerTicketPricing(compId: string, promoDiscountPercent = 0) {
 
 /** Per-ticket price after promo snapshot on the registration row. */
 export function unitPriceForReg(reg: Registration): number {
+  if (reg.lockedUnitPrice != null) return reg.lockedUnitPrice
   return buyerTicketPricing(reg.compId, reg.discountPercent ?? 0).unitPrice
+}
+
+/** Freeze the payable per-ticket price on the reg row at checkout time. */
+export function lockRegistrationUnitPrice(reg: Registration): number {
+  const unitPrice = buyerTicketPricing(reg.compId, reg.discountPercent ?? 0).unitPrice
+  reg.lockedUnitPrice = unitPrice
+  persist.reg.update(reg.id, { lockedUnitPrice: unitPrice } as any)
+  return unitPrice
 }
 
 /** Single pricing source — register, pay, admin requests must all use this. */
 export function regPayableAmount(reg: Registration) {
   const ticketCount = unpaidAttempts(reg)
   const pricing = buyerTicketPricing(reg.compId, reg.discountPercent ?? 0)
+  const unitPrice = reg.lockedUnitPrice ?? pricing.unitPrice
   const code = reg.promoterCodeId ? codes.get(reg.promoterCodeId) : undefined
   return {
     ticketCount,
-    unitPrice: pricing.unitPrice,
-    total: ticketCount * pricing.unitPrice,
+    unitPrice,
+    total: ticketCount * unitPrice,
     discountPercent: reg.discountPercent ?? 0,
     totalOffPercent: pricing.totalOffPercent,
     originalUnitPrice: pricing.original,

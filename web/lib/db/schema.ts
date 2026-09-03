@@ -132,6 +132,10 @@ export const registrations = pgTable('app_registrations', {
   teamId:           text('team_id'),   // 2v2 events only — → app_teams(id). No FK yet (mirrors app_matches team columns).
   promoterCodeId:   text('promoter_code_id'),
   discountPercent:  integer('discount_percent'),
+  lockedUnitPrice:  integer('locked_unit_price'),
+  payBatch:         integer('pay_batch').notNull().default(1),
+  receiptPayBatch:  integer('receipt_pay_batch'),
+  receiptAttemptsAt: integer('receipt_attempts_at'),
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniqByUserComp: uniqueIndex('reg_user_comp_idx').on(t.userId, t.compId),
@@ -186,6 +190,7 @@ export const matches = pgTable('app_matches', {
   winnerTeamId:text('winner_team_id'),
   score:       text('score'),
   status:      matchStatusEnum('status').notNull().default('pending'),
+  cancelled:   boolean('cancelled').notNull().default(false),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   byComp: index('match_comp_idx').on(t.compId, t.bracket, t.round, t.slot),

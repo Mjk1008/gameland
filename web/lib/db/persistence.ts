@@ -146,6 +146,10 @@ export function startHydration(loaders: {
         `CREATE INDEX IF NOT EXISTS play_match_acc_idx ON app_play_matches (acceptor_id, created_at DESC)`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS promoter_code_id TEXT`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS discount_percent INTEGER`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS locked_unit_price INTEGER`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS pay_batch INTEGER NOT NULL DEFAULT 1`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS receipt_pay_batch INTEGER`,
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS receipt_attempts_at INTEGER`,
         `CREATE TABLE IF NOT EXISTS app_promoter_codes (
           id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, promoter_user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
           discount_percent INTEGER NOT NULL, commission_percent INTEGER NOT NULL,
@@ -179,6 +183,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p1_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS p2_team_id TEXT`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS winner_team_id TEXT`,
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS cancelled BOOLEAN NOT NULL DEFAULT false`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS team_id TEXT`,
         `CREATE TABLE IF NOT EXISTS app_teams (id TEXT PRIMARY KEY, comp_id TEXT NOT NULL REFERENCES app_events(id) ON DELETE CASCADE, name TEXT NOT NULL, captain_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'forming', attempts INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS team_comp_idx ON app_teams (comp_id)`,
@@ -259,6 +264,10 @@ export function startHydration(loaders: {
         teamId: (r as any).teamId ?? undefined,
         promoterCodeId: (r as any).promoterCodeId ?? undefined,
         discountPercent: (r as any).discountPercent ?? undefined,
+        lockedUnitPrice: (r as any).lockedUnitPrice ?? undefined,
+        payBatch: (r as any).payBatch ?? 1,
+        receiptPayBatch: (r as any).receiptPayBatch ?? undefined,
+        receiptAttemptsAt: (r as any).receiptAttemptsAt ?? undefined,
         createdAt: ms(r.createdAt),
       })
 
@@ -298,6 +307,7 @@ export function startHydration(loaders: {
         p1TeamId: (m as any).p1TeamId ?? undefined, p2TeamId: (m as any).p2TeamId ?? undefined,
         winnerTeamId: (m as any).winnerTeamId ?? undefined,
         score: m.score ?? undefined,
+        cancelled: !!(m as any).cancelled,
         status: m.status as any, createdAt: ms(m.createdAt),
       })
 
@@ -660,7 +670,7 @@ export const persist = {
       fire(d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
-        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent,
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -670,8 +680,8 @@ export const persist = {
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
-        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent } })
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -686,6 +696,10 @@ export const persist = {
       if ((patch as any).teamId !== undefined)  set.teamId = (patch as any).teamId
       if ((patch as any).promoterCodeId !== undefined) set.promoterCodeId = (patch as any).promoterCodeId
       if ((patch as any).discountPercent !== undefined) set.discountPercent = (patch as any).discountPercent
+      if ((patch as any).lockedUnitPrice !== undefined) set.lockedUnitPrice = (patch as any).lockedUnitPrice
+      if ((patch as any).payBatch !== undefined) set.payBatch = (patch as any).payBatch
+      if ((patch as any).receiptPayBatch !== undefined) set.receiptPayBatch = (patch as any).receiptPayBatch
+      if ((patch as any).receiptAttemptsAt !== undefined) set.receiptAttemptsAt = (patch as any).receiptAttemptsAt
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
     },
@@ -704,6 +718,10 @@ export const persist = {
       if ((patch as any).teamId !== undefined)  set.teamId = (patch as any).teamId
       if ((patch as any).promoterCodeId !== undefined) set.promoterCodeId = (patch as any).promoterCodeId
       if ((patch as any).discountPercent !== undefined) set.discountPercent = (patch as any).discountPercent
+      if ((patch as any).lockedUnitPrice !== undefined) set.lockedUnitPrice = (patch as any).lockedUnitPrice
+      if ((patch as any).payBatch !== undefined) set.payBatch = (patch as any).payBatch
+      if ((patch as any).receiptPayBatch !== undefined) set.receiptPayBatch = (patch as any).receiptPayBatch
+      if ((patch as any).receiptAttemptsAt !== undefined) set.receiptAttemptsAt = (patch as any).receiptAttemptsAt
       if (Object.keys(set).length === 0) return
       await d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id))
     },
@@ -757,7 +775,7 @@ export const persist = {
     },
   },
   match: {
-    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string }) {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean }) {
       const d = db(); if (!d) return
       // Ordered per match id — see fireOrdered's comment. Bracket resolution
       // (a fresh draw immediately resolving its own byes, or a played match
@@ -769,13 +787,13 @@ export const persist = {
         bracket: m.bracket, round: m.round, slot: m.slot,
         p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId,
         p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId,
-        score: m.score, status: m.status as any,
+        score: m.score, status: m.status as any, cancelled: m.cancelled ?? false,
       }).onConflictDoUpdate({
         target: schema.matches.id,
         // Every mutable field must appear here, even ones this call didn't
         // change — a key missing from `set` (not merely undefined-valued)
         // would silently drop it on re-save (docs/27 §1.4 risk #5).
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any },
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false },
       }))
     },
     // Awaited by callers (generatePrelims) — a subsequent buildTree() creates
@@ -790,6 +808,14 @@ export const persist = {
     async clearByStage(compId: string, stage: string) {
       const d = db(); if (!d) return
       await d.delete(schema.matches).where(and(eq(schema.matches.compId, compId), eq(schema.matches.stage, stage as any)))
+    },
+    async clearByGroup(compId: string, stage: string, groupKey: string) {
+      const d = db(); if (!d) return
+      await d.delete(schema.matches).where(and(
+        eq(schema.matches.compId, compId),
+        eq(schema.matches.stage, stage as any),
+        eq(schema.matches.groupKey, groupKey),
+      ))
     },
   },
   notif: {

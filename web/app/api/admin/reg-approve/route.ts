@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards } from '@/lib/store'
+import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
 
@@ -23,6 +23,10 @@ export async function POST(req: Request) {
   // corrupt matches. Reversals (and everything else) lock at draw time.
   if (matchesForComp(r.compId).length > 0) {
     return NextResponse.json({ error: 'قرعه‌کشی انجام شده — وضعیت این ثبت‌نام دیگه قابل تغییر نیست' }, { status: 409 })
+  }
+
+  if (action === 'approve' && unpaidAttempts(r) > 0 && !receiptCoversPendingPayment(r)) {
+    return NextResponse.json({ error: 'فیش پرداخت آپلود نشده' }, { status: 400 })
   }
 
   const prev = r.status

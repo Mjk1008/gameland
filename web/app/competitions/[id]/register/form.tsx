@@ -104,6 +104,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
   const paidTickets = Math.max(0, attempts - Math.min(freeTickets, attempts))
   const payableTotal = paidTickets * promoUnitPrice
+  const promoPending = canUsePromo && !!promoCode.trim() && !promoOk && !promoErr
 
   return (
     <div className="animate-fade-up">
@@ -204,8 +205,8 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button onClick={submit} disabled={busy} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
-          {busy ? 'یه لحظه…' : isTeamEvent ? (owned > 0 ? `افزودنِ ${attempts} سهمِ تیم` : `ساختِ تیم و پرداخت (${attempts} سهم)`) : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
+        <Button onClick={submit} disabled={busy || promoBusy || promoPending} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
+          {busy ? 'یه لحظه…' : promoBusy || promoPending ? 'در حال بررسی کد…' : isTeamEvent ? (owned > 0 ? `افزودنِ ${attempts} سهمِ تیم` : `ساختِ تیم و پرداخت (${attempts} سهم)`) : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
         </Button>
       </div>
     </div>

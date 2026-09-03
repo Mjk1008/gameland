@@ -9,6 +9,9 @@
 // Nothing here talks to the live app except read-only `liara env ls`.
 
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 export const LIVE_APP = 'gameland'
 export const REHEARSAL_APPS = ['gameland-rehearsal', 'gameland-staging', 'gameland-dryrun']
@@ -85,4 +88,46 @@ export function requireFlag(flag, msg) {
 export function argApp(fallback = 'gameland-rehearsal') {
   const i = process.argv.indexOf('--app')
   return i !== -1 ? process.argv[i + 1] : fallback
+}
+
+/** Liara internal DB hostnames (e.g. gameland-rehearsal-db) don't resolve off-platform. */
+function liaraDbPublic(hostname) {
+  try {
+    const authPath = join(homedir(), '.liara-auth.json')
+    const auth = JSON.parse(readFileSync(authPath, 'utf8'))
+    const token = Object.values(auth.accounts || {}).find(a => a?.current)?.api_token
+    if (!token) return null
+    const listRaw = sh('curl', ['-sS', '-k',
+      '-H', `Authorization: Bearer ${token}`,
+      'https://api.iran.liara.ir/v1/databases'])
+    const list = JSON.parse(listRaw)
+    const row = (list.databases || []).find(d => d.hostname === hostname)
+    if (!row?.publicNetwork) return null
+    const id = row.id || row._id
+    if (!id) return null
+    const detailRaw = sh('curl', ['-sS', '-k',
+      '-H', `Authorization: Bearer ${token}`,
+      `https://api.iran.liara.ir/v1/databases/${id}`])
+    const detail = JSON.parse(detailRaw)
+    const db = detail.database || detail
+    const host = db.network?.node?.host
+    const port = db.port
+    if (!host || !port) return null
+    return { host, port: String(port) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * DATABASE_URL suitable for pg_restore from a laptop.
+ * App env uses internal host; swap to the public gateway when needed.
+ */
+export function pgRestoreUrl(app, databaseUrl) {
+  const p = parsePg(databaseUrl)
+  if (p.host.includes('liara.cloud')) return databaseUrl
+  const pub = liaraDbPublic(`${app}-db`)
+  if (!pub) return databaseUrl
+  const auth = p.pass ? `${p.user}:${p.pass}` : p.user
+  return `postgres://${auth}@${pub.host}:${pub.port}/${p.db}`
 }

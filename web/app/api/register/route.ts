@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
-import { validatePromoCode, attachPromoToRegistration, promoErrorMessage } from '@/lib/promoter'
+import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice } from '@/lib/promoter'
 
 function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserById>>, c: NonNullable<ReturnType<typeof getEvent>>, attempts: number) {
   trackServer({
@@ -75,6 +75,7 @@ export async function POST(req: Request) {
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
       if (promo) await attachPromoToRegistration(r, promo)
+      lockRegistrationUnitPrice(r)
       const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
       await persist.user.insertAsync(u)
@@ -92,6 +93,7 @@ export async function POST(req: Request) {
   try {
     const r = createRegistration(uid, compId, attempts)
     if (promo) await attachPromoToRegistration(r, promo)
+    lockRegistrationUnitPrice(r)
     // referral-reward tickets cover part (or all) of this purchase automatically
     const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)

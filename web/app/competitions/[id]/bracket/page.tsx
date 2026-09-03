@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, getRegistration } from '@/lib/store'
+import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, getRegistration, playerName } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { bracketModeOf, entryCapFor, notStartedBracketsForUser } from '@/lib/bracket'
+import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { prelimVenueForGroupKey } from '@/lib/prelim-venue'
 import { C, BackHeader } from '@/components/ui'
 import BracketView, { type MatchDTO, type Player } from './BracketView'
@@ -43,10 +44,17 @@ export default async function BracketPage({ params }: { params: { id: string } }
 
   const player = (uid?: string, matchId?: string, side?: 1 | 2): Player => {
     if (!uid) return null
+    if (isRestSlot(uid)) {
+      const n = restIndex(uid)
+      return { uid, tag: `rest${n}`, name: `rest${n}`, slotKind: 'rest', restIndex: n }
+    }
+    if (isCancelledSlot(uid)) {
+      return { uid, tag: 'لغو شده', name: 'لغو شده', slotKind: 'cancelled' }
+    }
     const u = getUserById(uid)
     if (!u) return null
     return {
-      uid: u.id, tag: u.tag, name: u.name,
+      uid: u.id, tag: u.tag, name: playerName(u),
       attempts: attemptsMap.get(u.id),
       entry: matchId && side ? entryMap.get(`${matchId}:${side}`) : undefined,
     }
@@ -66,7 +74,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       id: m.id, stage: m.stage, groupKey: m.groupKey, bracket: m.bracket, round: m.round, slot: m.slot,
       p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1),
       p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
-      winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status,
+      winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status, cancelled: m.cancelled,
     }))
     // re-entry offer (prelims only): viewer has an approved reg, سهم budget left, and a not-started bracket
     let reentryMax = 0

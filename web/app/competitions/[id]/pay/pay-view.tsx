@@ -30,6 +30,7 @@ function fileToDataUrl(file: File): Promise<string> {
 
 export default function PayView({ compId, title, attempts, ticketCount, unitPrice, total, discountPercent = 0, promoCode, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, disc, city }: { compId: string; title: string; attempts: number; ticketCount: number; unitPrice: number; total: number; discountPercent?: number; promoCode?: string; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; disc: string; city: string }) {
   const router = useRouter()
+  const priceLock = useRef({ ticketCount, unitPrice, total, discountPercent, promoCode })
   const [copied, setCopied] = useState(false)
   const links = paymentLinks()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -37,6 +38,7 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  useEffect(() => { setUploaded(!!hasReceipt) }, [hasReceipt, compId])
   useEffect(() => { track('pay_page_view', { compId, status, disc, city }) }, [compId, status, disc, city])
 
   function copyCard() {
@@ -55,6 +57,8 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
     } catch (e: any) { setErr(e.message) }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = '' }
   }
+
+  const pay = priceLock.current
 
   return (
     <div className="animate-fade-up">
@@ -77,11 +81,11 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
         {/* Amount to pay */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 14, padding: '14px 16px' }}>
           <div>
-            <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت{promoCode ? ` · کد ${promoCode}` : ''}{discountPercent > 0 ? ` · ٪${discountPercent} تخفیف` : ''}</div>
-            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{ticketCount} × {toman(unitPrice)}{alreadyPaid > 0 ? ` · ${alreadyPaid} سهم قبلاً پرداخت‌شده` : ''}{freeAttempts > 0 ? ` · ${freeAttempts} رایگان` : ''}</div>
+            <div style={{ fontSize: 12, color: C.tbody }}>مبلغ قابل پرداخت{pay.promoCode ? ` · کد ${pay.promoCode}` : ''}{pay.discountPercent > 0 ? ` · ٪${pay.discountPercent} تخفیف` : ''}</div>
+            <div className="gl-num" style={{ fontSize: 11, color: C.tmut, marginTop: 2 }}>{pay.ticketCount} × {toman(pay.unitPrice)}{alreadyPaid > 0 ? ` · ${alreadyPaid} سهم قبلاً پرداخت‌شده` : ''}{freeAttempts > 0 ? ` · ${freeAttempts} رایگان` : ''}</div>
           </div>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-            <Num size={28} color={C.accent}>{toman(total)}</Num>
+            <Num size={28} color={C.accent}>{toman(pay.total)}</Num>
             <span style={{ fontSize: 12, color: C.tbody }}>تومان</span>
           </span>
         </div>
@@ -100,7 +104,8 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
           </div>
         </div>
 
-        {/* Upload receipt — primary */}
+        {/* Upload receipt — only when there is an unpaid batch */}
+        {pay.ticketCount > 0 && (
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>بارگذاری فیش پرداخت</div>
           <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
@@ -119,6 +124,7 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
           )}
           {err && <div style={{ fontSize: 12, color: C.live, marginTop: 8 }}>{err}</div>}
         </div>
+        )}
 
         {/* Optional: send via messenger too */}
         <details style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '10px 14px' }}>

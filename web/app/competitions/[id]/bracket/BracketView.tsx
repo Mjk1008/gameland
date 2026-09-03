@@ -1,17 +1,18 @@
 'use client'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
+import { cancelledSlotKey, restColor } from '@/lib/bracket-slots'
 import RadialBracket from './RadialBracket'
 import MatchSheet, { roundLabel } from './MatchSheet'
 
 // ── types coming from the server ──
-export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number } | null
+export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number; slotKind?: 'rest' | 'cancelled'; restIndex?: number } | null
 export type MatchDTO = {
   id: string; stage: 'prelim' | 'final'; groupKey: string; bracket: number; round: number; slot: number
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
+  cancelled?: boolean
 }
 
 // Small ×N / #k badge — only for accounts holding more than one سهم.
@@ -27,7 +28,7 @@ type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: s
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
-const CARD_W = 156, CARD_H = 52, COL_GAP = 54, ROW_H = 70
+const CARD_W = 156, CARD_H = 52, COL_GAP = 54, ROW_H = 70, ROUND_LABEL_H = 28
 
 const roundName = roundLabel
 
@@ -142,7 +143,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
       </div>
 
       {mode === 'rounds'
-        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} isAdmin={isAdmin} onOpen={setSel} />
+        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={setSel} />
         : mode === 'tree'
         ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={setSel} />
         : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
@@ -152,6 +153,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           match={sel}
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
           meUid={meUid}
+          isAdmin={isAdmin}
           onClose={() => setSel(null)}
         />
       )}
@@ -204,7 +206,7 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
     head = 'بازی بعدی تو'
     const o = opp(next)
     body = <>
-      <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 17, color: C.thi }}>{o ? o.tag : 'حریف نامشخص'}</span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 17, fontWeight: 800, color: C.thi }}>{o ? o.name : 'حریف نامشخص'}</span>
       <span style={{ color: C.tmut }}> · {roundLabel(seatsInRound(next.round))}</span>
     </>
     jump = next
@@ -214,7 +216,7 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
   } else {
     tone = 'out'; head = `حذف در ${roundLabel(seatsInRound(last.round))}`
     const o = opp(last)
-    body = <>باختی به <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, color: C.tbody }}>{o ? o.tag : '—'}</span></>
+    body = <>باختی به <span style={{ fontWeight: 800, color: C.tbody }}>{o ? o.name : '—'}</span></>
     jump = last
   }
 
@@ -237,9 +239,9 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
 }
 
 // ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ─────────
-function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, isAdmin, onOpen }: {
+function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, onOpen }: {
   bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number
-  meUid?: string; myPathOnly: boolean; myPath: Set<string>; isAdmin?: boolean; onOpen: (m: MatchDTO) => void
+  meUid?: string; myPathOnly: boolean; myPath: Set<string>; onOpen: (m: MatchDTO) => void
 }) {
   const [sel, setSel] = useState<number>(rounds[0] ?? 1)
   useEffect(() => { if (!rounds.includes(sel)) setSel(rounds[0] ?? 1) }, [rounds, sel])
@@ -267,7 +269,7 @@ function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath,
                   <div style={{ fontSize: 11, color: C.tmut, marginBottom: 4 }}>{roundLabel(playersInRound(m.round))}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: 700, fontSize: 14, color: C.thi, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {opp ? opp.tag : '—'}
+                      {opp ? opp.name : '—'}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 800, color: dotCol }}>
                       {iWon ? 'بردی' : iLost ? 'باختی' : m.status === 'ready' ? 'آماده' : 'در انتظار'}
@@ -296,7 +298,7 @@ function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath,
         ? <Empty text="هنوز بازی‌ای اینجا نیست" />
         : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} isAdmin={isAdmin} onOpen={onOpen} />)}
+            {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} onOpen={onOpen} />)}
           </div>
         )}
     </div>
@@ -307,53 +309,32 @@ function Empty({ text }: { text: string }) {
   return <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '20px 0' }}>{text}</div>
 }
 
-function MatchCardRow({ m, meUid, isAdmin, onOpen }: { m: MatchDTO; meUid?: string; isAdmin?: boolean; onOpen: (m: MatchDTO) => void }) {
-  const router = useRouter()
+function MatchCardRow({ m, meUid, onOpen }: { m: MatchDTO; meUid?: string; onOpen: (m: MatchDTO) => void }) {
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
-  const [busy, setBusy] = useState(false)
-  const canPick = isAdmin && m.status === 'ready' && m.p1 && m.p2
-  const doneP1 = m.status === 'done' && m.winnerUid === m.p1?.uid
-  const doneP2 = m.status === 'done' && m.winnerUid === m.p2?.uid
-
-  async function pick(winnerUid: string) {
-    if (busy) return
-    setBusy(true)
-    try {
-      const res = await fetch('/api/admin/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: m.id, winnerUserId: winnerUid }) })
-      if (res.ok) { router.refresh(); setBusy(false) }
-      else { const j = await res.json(); alert(j.error || 'ثبت نشد'); setBusy(false) }
-    } catch { setBusy(false) }
-  }
+  const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
+  const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
 
   return (
     <div style={{ background: C.sf1, border: `1px solid ${mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: mine ? `0 0 0 1px ${C.accent}55` : 'none' }}>
       <div onClick={() => onOpen(m)} style={{ cursor: 'pointer' }}>
-        <PlayerLine p={m.p1} win={doneP1} lose={m.status === 'done' && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
+        <PlayerLine p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
         <div style={{ height: 1, background: C.line }} />
-        <PlayerLine p={m.p2} win={doneP2} lose={m.status === 'done' && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
+        <PlayerLine p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
-          <StatusPill status={m.status} />
-          <span style={{ fontSize: 10, color: C.tmut }}>{m.status === 'done' ? 'انجام شد' : m.status === 'ready' ? 'آماده' : 'در انتظار حریف'}</span>
+          <StatusPill status={m.cancelled ? 'cancelled' : m.status} />
         </div>
       </div>
-      {canPick && (
-        <div style={{ display: 'flex', gap: 6, padding: '8px 9px', background: C.ink, borderTop: `1px solid ${C.line}` }}>
-          <span style={{ fontSize: 10.5, color: C.tmut, alignSelf: 'center' }}>برنده:</span>
-          <button disabled={busy} onClick={() => pick(m.p1!.uid)} style={winBtn}>{m.p1!.tag}</button>
-          <button disabled={busy} onClick={() => pick(m.p2!.uid)} style={winBtn}>{m.p2!.tag}</button>
-        </div>
-      )}
     </div>
   )
 }
-const winBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 38, lineHeight: '38px', fontFamily: DISP, fontWeight: 700, fontSize: 13, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
 function PlayerLine({ p, win, lose, me, score }: { p: Player; win?: boolean; lose?: boolean; me?: boolean; score?: string }) {
+  const slotStyle = slotLineStyle(p)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: win ? C.goldSoft : 'transparent', opacity: lose ? 0.5 : 1 }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: win ? C.gold : p ? C.line2 : C.line, flexShrink: 0 }} />
-      <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontSize: 14, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {p ? p.tag : '—'}{me ? ' (تو)' : ''}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: win ? C.goldSoft : slotStyle?.bg ?? 'transparent', opacity: lose ? 0.5 : 1 }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: win ? C.gold : p?.slotKind ? slotStyle?.fg : p ? C.line2 : C.line, flexShrink: 0 }} />
+      <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: win ? 800 : p?.slotKind ? 800 : 600, color: p ? (win ? C.gold : slotStyle?.fg ?? C.thi) : C.tmut, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {p ? p.name : '—'}{me ? ' (تو)' : ''}
       </span>
       <EntryBadge p={p} />
       {score != null && score !== '' && <span style={{ fontFamily: DISP, fontSize: 13, fontWeight: 800, color: win ? C.gold : C.tbody }}>{score}</span>}
@@ -361,8 +342,15 @@ function PlayerLine({ p, win, lose, me, score }: { p: Player; win?: boolean; los
   )
 }
 
-function StatusPill({ status }: { status: MatchDTO['status'] }) {
-  const map = { done: [C.win, C.winSoft, 'تمام'], ready: [C.accent, C.accentSoft, 'زنده'], pending: [C.tmut, C.sf2, 'انتظار'] } as const
+function slotLineStyle(p: Player): { fg: string; bg: string } | null {
+  if (!p?.slotKind) return null
+  if (p.slotKind === 'cancelled') return { fg: C.live, bg: C.liveSoft }
+  if (p.slotKind === 'rest' && p.restIndex) return restColor(p.restIndex)
+  return null
+}
+
+function StatusPill({ status }: { status: MatchDTO['status'] | 'cancelled' }) {
+  const map = { done: [C.win, C.winSoft, 'تمام'], ready: [C.accent, C.accentSoft, 'زنده'], pending: [C.tmut, C.sf2, 'انتظار'], cancelled: [C.live, C.liveSoft, 'لغو شده'] } as const
   const [c, s, label] = map[status]
   return <span style={{ fontSize: 10, fontWeight: 700, color: c, background: s, padding: '2px 8px', borderRadius: 6 }}>{label}</span>
 }
@@ -372,6 +360,8 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
   bMatches: MatchDTO[]; rounds: number[]; meUid?: string; winPath: Set<string>; onOpen: (m: MatchDTO) => void
 }) {
   const firstRound = rounds[0] ?? 1
+  const totalPlayers = bMatches.filter(m => m.round === firstRound).length * 2
+  const playersInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
   const pos = useMemo(() => {
     const p: Record<string, { x: number; y: number }> = {}
     const yByRound: Record<number, Record<number, number>> = {}
@@ -387,14 +377,14 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
           y = c1 != null && c2 != null ? (c1 + c2) / 2 : (c1 ?? c2 ?? m.slot * ROW_H + ROW_H / 2)
         }
         yByRound[r][m.slot] = y
-        p[m.id] = { x: ri * (CARD_W + COL_GAP), y }
+        p[m.id] = { x: ri * (CARD_W + COL_GAP), y: y + ROUND_LABEL_H }
       })
     })
     return p
   }, [bMatches, rounds])
 
   const canvasW = rounds.length * (CARD_W + COL_GAP) + CARD_W
-  const canvasH = (bMatches.filter(m => m.round === firstRound).length) * ROW_H + ROW_H
+  const canvasH = (bMatches.filter(m => m.round === firstRound).length) * ROW_H + ROW_H + ROUND_LABEL_H
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -444,7 +434,8 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
         }}
       >
         <div style={{ width: canvasW * scale, height: canvasH * scale, direction: 'ltr', flexShrink: 0 }}>
-          <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
+          <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0', position: 'relative' }}>
+            <RoundHeaders rounds={rounds} playersInRound={playersInRound} />
             <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} winPath={winPath} />
             <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} />
           </div>
@@ -455,6 +446,28 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen }: {
 }
 
 type Pos = Record<string, { x: number; y: number }>
+
+const RoundHeaders = memo(function RoundHeaders({ rounds, playersInRound }: { rounds: number[]; playersInRound: (r: number) => number }) {
+  return (
+    <>
+      {rounds.map((r, ri) => (
+        <div
+          key={r}
+          style={{
+            position: 'absolute', left: ri * (CARD_W + COL_GAP), top: 0,
+            width: CARD_W, height: ROUND_LABEL_H,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 800, color: C.tmut,
+            borderBottom: `1px solid ${C.line}`, boxSizing: 'border-box',
+          }}
+        >
+          {roundLabel(playersInRound(r))}
+        </div>
+      ))}
+    </>
+  )
+})
+
 const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, canvasH, meUid, winPath }: {
   bMatches: MatchDTO[]; rounds: number[]; pos: Pos; canvasW: number; canvasH: number; meUid?: string; winPath: Set<string>
 }) {
@@ -469,7 +482,10 @@ const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, ca
           const kp = pos[k.id]; if (!kp) return null
           const x1 = kp.x + CARD_W, y1 = kp.y, x2 = me.x, y2 = me.y, midx = (x1 + x2) / 2
           // this child feeds the parent only once it's DECIDED and its winner sits in a parent slot
-          const advanced = k.status === 'done' && !!k.winnerUid && (k.winnerUid === m.p1?.uid || k.winnerUid === m.p2?.uid)
+          const cancelledAdv = k.status === 'done' && !!k.cancelled && (
+            m.p1?.uid === cancelledSlotKey(k.id) || m.p2?.uid === cancelledSlotKey(k.id)
+          )
+          const advanced = (k.status === 'done' && !!k.winnerUid && (k.winnerUid === m.p1?.uid || k.winnerUid === m.p2?.uid)) || cancelledAdv
           const onWin = winPath.has(k.id) && winPath.has(m.id)
           const onMine = meUid && k.winnerUid === meUid && advanced
 
@@ -478,7 +494,7 @@ const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, ca
             // so a not-yet-won player never looks like they've advanced
             return <path key={m.id + k.id} d={`M${x1},${y1} H${x1 + 16}`} fill="none" stroke={C.line} strokeWidth={1.4} strokeDasharray="2 5" opacity={0.6} />
           }
-          const strokeCol = onMine ? C.accent : onWin ? C.gold : C.line2
+          const strokeCol = cancelledAdv ? C.live : onMine ? C.accent : onWin ? C.gold : C.line2
           const sw = onMine ? 2.4 : onWin ? 2.2 : 1.5
           return <path key={m.id + k.id} d={`M${x1},${y1} H${midx} V${y2} H${x2}`} fill="none" stroke={strokeCol} strokeWidth={sw} />
         })
@@ -504,24 +520,26 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen }: { bMatches: 
 })
 
 const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO) => void }) {
-  const doneP1 = m.status === 'done' && m.winnerUid === m.p1?.uid
-  const doneP2 = m.status === 'done' && m.winnerUid === m.p2?.uid
+  const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
+  const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
   return (
     <div
       onClick={() => onOpen(m)}
-      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none' }}
+      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
     >
-      <TreeSlot p={m.p1} win={doneP1} lose={m.status === 'done' && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
+      {m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.live, background: C.liveSoft, textAlign: 'center', padding: '2px 0' }}>لغو شده</div>}
+      <TreeSlot p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} />
       <div style={{ height: 1, background: C.line }} />
-      <TreeSlot p={m.p2} win={doneP2} lose={m.status === 'done' && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
+      <TreeSlot p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} />
     </div>
   )
 })
 
 function TreeSlot({ p, win, lose, me, score }: { p: Player; win?: boolean; lose?: boolean; me?: boolean; score?: string }) {
+  const slotStyle = slotLineStyle(p)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : 'transparent', opacity: lose ? 0.45 : 1 }}>
-      <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: win ? 800 : 600, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.tag : '—'}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: win ? C.goldSoft : me ? C.accentSoft : slotStyle?.bg ?? 'transparent', opacity: lose ? 0.45 : 1 }}>
+      <span style={{ flex: 1, minWidth: 0, fontWeight: win ? 800 : p?.slotKind ? 800 : 600, color: p ? (win ? C.gold : slotStyle?.fg ?? C.thi) : C.tmut, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.name : '—'}</span>
       <EntryBadge p={p} />
       {score != null && score !== '' && <span style={{ fontFamily: DISP, fontWeight: 800, color: win ? C.gold : C.tbody }}>{score}</span>}
     </div>

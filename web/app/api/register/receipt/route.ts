@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getRegistration, getUserById, markReceipt, pushNotif, getEvent, whenReady } from '@/lib/store'
+import { getRegistration, getUserById, attachReceiptToBatch, pushNotif, getEvent, whenReady } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const c = getEvent(compId)
 
   await persist.receipt.upsertAsync(reg.id, imageData)
-  markReceipt(reg.id)
+  attachReceiptToBatch(reg)
   trackServer({
     userId: uid,
     name: 'receipt_submit',

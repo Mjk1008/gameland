@@ -21,7 +21,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { liaraEnv, assertSafeTarget, parsePg, argApp, requireFlag, LIVE_APP } from './_lib.mjs'
+import { liaraEnv, assertSafeTarget, parsePg, argApp, requireFlag, LIVE_APP, pgRestoreUrl } from './_lib.mjs'
 
 requireFlag('--confirm', 'clone.mjs OVERWRITES the target database with a copy of live data.')
 
@@ -29,7 +29,7 @@ const app = argApp()
 const withBlobs = process.argv.includes('--with-blobs')
 const targetEnv = assertSafeTarget(app)
 const SRC = tune(liaraEnv(LIVE_APP).DATABASE_URL)
-const DST = tune(targetEnv.DATABASE_URL)
+const DST = tune(pgRestoreUrl(app, targetEnv.DATABASE_URL))
 
 function tune(u) {
   const extra = 'sslmode=disable&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=6'

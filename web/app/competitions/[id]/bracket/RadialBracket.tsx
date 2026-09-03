@@ -248,7 +248,7 @@ const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
       <circle cx={cx} cy={cy} r={44} fill={C.sf2} stroke={champ ? C.gold : C.line2} strokeWidth={3} />
       {champ
         ? <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontFamily={DISP} fontWeight={800} fill={C.gold}
-            fontSize={(champ.tag ?? '').length > 8 ? 16 : 24}>{champ.tag ?? ''}</text>
+            fontSize={(champ.name ?? '').length > 8 ? 16 : 24}>{champ.name ?? ''}</text>
         : <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={36}>🏆</text>}
 
       {/* player leaves — dot + (optionally) full @tag pushed radially outward */}
@@ -271,7 +271,7 @@ const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
                 fontFamily={DISP} fontSize={n.me ? 20 : 17} fontWeight={n.win || n.me ? 800 : 500}
                 fill={n.me ? C.accent : n.win ? C.gold : C.tbody}
               >
-                {n.player.tag}
+                {n.player.name}
               </text>
             )}
           </g>

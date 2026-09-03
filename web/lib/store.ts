@@ -206,7 +206,23 @@ export function removeEventCover(id: string): void {
 // stay in Postgres, served on demand), so RAM stays flat with many receipts.
 const receiptRegIds = new Set<string>()
 export function hasReceipt(regId: string): boolean { return receiptRegIds.has(regId) }
+/** True when the uploaded فیش belongs to the current unpaid checkout batch. */
+export function receiptCoversPendingPayment(reg: Registration): boolean {
+  const unpaid = unpaidAttempts(reg)
+  if (unpaid === 0) return false
+  if (!hasReceipt(reg.id)) return false
+  const batch = reg.payBatch ?? 1
+  if (reg.receiptPayBatch != null) return reg.receiptPayBatch === batch
+  if (reg.receiptAttemptsAt != null) return reg.receiptAttemptsAt === reg.attempts
+  return false
+}
 export function markReceipt(regId: string): void { receiptRegIds.add(regId) }
+export function attachReceiptToBatch(reg: Registration): void {
+  markReceipt(reg.id)
+  reg.receiptPayBatch = reg.payBatch ?? 1
+  reg.receiptAttemptsAt = reg.attempts
+  persist.reg.update(reg.id, { receiptPayBatch: reg.receiptPayBatch, receiptAttemptsAt: reg.attempts } as any)
+}
 
 // Admin-set manual ranking points (added on top of points earned from results).
 export function setUserBonusPoints(id: string, points: number): User | undefined {
@@ -215,6 +231,10 @@ export function setUserBonusPoints(id: string, points: number): User | undefined
   persist.user.update(id, { bonusPoints: u.bonusPoints })
   bumpNationalRanking(id)
   return u
+}
+export function playerName(u: { firstName?: string; lastName?: string; name: string; tag: string }): string {
+  const n = [u.firstName, u.lastName].filter(Boolean).join(' ').trim()
+  return n || u.name || u.tag
 }
 export function bonusPointsOf(u: User): number { return u.bonusPoints ?? 0 }
 
@@ -730,6 +750,10 @@ export interface Registration {
   teamId?: string           // 2v2 events only — set for both members' rows, same team
   promoterCodeId?: string   // affiliate code used at first registration
   discountPercent?: number  // snapshot — buyer pays ticketPrice × (1 − this/100)
+  lockedUnitPrice?: number  // per-ticket price frozen at checkout — pay/admin read this
+  payBatch?: number           // bumps on each new paid checkout (top-up / fresh reg)
+  receiptPayBatch?: number    // payBatch when the current valid فیش was uploaded
+  receiptAttemptsAt?: number  // reg.attempts when فیش was uploaded
   createdAt: number
 }
 
@@ -775,8 +799,18 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
     existing.status = 'pending'
+    existing.payBatch = (existing.payBatch ?? 1) + 1
+    existing.receiptPayBatch = undefined
+    existing.receiptAttemptsAt = undefined
+    existing.promoterCodeId = undefined
+    existing.discountPercent = undefined
+    existing.lockedUnitPrice = undefined
     if (teamId !== undefined) existing.teamId = teamId
-    persist.reg.update(existing.id, { attempts: existing.attempts, status: 'pending', teamId: existing.teamId } as any)
+    persist.reg.update(existing.id, {
+      attempts: existing.attempts, status: 'pending', teamId: existing.teamId,
+      payBatch: existing.payBatch, receiptPayBatch: null, receiptAttemptsAt: null,
+      promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
+    } as any)
     bumpNationalRanking(userId)
     return existing
   }
@@ -788,8 +822,17 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.prelimsCompleted = 0
     existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
     existing.paidAttempts = 0   // nothing settled on a rejected row
+    existing.payBatch = 1
+    existing.receiptPayBatch = undefined
+    existing.receiptAttemptsAt = undefined
+    existing.promoterCodeId = undefined
+    existing.discountPercent = undefined
+    existing.lockedUnitPrice = undefined
     if (teamId !== undefined) existing.teamId = teamId
-    persist.reg.update(existing.id, { attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId } as any)
+    persist.reg.update(existing.id, {
+      attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId,
+      payBatch: 1, receiptPayBatch: null, receiptAttemptsAt: null, promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
+    } as any)
     bumpNationalRanking(userId)
     return existing
   }
@@ -798,6 +841,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     userId, compId, attempts,
     status: 'pending',
     seedsEarned: 0, prelimsCompleted: 0,
+    payBatch: 1,
     teamId,
     createdAt: Date.now(),
   }
@@ -822,8 +866,15 @@ export function setRegistrationStatus(regId: string, status: RegStatus, rejectRe
   else r.rejectReason = undefined
   // Approving settles every ticket on the row, so a later top-up is billed
   // only for the newly added سهم.
-  if (status === 'approved') r.paidAttempts = r.attempts
-  persist.reg.update(r.id, { status, rejectReason: r.rejectReason ?? null, paidAttempts: r.paidAttempts ?? null } as any)
+  if (status === 'approved') {
+    r.paidAttempts = r.attempts
+    r.receiptPayBatch = undefined
+    r.receiptAttemptsAt = undefined
+  }
+  persist.reg.update(r.id, {
+    status, rejectReason: r.rejectReason ?? null, paidAttempts: r.paidAttempts ?? null,
+    ...(status === 'approved' ? { receiptPayBatch: null, receiptAttemptsAt: null } : {}),
+  } as any)
   bumpNationalRanking(r.userId)
   syncTeamMirrorFrom(r)
   if (status === 'rejected') disbandTeamIfCaptainRejected(r)
@@ -898,6 +949,7 @@ export function approvedRegistrationsForComp(compId: string): Registration[] {
 export function pendingRegistrations(): Registration[] {
   return Array.from(regs.values())
     .filter(r => r.status === 'pending' && !isTeamPartnerReg(r))
+    .filter(r => unpaidAttempts(r) === 0 || receiptCoversPendingPayment(r))
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
@@ -1695,6 +1747,7 @@ export interface Match {
   winnerTeamId?: string
   score?: string
   status: 'pending' | 'ready' | 'done'
+  cancelled?: boolean
   createdAt: number
 }
 
@@ -1785,6 +1838,13 @@ export async function clearMatchesForComp(compId: string) {
 export async function clearMatchesByStage(compId: string, stage: 'prelim' | 'final') {
   for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === compId && matches[i].stage === stage) matches.splice(i, 1)
   await persist.match.clearByStage(compId, stage)
+}
+
+export async function clearMatchesForGroup(compId: string, stage: 'prelim' | 'final', groupKey: string) {
+  for (let i = matches.length - 1; i >= 0; i--) {
+    if (matches[i].compId === compId && matches[i].stage === stage && matches[i].groupKey === groupKey) matches.splice(i, 1)
+  }
+  await persist.match.clearByGroup?.(compId, stage, groupKey)
 }
 
 export function pushMatch(m: Match) {
