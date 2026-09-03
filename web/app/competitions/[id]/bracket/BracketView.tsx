@@ -163,7 +163,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           isAdmin={isAdmin}
           leftovers={leftovers}
           restSide={restSide}
-          restFillable={isAdmin && bMatches.some(m => m.status !== 'done')}
+          restFillable={!!isAdmin}
           onClose={() => { setSel(null); setRestSide(null) }}
         />
       )}

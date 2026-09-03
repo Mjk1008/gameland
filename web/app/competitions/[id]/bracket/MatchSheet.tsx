@@ -86,6 +86,8 @@ export default function MatchSheet({
     ? (restSide === 1 && p1?.slotKind === 'rest' ? 1 : restSide === 2 && p2?.slotKind === 'rest' ? 2 : p1?.slotKind === 'rest' ? 1 : p2?.slotKind === 'rest' ? 2 : null)
     : null
   const fillLabel = fillSide === 1 ? p1?.name : fillSide === 2 ? p2?.name : null
+  const otherUid = fillSide === 1 ? p2?.uid : fillSide === 2 ? p1?.uid : undefined
+  const fillable = (leftovers ?? []).filter(u => u.uid !== otherUid)
 
   return createPortal(
     <>
@@ -121,9 +123,9 @@ export default function MatchSheet({
         {fillSide && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.thi }}>بازماندگان{fillLabel ? ` · ${fillLabel}` : ''}</div>
-            {(leftovers ?? []).length === 0
+            {fillable.length === 0
               ? <div style={{ fontSize: 12, color: C.tmut }}>کسی نیست</div>
-              : (leftovers ?? []).map(u => (
+              : fillable.map(u => (
                 <button
                   key={u.uid}
                   type="button"

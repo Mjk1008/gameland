@@ -135,20 +135,11 @@ export interface LeftoverPlayer { userId: string; leftover: number }
 
 /** Approved سهم that did not land in a tree — filled into rest slots by admin. */
 export function leftoverPlayers(compId: string): LeftoverPlayer[] {
-  const cfg = getEventConfig(compId)
-  const mode: GroupMode = cfg.groupMode ?? 'city'
-  const keys = new Set(prelimGroupKeys(compId))
-  const finalExists = matchesForComp(compId).some(m => m.stage === 'final')
+  if (matchesForComp(compId).length === 0) return []
   const out: LeftoverPlayer[] = []
   for (const r of approvedRegistrationsForComp(compId)) {
     const extra = leftoverTicketsOf(compId, r.userId)
     if (extra <= 0) continue
-    const seated = seatedTicketsOf(compId, r.userId)
-    const u = getUserById(r.userId)
-    const gk = groupKeyOf(r.userId, mode)
-    const gkp = `province:${resolveProvince(u?.province, u?.city)}`
-    const groupDrawn = keys.has(gk) || keys.has(gkp)
-    if (!groupDrawn && !finalExists && seated === 0) continue
     out.push({ userId: r.userId, leftover: extra })
   }
   return out
