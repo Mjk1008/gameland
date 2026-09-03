@@ -9,3 +9,12 @@ scripts/demo-ranking.ts
 
 # local npm cache — never deploy (114MB, breaks upload)
 .npmcache
+
+# unfinished match center — not part of this ship
+app/center
+app/api/center
+app/api/admin/center
+app/admin/center-toggle.tsx
+lib/match-center.ts
+lib/match-center-enabled.ts
+lib/match-center-types.ts

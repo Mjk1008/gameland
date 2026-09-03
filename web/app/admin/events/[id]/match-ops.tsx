@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { C } from '@/components/ui'
 
-export type OpsPlayer = { uid: string; name: string } | null
+export type OpsPlayer = { uid: string; name: string; placeholder?: boolean } | null
 export const ANNOUNCE = [
   { id: 'elim5', label: 'حذف تا پنج دقیقه آینده' },
   { id: 'play', label: 'اعلان بازی' },
@@ -23,21 +23,23 @@ export function MatchOps({
 }) {
   const [announce, setAnnounce] = useState(false)
   const [who, setWho] = useState<'p1' | 'p2' | 'both'>('both')
-  const canRecord = status === 'ready' && !cancelled
+  const p1Win = !!p1 && !p1.placeholder
+  const p2Win = !!p2 && !p2.placeholder
+  const canRecord = (status === 'ready' || status === 'pending') && !cancelled && (p1Win || p2Win)
   const canEdit = status === 'done' && !cancelled
   const canRestore = status === 'done' && !!cancelled
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
       {canRecord && (
         <div style={{ display: 'flex', gap: 6 }}>
-          <button type="button" disabled={busy || !p1} onClick={() => p1 && onWin(p1.uid)} style={winBtn}>وین {p1?.name ?? ''}</button>
-          <button type="button" disabled={busy || !p2} onClick={() => p2 && onWin(p2.uid)} style={winBtn}>وین {p2?.name ?? ''}</button>
+          <button type="button" disabled={busy || !p1Win} onClick={() => p1Win && p1 && onWin(p1.uid)} style={winBtn}>وین {p1?.name ?? ''}</button>
+          <button type="button" disabled={busy || !p2Win} onClick={() => p2Win && p2 && onWin(p2.uid)} style={winBtn}>وین {p2?.name ?? ''}</button>
         </div>
       )}
       {(canEdit || canRestore) && (
         <div style={{ display: 'flex', gap: 6 }}>
-          <button type="button" disabled={busy || !p1 || (!canRestore && p1.uid === winnerUid)} onClick={() => p1 && onWin(p1.uid)} style={editBtn}>وین {p1?.name ?? ''}</button>
-          <button type="button" disabled={busy || !p2 || (!canRestore && p2.uid === winnerUid)} onClick={() => p2 && onWin(p2.uid)} style={editBtn}>وین {p2?.name ?? ''}</button>
+          <button type="button" disabled={busy || !p1Win || (!canRestore && p1.uid === winnerUid)} onClick={() => p1Win && p1 && onWin(p1.uid)} style={editBtn}>وین {p1?.name ?? ''}</button>
+          <button type="button" disabled={busy || !p2Win || (!canRestore && p2.uid === winnerUid)} onClick={() => p2Win && p2 && onWin(p2.uid)} style={editBtn}>وین {p2?.name ?? ''}</button>
         </div>
       )}
       {canRecord && (

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts, playerName } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -12,7 +12,6 @@ import StatusControl from './status-control'
 import FinalizeControls from './finalize-controls'
 import RunPanel, { type RunMatch } from './run-panel'
 import AddPlayerPanel, { type EmptySlot } from './add-player-panel'
-import ReentryPanel, { type ReentryRow } from './reentry-panel'
 import TournamentPanel, { type BracketInfo, type ProvincePool } from './tournament-panel'
 import { type BatchPlayer } from './prelim-batch-panel'
 import DeleteEventButton from './delete-button'
@@ -143,13 +142,6 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       })
     : []
 
-  // ── re-entry فیش awaiting approval (approved regs with an unpaid balance, post-draw) ──
-  const reentryRows: ReentryRow[] = (!isTeamEvent && drawn)
-    ? approvedRegistrationsForComp(c.id)
-        .filter(r => (r.paidAttempts ?? null) != null && unpaidAttempts(r) > 0)
-        .map(r => { const u = getUserById(r.userId); return { regId: r.id, tag: u?.tag || r.userId, name: u?.name || '?', unpaid: unpaidAttempts(r) } })
-    : []
-
   const qualifierCount = isTeamEvent ? computeTeamQualifiers(c.id).length : computeQualifiers(c.id).length
   const finalExists = all.some(m => m.stage === 'final')
   const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [seatOf(m, 1), seatOf(m, 2)].filter(Boolean))).size
@@ -256,7 +248,6 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       />
 
       {!isTeamEvent && drawn && <RunPanel matches={runMatches} />}
-      {reentryRows.length > 0 && <ReentryPanel rows={reentryRows} />}
       {!isTeamEvent && drawn && <AddPlayerPanel compId={c.id} slots={emptySlots} leftovers={leftoverOpts} />}
 
       <FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} />

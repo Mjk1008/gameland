@@ -462,15 +462,15 @@ function buildTree(compId: string, stage: 'prelim' | 'final', groupKey: string, 
   resolveByes(compId, stage, groupKey, bracketIdx)
 }
 
-// Settle all byes/empty matches so that only genuine 2-player matches remain
-// 'ready' (playable). A match with 1 player whose feeders are fully resolved is
-// an auto-advance (bye); a match with 0 players and resolved feeders is dead
-// (done, no winner). Runs to a fixpoint so byes cascade up the tree.
+// Settle cancelled-side auto-advances. Rest seats stay pending — admin fills
+// them later and records the winner; auto-winning a rest match would lock the
+// next round and block adding a leftover into rest1.
 function resolveByes(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number) {
   const mine = () => matchesForComp(compId).filter(m => m.stage === stage && m.groupKey === groupKey && m.bracket === bracketIdx)
   const byRS = (round: number, slot: number) => mine().find(m => m.round === round && m.slot === slot)
   const realCount = (m: Match) => (isRealPlayer(m.p1UserId) ? 1 : 0) + (isRealPlayer(m.p2UserId) ? 1 : 0)
   const hasCancelled = (m: Match) => isCancelledSlot(m.p1UserId) || isCancelledSlot(m.p2UserId)
+  const hasRest = (m: Match) => isRestSlot(m.p1UserId) || isRestSlot(m.p2UserId)
   const soleReal = (m: Match) => (isRealPlayer(m.p1UserId) ? m.p1UserId : isRealPlayer(m.p2UserId) ? m.p2UserId : undefined)
 
   let changed = true, guard = 0
@@ -480,6 +480,8 @@ function resolveByes(compId: string, stage: 'prelim' | 'final', groupKey: string
       if (m.status === 'done') continue
       const r = realCount(m)
       if (r === 2) { if (m.status !== 'ready') { m.status = 'ready'; saveMatch(m); changed = true } continue }
+      // rest vs player (or rest vs rest): wait for admin to fill or record.
+      if (hasRest(m)) continue
 
       let feedersDone = true
       if (m.round > 1) {
@@ -695,6 +697,7 @@ export function setMatchWinner(matchId: string, winnerUserId: string, score?: st
   if (!m) throw new Error('MATCH_NOT_FOUND')
   if (m.status === 'done') throw new Error('MATCH_ALREADY_DONE')
   if (winnerUserId !== m.p1UserId && winnerUserId !== m.p2UserId) throw new Error('INVALID_WINNER')
+  if (!isRealPlayer(winnerUserId)) throw new Error('INVALID_WINNER')
   m.winnerUserId = winnerUserId
   m.score = score
   m.status = 'done'
@@ -730,6 +733,7 @@ export function recordCancelledMatchResult(matchId: string, winnerUserId: string
   if (!m) throw new Error('MATCH_NOT_FOUND')
   if (m.status !== 'done' || !m.cancelled) throw new Error('MATCH_NOT_CANCELLED')
   if (winnerUserId !== m.p1UserId && winnerUserId !== m.p2UserId) throw new Error('INVALID_WINNER')
+  if (!isRealPlayer(winnerUserId)) throw new Error('INVALID_WINNER')
   const next = findNextMatch(m)
   if (next && next.status === 'done') throw new Error('NEXT_ROUND_PLAYED')
   clearCancelledFeed(m)
@@ -752,6 +756,7 @@ export function correctMatchResult(matchId: string, newWinnerUserId: string): Ma
   if (!m) throw new Error('MATCH_NOT_FOUND')
   if (m.status !== 'done') throw new Error('MATCH_NOT_DONE')
   if (newWinnerUserId !== m.p1UserId && newWinnerUserId !== m.p2UserId) throw new Error('INVALID_WINNER')
+  if (!isRealPlayer(newWinnerUserId)) throw new Error('INVALID_WINNER')
   if (newWinnerUserId === m.winnerUserId) return m
   const next = findNextMatch(m)
   if (next && next.status === 'done') throw new Error('NEXT_ROUND_PLAYED')

@@ -141,8 +141,8 @@ export default function MatchSheet({
 
         {isAdmin && (
           <MatchOps
-            p1={p1 ? { uid: p1.uid, name: p1.name } : null}
-            p2={p2 ? { uid: p2.uid, name: p2.name } : null}
+            p1={p1 ? { uid: p1.uid, name: p1.name, placeholder: !!p1.slotKind } : null}
+            p2={p2 ? { uid: p2.uid, name: p2.name, placeholder: !!p2.slotKind } : null}
             cancelled={cancelled} status={status} busy={busy}
             onWin={uid => post({ matchId: match.id, winnerUserId: uid, correct: status === 'done' })}
             onCancelMatch={() => post({ matchId: match.id, cancel: true })}
