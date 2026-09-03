@@ -20,7 +20,7 @@ export function isRestSlot(uid?: string): boolean {
   return !!uid && uid.startsWith(REST_PREFIX)
 }
 
-export function isRealPlayer(uid?: string): boolean {
+export function isRealPlayer(uid?: string): uid is string {
   return !!uid && !isCancelledSlot(uid) && !isRestSlot(uid)
 }
 
