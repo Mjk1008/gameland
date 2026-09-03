@@ -131,16 +131,44 @@ export function leftoverTicketsOf(compId: string, userId: string): number {
   return Math.max(0, r.attempts - seatedTicketsOf(compId, userId))
 }
 
-export interface LeftoverPlayer { userId: string; leftover: number }
+export interface LeftoverPlayer { userId: string; leftover: number; groupKey: string }
 
-/** Approved سهم that did not land in a tree — filled into rest slots by admin. */
+function prelimGroupKeyOf(userId: string, mode: GroupMode): string {
+  if (mode !== 'province') return groupKeyOf(userId, mode)
+  const u = getUserById(userId)
+  return `province:${resolveProvince(u?.province, u?.city)}`
+}
+
+function seatedUserIdsInGroup(compId: string, groupKey: string): Set<string> {
+  const ids = new Set<string>()
+  for (const m of matchesForComp(compId)) {
+    if (m.stage !== 'prelim' || m.groupKey !== groupKey) continue
+    if (isRealPlayer(m.p1UserId)) ids.add(m.p1UserId)
+    if (isRealPlayer(m.p2UserId)) ids.add(m.p2UserId)
+  }
+  return ids
+}
+
+/**
+ * Rest-fill pool: approved tickets that are not sitting in that player's
+ * own drawn tree. Includes people the admin left out of a province draw,
+ * and everyone from provinces not drawn yet. Extra tickets of people
+ * already in their own tree stay out.
+ */
 export function leftoverPlayers(compId: string): LeftoverPlayer[] {
-  if (matchesForComp(compId).length === 0) return []
+  const all = matchesForComp(compId)
+  if (all.length === 0) return []
+  const mode: GroupMode = getEventConfig(compId).groupMode ?? 'city'
+  const drawn = new Set(all.filter(m => m.stage === 'prelim').map(m => m.groupKey))
+  const seated = new Map<string, Set<string>>()
+  for (const gk of drawn) seated.set(gk, seatedUserIdsInGroup(compId, gk))
   const out: LeftoverPlayer[] = []
   for (const r of approvedRegistrationsForComp(compId)) {
+    const gk = prelimGroupKeyOf(r.userId, mode)
+    if (drawn.has(gk) && seated.get(gk)!.has(r.userId)) continue
     const extra = leftoverTicketsOf(compId, r.userId)
     if (extra <= 0) continue
-    out.push({ userId: r.userId, leftover: extra })
+    out.push({ userId: r.userId, leftover: extra, groupKey: gk })
   }
   return out
 }
@@ -808,6 +836,10 @@ export function fillRestSlot(matchId: string, side: 1 | 2, userId: string): Matc
   const m = getMatch(matchId)
   if (!m) throw new Error('SLOT_NOT_FOUND')
   if (bracketState(m.compId, m.groupKey, m.bracket) === 'done') throw new Error('BRACKET_DONE')
+  const mode: GroupMode = getEventConfig(m.compId).groupMode ?? 'city'
+  const tehran = m.groupKey === 'province:تهران'
+  if (!tehran && prelimGroupKeyOf(userId, mode) !== m.groupKey) throw new Error('NOT_LEFTOVER')
+  if (seatedUserIdsInGroup(m.compId, m.groupKey).has(userId)) throw new Error('NOT_LEFTOVER')
   if (leftoverTicketsOf(m.compId, userId) < 1) throw new Error('NOT_LEFTOVER')
   const slotUid = side === 1 ? m.p1UserId : m.p2UserId
   if (slotUid && !isRestSlot(slotUid)) throw new Error('NOT_REST')

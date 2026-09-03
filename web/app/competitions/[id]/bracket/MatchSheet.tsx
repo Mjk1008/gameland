@@ -36,7 +36,9 @@ export default function MatchSheet({
   const [mounted, setMounted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [peek, setPeek] = useState<string | null>(null)
+  const [q, setQ] = useState('')
   useEffect(() => setMounted(true), [])
+  useEffect(() => { setQ('') }, [match?.id])
   useEffect(() => {
     if (!match) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -87,7 +89,14 @@ export default function MatchSheet({
     : null
   const fillLabel = fillSide === 1 ? p1?.name : fillSide === 2 ? p2?.name : null
   const otherUid = fillSide === 1 ? p2?.uid : fillSide === 2 ? p1?.uid : undefined
-  const fillable = (leftovers ?? []).filter(u => u.uid !== otherUid)
+  const tehran = match.groupKey === 'province:تهران'
+  const needle = q.trim()
+  const fillable = (leftovers ?? []).filter(u => {
+    if (u.uid === otherUid) return false
+    if (!tehran || !needle) return true
+    const prov = (u.groupKey || '').split(':')[1] || ''
+    return [u.name, u.tag, '@' + u.tag, prov].some(x => String(x).includes(needle))
+  })
 
   return createPortal(
     <>
@@ -123,6 +132,14 @@ export default function MatchSheet({
         {fillSide && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.thi }}>بازماندگان{fillLabel ? ` · ${fillLabel}` : ''}</div>
+            {tehran && (
+              <input
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="جستجو"
+                style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, fontWeight: 600, color: C.thi, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px', outline: 'none' }}
+              />
+            )}
             {fillable.length === 0
               ? <div style={{ fontSize: 12, color: C.tmut }}>کسی نیست</div>
               : fillable.map(u => (
@@ -134,6 +151,7 @@ export default function MatchSheet({
                   style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px' }}
                 >
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.thi, textAlign: 'right' }}>{u.name}</span>
+                  {tehran && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
                   <span dir="ltr" style={{ fontSize: 11.5, color: C.tmut }}>@{u.tag}</span>
                   <span className="gl-num" style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>×{u.leftover}</span>
                 </button>

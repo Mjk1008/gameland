@@ -78,7 +78,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
     const leftovers = isAdmin && !isTeamEvent
       ? leftoverPlayers(c.id).map(x => {
           const u = getUserById(x.userId)
-          return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover }
+          return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover, groupKey: x.groupKey }
         })
       : []
     return (

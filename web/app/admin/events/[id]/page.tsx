@@ -138,7 +138,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const leftoverOpts = !isTeamEvent && drawn
     ? leftoverPlayers(c.id).map(x => {
         const u = getUserById(x.userId)
-        return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover }
+        return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover, groupKey: x.groupKey }
       })
     : []
 

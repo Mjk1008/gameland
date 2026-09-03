@@ -24,7 +24,7 @@ function EntryBadge({ p }: { p: Player }) {
     </span>
   )
 }
-export type Leftover = { uid: string; name: string; tag: string; leftover: number }
+export type Leftover = { uid: string; name: string; tag: string; leftover: number; groupKey?: string }
 type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string>; schedules?: Record<string, { date?: string; time?: string; note?: string }>; leftovers?: Leftover[] }
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
@@ -161,7 +161,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
           meUid={meUid}
           isAdmin={isAdmin}
-          leftovers={leftovers}
+          leftovers={(leftovers ?? []).filter(u => sel?.groupKey === 'province:تهران' || !u.groupKey || u.groupKey === (sel?.groupKey ?? ''))}
           restSide={restSide}
           restFillable={!!isAdmin}
           onClose={() => { setSel(null); setRestSide(null) }}
