@@ -28,7 +28,7 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-export default function PayView({ compId, title, attempts, ticketCount, unitPrice, total, discountPercent = 0, promoCode, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, disc, city }: { compId: string; title: string; attempts: number; ticketCount: number; unitPrice: number; total: number; discountPercent?: number; promoCode?: string; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; disc: string; city: string }) {
+export default function PayView({ compId, title, attempts, ticketCount, unitPrice, total, discountPercent = 0, promoCode, alreadyPaid = 0, freeAttempts = 0, status, hasReceipt, disc, city, commit }: { compId: string; title: string; attempts: number; ticketCount: number; unitPrice: number; total: number; discountPercent?: number; promoCode?: string; alreadyPaid?: number; freeAttempts?: number; status: string; hasReceipt?: boolean; disc: string; city: string; commit?: { attempts: number; ref?: string; promoCode?: string; teamName?: string; partnerTag?: string } }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const links = paymentLinks()
@@ -48,10 +48,17 @@ export default function PayView({ compId, title, attempts, ticketCount, unitPric
     setErr(null); setBusy(true)
     try {
       const imageData = await fileToDataUrl(f)
-      const res = await fetch('/api/register/receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ compId, imageData }) })
+      const res = await fetch(commit ? '/api/register' : '/api/register/receipt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commit
+          ? { compId, attempts: commit.attempts, ref: commit.ref, promoCode: commit.promoCode, teamName: commit.teamName, partnerTag: commit.partnerTag, imageData }
+          : { compId, imageData }),
+      })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j.error || 'آپلود نشد، دوباره امتحان کن')
-      setUploaded(true); router.refresh()
+      setUploaded(true)
+      if (commit) router.replace(`/competitions/${compId}/pay`)
+      router.refresh()
     } catch (e: any) { setErr(e.message) }
     finally { setBusy(false); if (fileRef.current) fileRef.current.value = '' }
   }

@@ -43,6 +43,7 @@ export function startHydration(loaders: {
   loadCompetitionCoverId?: (competitionId: string) => void
   loadEventCoverId?: (eventId: string) => void
   loadReceiptId?: (regId: string) => void
+  loadReceiptRevision?: (regId: string, id: string, at: number) => void
   loadGamenet?:  (g: any) => void
   loadGamenetPhotoId?: (gamenetId: string, photoId: string) => void
   loadPlayRequest?: (r: any) => void
@@ -94,6 +95,8 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_promos (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, link_type TEXT NOT NULL DEFAULT 'none', event_id TEXT, url TEXT, sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_avatars (user_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_receipts (reg_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_receipt_revisions (id TEXT PRIMARY KEY, reg_id TEXT NOT NULL, data_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE INDEX IF NOT EXISTS app_receipt_revisions_reg_idx ON app_receipt_revisions (reg_id, created_at)`,
         `CREATE TABLE IF NOT EXISTS app_news (id TEXT PRIMARY KEY, image_data TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE TABLE IF NOT EXISTS app_track_events (id TEXT PRIMARY KEY, user_id TEXT, session_id TEXT NOT NULL, name TEXT NOT NULL, path TEXT NOT NULL DEFAULT '', props TEXT NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `CREATE INDEX IF NOT EXISTS app_track_events_name_idx ON app_track_events (name, created_at)`,
@@ -344,6 +347,15 @@ export function startHydration(loaders: {
         const rc = await d.execute(sql.raw('SELECT reg_id FROM app_receipts'))
         for (const row of (rc as any as { reg_id: string }[])) loaders.loadReceiptId?.(row.reg_id)
       } catch (e) { console.error('[db] load receipt ids:', e) }
+
+      try {
+        const rv = await d.select({
+          id: schema.receiptRevisions.id,
+          regId: schema.receiptRevisions.regId,
+          createdAt: schema.receiptRevisions.createdAt,
+        }).from(schema.receiptRevisions)
+        for (const row of rv) loaders.loadReceiptRevision?.(row.regId, row.id, ms(row.createdAt))
+      } catch (e) { console.error('[db] load receipt revisions:', e) }
 
       try {
         const gn = await d.select().from(schema.gamenets)
@@ -935,15 +947,46 @@ export const persist = {
   },
   receipt: {
     // Payment receipt bytes live only in Postgres, served on demand to the admin.
+    // Each upload appends a revision and refreshes the latest snapshot.
+    async appendAsync(regId: string, dataUrl: string): Promise<{ id: string; at: number; preserved?: { id: string; at: number } }> {
+      const id = 'rcv_' + Math.random().toString(36).slice(2, 12)
+      const createdAt = new Date()
+      let preserved: { id: string; at: number } | undefined
+      const d = db()
+      if (d) {
+        const prev = await d.select({
+          dataUrl: schema.receipts.dataUrl,
+          createdAt: schema.receipts.createdAt,
+        }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
+        const already = await d.select({ id: schema.receiptRevisions.id }).from(schema.receiptRevisions).where(eq(schema.receiptRevisions.regId, regId)).limit(1)
+        if (prev[0] && already.length === 0) {
+          const oldId = 'rcv0_' + regId
+          await d.insert(schema.receiptRevisions).values({
+            id: oldId, regId, dataUrl: prev[0].dataUrl, createdAt: prev[0].createdAt,
+          }).onConflictDoNothing()
+          preserved = { id: oldId, at: prev[0].createdAt.getTime() }
+        }
+        await d.insert(schema.receiptRevisions).values({ id, regId, dataUrl, createdAt })
+        await d.insert(schema.receipts).values({ regId, dataUrl, createdAt })
+          .onConflictDoUpdate({ target: schema.receipts.regId, set: { dataUrl, createdAt } })
+      }
+      return { id, at: createdAt.getTime(), preserved }
+    },
     async upsertAsync(regId: string, dataUrl: string) {
-      const d = db(); if (!d) return
-      await d.insert(schema.receipts).values({ regId, dataUrl })
-        .onConflictDoUpdate({ target: schema.receipts.regId, set: { dataUrl, createdAt: new Date() } })
+      await this.appendAsync(regId, dataUrl)
     },
     async read(regId: string): Promise<string | null> {
       const d = db(); if (!d) return null
       const rows = await d.select({ dataUrl: schema.receipts.dataUrl }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
       return rows[0]?.dataUrl ?? null
+    },
+    async readRevision(id: string): Promise<{ regId: string; dataUrl: string } | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({
+        regId: schema.receiptRevisions.regId,
+        dataUrl: schema.receiptRevisions.dataUrl,
+      }).from(schema.receiptRevisions).where(eq(schema.receiptRevisions.id, id)).limit(1)
+      return rows[0] ?? null
     },
   },
   // Behavioral events — write-only from the running app, read back only by

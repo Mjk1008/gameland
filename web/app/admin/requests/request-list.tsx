@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 import { toman } from '@/lib/payment'
+import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 import type { TicketSlot } from '@/lib/promoter'
 
 interface Row {
@@ -11,6 +12,7 @@ interface Row {
   referrerTag?: string; promoCode?: string; discountPercent?: number; totalOffPercent?: number
   promoterName?: string; promoterTag?: string
   name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean
+  receipts?: { id: string; at: number }[]
   unitPrice: number; fullUnitPrice: number; expectedTotal: number; revenueTotal: number
   slots: TicketSlot[]
 }
@@ -232,15 +234,29 @@ export default function RequestList({ rows }: { rows: Row[] }) {
               )
             })()}
 
-            {/* receipt */}
-            {sel.hasReceipt ? (
-              <a href={`/api/admin/receipt/${sel.regId}`} target="_blank" rel="noopener noreferrer" style={{ all: 'unset', cursor: 'pointer', display: 'block', marginTop: 12, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line2}`, position: 'relative' }}>
-                <img src={`/api/admin/receipt/${sel.regId}`} alt="فیش" style={{ display: 'block', width: '100%', maxHeight: 300, objectFit: 'contain', background: '#0E0C09' }} />
-                <span style={{ position: 'absolute', bottom: 8, insetInlineEnd: 8, fontSize: 11, fontWeight: 700, color: C.thi, background: 'rgba(20,17,13,.8)', border: `1px solid ${C.line2}`, borderRadius: 8, padding: '5px 10px' }}>بازکردنِ فیش (بزرگ) ›</span>
-              </a>
-            ) : (
-              <div style={{ marginTop: 12, fontSize: 11.5, fontWeight: 700, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: '9px 12px' }}>⚠ فیشی آپلود نشده — از راه‌های دیگه چک کن</div>
-            )}
+            {/* receipts — latest first; previous فیش stay visible on top-up / resend */}
+            {(() => {
+              const revs = sel.receipts ?? []
+              if (revs.length === 0) {
+                const unpaidPaid = Math.max(0, sel.attempts - (sel.paidAttempts ?? 0) - (sel.freeAttempts ?? 0))
+                if (unpaidPaid <= 0) return null
+                return <div style={{ marginTop: 12, fontSize: 11.5, fontWeight: 700, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: '9px 12px' }}>⚠ فیشی آپلود نشده — از راه‌های دیگه چک کن</div>
+              }
+              return (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {revs.map(rv => {
+                    const src = rv.id ? `/api/admin/receipt/${sel.regId}?rev=${encodeURIComponent(rv.id)}` : `/api/admin/receipt/${sel.regId}`
+                    const when = rv.at > 0 ? receiptWhen(rv.at) : ''
+                    return (
+                      <a key={rv.id || 'latest'} href={src} target="_blank" rel="noopener noreferrer" style={{ all: 'unset', cursor: 'pointer', display: 'block', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line2}`, position: 'relative' }}>
+                        <img src={src} alt="فیش" style={{ display: 'block', width: '100%', maxHeight: 300, objectFit: 'contain', background: '#0E0C09' }} />
+                        <span style={{ position: 'absolute', bottom: 8, insetInlineEnd: 8, fontSize: 11, fontWeight: 700, color: C.thi, background: 'rgba(20,17,13,.8)', border: `1px solid ${C.line2}`, borderRadius: 8, padding: '5px 10px' }}>بازکردنِ فیش (بزرگ) ›{when ? ` · ${when}` : ''}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              )
+            })()}
 
             {/* decision zone */}
             {!rejecting ? (
@@ -284,4 +300,10 @@ export default function RequestList({ rows }: { rows: Row[] }) {
 const stepBtn: React.CSSProperties = {
   all: 'unset', cursor: 'pointer', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
   borderRadius: 9, fontSize: 17, fontWeight: 700, background: '#252017', color: '#F2EDE4', border: '1px solid #3A332A',
+}
+
+function receiptWhen(ms: number) {
+  const d = new Date(ms)
+  const j = toJalali(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  return `${faDigits(j.jd)} ${J_MONTHS[j.jm - 1]}`
 }

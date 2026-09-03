@@ -7,7 +7,7 @@ import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 interface Row {
   regId: string; status: 'approved' | 'rejected'; attempts: number
   name: string; tag: string; phone: string; city: string; event: string
-  hasReceipt: boolean; at: number
+  hasReceipt: boolean; receipts?: { id: string; at: number }[]; at: number
 }
 
 const jdate = (ms: number) => {
@@ -89,8 +89,13 @@ export default function HistoryList({ rows }: { rows: Row[] }) {
                   <span style={{ fontSize: 10.5, color: C.tmut, flexShrink: 0 }}>{jdate(r.at)}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
-                  {r.hasReceipt
-                    ? <a href={`/api/admin/receipt/${r.regId}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: C.accent, textDecoration: 'none' }}>دیدنِ فیش ›</a>
+                  {r.receipts && r.receipts.length > 0
+                    ? <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {r.receipts.map((rv, i) => {
+                          const src = rv.id ? `/api/admin/receipt/${r.regId}?rev=${encodeURIComponent(rv.id)}` : `/api/admin/receipt/${r.regId}`
+                          return <a key={rv.id || 'latest'} href={src} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, fontWeight: 700, color: C.accent, textDecoration: 'none' }}>دیدنِ فیش{r.receipts!.length > 1 ? ` ${faDigits(r.receipts!.length - i)}` : ''} ›</a>
+                        })}
+                      </span>
                     : <span />}
                   <button disabled={busy === r.regId} onClick={() => flip(r.regId, ok ? 'reject' : 'approve')}
                     style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '7px 12px', borderRadius: 9, background: C.sf2, color: ok ? C.live : C.win, border: `1px solid ${(ok ? C.live : C.win)}55`, opacity: busy === r.regId ? 0.5 : 1 }}>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts } from '@/lib/store'
+import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts, hasReceipt } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState } from '@/lib/bracket'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
@@ -118,7 +118,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const reentryRows: ReentryRow[] = (!isTeamEvent && drawn)
     ? approvedRegistrationsForComp(c.id)
         .filter(r => unpaidAttempts(r) > 0)
-        .map(r => { const u = getUserById(r.userId); return { regId: r.id, tag: u?.tag || r.userId, name: u?.name || '?', unpaid: unpaidAttempts(r) } })
+        .map(r => { const u = getUserById(r.userId); return { regId: r.id, tag: u?.tag || r.userId, name: u?.name || '?', unpaid: unpaidAttempts(r), hasReceipt: hasReceipt(r.id) } })
     : []
 
   const qualifierCount = isTeamEvent ? computeTeamQualifiers(c.id).length : computeQualifiers(c.id).length

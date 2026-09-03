@@ -274,12 +274,24 @@ export const avatars = pgTable('app_avatars', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-// ─── Payment receipts (فیش) — one per registration, base64, served on demand ─
+// ─── Payment receipts (فیش) — latest snapshot + revision history ──────────
+// `app_receipts` stays the current فیش (one row per registration) so existing
+// admin URLs keep working. Every upload also appends to `app_receipt_revisions`
+// so a top-up or a resent فیش never overwrites the previous photo.
 export const receipts = pgTable('app_receipts', {
   regId:     text('reg_id').primaryKey(),
   dataUrl:   text('data_url').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const receiptRevisions = pgTable('app_receipt_revisions', {
+  id:        text('id').primaryKey(),
+  regId:     text('reg_id').notNull(),
+  dataUrl:   text('data_url').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  byReg: index('app_receipt_revisions_reg_idx').on(t.regId, t.createdAt),
+}))
 
 // ─── Promo slides (home carousel, admin-managed) ─────────────
 // ─── Key/value app settings (assistant knowledge base, flags) ──────────────

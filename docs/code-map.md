@@ -135,7 +135,7 @@ whenReady() gates auth/signup until hydration finishes.
 | Blob | PG table | Memory | Upload | Serve |
 |---|---|---|---|---|
 | Profile photo | `app_avatars` | `avatarIds` Set | `POST /api/me/avatar` | `GET /api/avatar/[id]` |
-| Payment receipt | `app_receipts` | `receiptRegIds` Set | `POST /api/register/receipt` | `GET /api/admin/receipt/[regId]` |
+| Payment receipt | `app_receipts` (latest) + `app_receipt_revisions` (history) | `receiptRegIds` + revision ids | `POST /api/register` (paid) or `POST /api/register/receipt` | `GET /api/admin/receipt/[regId]` (`?rev=` for a previous فیش) |
 | News cover | `app_news` | metadata in RAM | `POST /api/admin/news` | `GET /api/news-image/[id]` |
 | Promo slide | `app_promos` | metadata in RAM | `POST /api/admin/promos` | `GET /api/promo/[id]` |
 | Gamenet photo | `app_gamenet_photos` | id lists | `POST /api/gamenet-photos` | `GET /api/gamenet-photo/[id]` |

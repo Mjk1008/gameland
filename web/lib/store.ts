@@ -106,6 +106,7 @@ function ensureHydrated() {
     loadCompetitionCoverId: (id: string) => { competitionCoverIds.add(id) },
     loadEventCoverId: (id: string) => { eventCoverIds.add(id) },
     loadReceiptId: (regId: string) => { receiptRegIds.add(regId) },
+    loadReceiptRevision: (regId: string, id: string, at: number) => { addReceiptRevision(regId, id, at) },
     loadGamenet:   (g: Gamenet) => { gamenets.set(g.id, g) },
     loadGamenetPhotoId: (gamenetId: string, photoId: string) => {
       const list = gamenetPhotoIds.get(gamenetId) ?? []
@@ -205,8 +206,29 @@ export function removeEventCover(id: string): void {
 // Which registrations have an uploaded payment receipt — ids only (image bytes
 // stay in Postgres, served on demand), so RAM stays flat with many receipts.
 const receiptRegIds = new Set<string>()
+const receiptRevsByReg = new Map<string, { id: string; at: number }[]>()
 export function hasReceipt(regId: string): boolean { return receiptRegIds.has(regId) }
 export function markReceipt(regId: string): void { receiptRegIds.add(regId) }
+function addReceiptRevision(regId: string, id: string, at: number): void {
+  receiptRegIds.add(regId)
+  const list = receiptRevsByReg.get(regId) ?? []
+  if (list.some(x => x.id === id)) return
+  list.push({ id, at })
+  receiptRevsByReg.set(regId, list)
+}
+/** Newest first. Empty id means "latest snapshot only" (pre-history row). */
+export function receiptRevisions(regId: string): { id: string; at: number }[] {
+  const list = receiptRevsByReg.get(regId)
+  if (list && list.length) return [...list].sort((a, b) => b.at - a.at)
+  if (receiptRegIds.has(regId)) return [{ id: '', at: 0 }]
+  return []
+}
+export async function saveUploadedReceipt(regId: string, dataUrl: string): Promise<{ id: string; at: number }> {
+  const rev = await persist.receipt.appendAsync(regId, dataUrl)
+  if (rev.preserved) addReceiptRevision(regId, rev.preserved.id, rev.preserved.at)
+  addReceiptRevision(regId, rev.id, rev.at)
+  return rev
+}
 
 // Admin-set manual ranking points (added on top of points earned from results).
 export function setUserBonusPoints(id: string, points: number): User | undefined {
@@ -898,6 +920,10 @@ export function approvedRegistrationsForComp(compId: string): Registration[] {
 export function pendingRegistrations(): Registration[] {
   return Array.from(regs.values())
     .filter(r => r.status === 'pending' && !isTeamPartnerReg(r))
+    // Paid requests without a فیش never enter the admin queue — the gamer
+    // still holds the row locally until they upload. Fully-free (referral)
+    // tickets have unpaidAttempts === 0 and stay visible.
+    .filter(r => unpaidAttempts(r) === 0 || receiptRegIds.has(r.id))
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 

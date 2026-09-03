@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, hasReceipt, saveUploadedReceipt } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage } from '@/lib/promoter'
+import { parseReceiptImage } from '@/lib/receipt-image'
 
 function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserById>>, c: NonNullable<ReturnType<typeof getEvent>>, attempts: number) {
   trackServer({
@@ -12,6 +13,23 @@ function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserB
     name: 'ticket_select',
     path: `/competitions/${c.id}/register`,
     props: trackUserProps(u, { compId: c.id, disc: c.disc, tickets: attempts }),
+  })
+}
+
+async function attachReceipt(
+  uid: string,
+  u: NonNullable<ReturnType<typeof getUserById>>,
+  c: NonNullable<ReturnType<typeof getEvent>>,
+  regId: string,
+  receiptData: string | undefined,
+) {
+  if (!receiptData) return
+  await saveUploadedReceipt(regId, receiptData)
+  trackServer({
+    userId: uid,
+    name: 'receipt_submit',
+    path: `/competitions/${c.id}/pay`,
+    props: trackUserProps(u, { compId: c.id, disc: c.disc }),
   })
 }
 
@@ -55,6 +73,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: why }, { status: 400 })
   }
 
+  const free = Math.min(u.freeTickets ?? 0, attempts)
+  const paid = attempts - free
+  const imageRaw = (body.imageData ?? '').toString()
+  let receiptData: string | undefined
+  if (paid > 0) {
+    if (!imageRaw) return NextResponse.json({ error: 'فیش پرداخت رو آپلود کن' }, { status: 400 })
+    const parsed = parseReceiptImage(imageRaw)
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status })
+    receiptData = parsed.data
+  }
+
+  // Partial retry: a previous paid POST created the row but the فیش write
+  // failed — attach the image without adding more سهم.
+  const existing = getRegistration(uid, compId)
+  if (receiptData && existing && existing.status === 'pending' && !hasReceipt(existing.id)) {
+    await attachReceipt(uid, u, c, existing.id, receiptData)
+    return NextResponse.json({ ok: true, registration: existing, freeUsed: existing.freeAttempts ?? 0 })
+  }
+
   const errorMap: Record<string, string> = {
     MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',
     EXCEEDS_MAX: 'بیشتر از سهمیهٔ باقی‌مونده انتخاب کردی',
@@ -75,11 +112,10 @@ export async function POST(req: Request) {
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
       if (promo) await attachPromoToRegistration(r, promo)
-      const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
       await persist.user.insertAsync(u)
       await persist.reg.insertAsync(r)
-      const paid = attempts - free
+      await attachReceipt(uid, u, c, r.id, receiptData)
       pushNotif(uid, 'registration', 'تیمت ثبت شد',
         `${c.title} با ${attempts} بلیط ثبت شد.${paid > 0 ? ' پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.' : ''}`)
       fireTicketSelect(uid, u, c, attempts)
@@ -93,13 +129,12 @@ export async function POST(req: Request) {
     const r = createRegistration(uid, compId, attempts)
     if (promo) await attachPromoToRegistration(r, promo)
     // referral-reward tickets cover part (or all) of this purchase automatically
-    const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)
     // Durable + ordered: commit the user row first, then the registration, so a
     // surge can't lose the reg or hit the users FK. Notif stays fire-and-forget.
     await persist.user.insertAsync(u)
     await persist.reg.insertAsync(r)
-    const paid = attempts - free
+    await attachReceipt(uid, u, c, r.id, receiptData)
     pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد',
       free > 0
         ? `${c.title} با ${attempts} بلیط ثبت شد (${free} سهمِ رایگانِ دعوت + ${paid} پرداختی). ${paid > 0 ? 'برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : 'نیازی به پرداخت نیست — منتظرِ تاییدِ ادمین بمون.'}`

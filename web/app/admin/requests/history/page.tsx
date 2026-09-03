@@ -1,4 +1,4 @@
-import { allRegistrations, getUserById, getEvent, hasReceipt, isTeamPartnerReg } from '@/lib/store'
+import { allRegistrations, getUserById, getEvent, hasReceipt, isTeamPartnerReg, receiptRevisions } from '@/lib/store'
 import { C, BackHeader } from '@/components/ui'
 import HistoryList from './list'
 
@@ -22,6 +22,7 @@ export default function RequestHistoryPage() {
         city: u?.city ?? '',
         event: getEvent(r.compId)?.title ?? 'مسابقهٔ حذف‌شده',
         hasReceipt: hasReceipt(r.id),
+        receipts: receiptRevisions(r.id),
         at: r.createdAt,
       }
     })

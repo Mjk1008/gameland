@@ -88,6 +88,20 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
     }
     setErr(null); setBusy(true)
     try {
+      if (paidTickets > 0) {
+        const q = new URLSearchParams()
+        q.set('buy', String(attempts))
+        if (ref.trim()) q.set('ref', ref.trim())
+        if (canUsePromo && codeForSubmit) q.set('promo', codeForSubmit)
+        if (isTeamEvent) {
+          const name = teamName.trim()
+          const tag = (reuseTeam?.partnerTag || partnerTag).trim()
+          if (name) q.set('teamName', name)
+          if (tag) q.set('partnerTag', tag)
+        }
+        router.push(`/competitions/${comp.id}/pay?${q.toString()}`)
+        return
+      }
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,7 +112,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت‌نام انجام نشد، دوباره امتحان کن')
-      router.push(`/competitions/${comp.id}/pay`); router.refresh()
+      router.push(`/competitions/${comp.id}/me`); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 

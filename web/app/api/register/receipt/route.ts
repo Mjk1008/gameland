@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getRegistration, getUserById, markReceipt, pushNotif, getEvent, whenReady } from '@/lib/store'
-import { persist } from '@/lib/db/persistence'
+import { getRegistration, getUserById, pushNotif, getEvent, whenReady, saveUploadedReceipt } from '@/lib/store'
 import { trackServer, trackUserProps } from '@/lib/track-server'
-
-const MAX_CHARS = 3_000_000   // ~2.2MB decoded — a receipt photo
+import { parseReceiptImage } from '@/lib/receipt-image'
 
 // Gamer uploads their payment receipt (فیش) for a competition they registered in.
+// Each upload is kept — a resent or top-up فیش does not erase the previous one.
 export async function POST(req: Request) {
   await whenReady()
   const session = await getServerSession(authOptions)
@@ -16,9 +15,8 @@ export async function POST(req: Request) {
 
   const b = await req.json().catch(() => ({}))
   const compId = (b.compId ?? '').toString()
-  const imageData: string = (b.imageData ?? '').toString()
-  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageData)) return NextResponse.json({ error: 'عکس معتبر نیست' }, { status: 400 })
-  if (imageData.length > MAX_CHARS) return NextResponse.json({ error: 'حجم عکس زیاده — یه عکس سبک‌تر بفرست' }, { status: 413 })
+  const parsed = parseReceiptImage((b.imageData ?? '').toString())
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status })
 
   const reg = getRegistration(uid, compId)
   if (!reg) return NextResponse.json({ error: 'اول در این مسابقه ثبت‌نام کن' }, { status: 404 })
@@ -26,8 +24,7 @@ export async function POST(req: Request) {
   const u = getUserById(uid)!
   const c = getEvent(compId)
 
-  await persist.receipt.upsertAsync(reg.id, imageData)
-  markReceipt(reg.id)
+  await saveUploadedReceipt(reg.id, parsed.data)
   trackServer({
     userId: uid,
     name: 'receipt_submit',
