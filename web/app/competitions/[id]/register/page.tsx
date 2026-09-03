@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, matchesForComp, teamForUser, captainTeamFor, currentTeamMembers, getTeam } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { C } from '@/components/ui'
 import Link from 'next/link'
@@ -26,8 +26,7 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   const existingReg = getRegistration(uid, params.id)
   const owned = existingReg && existingReg.status !== 'rejected' ? existingReg.attempts : 0
   const remaining = remainingTickets(uid, params.id)
-  const drawn = matchesForComp(params.id).length > 0
-  if ((owned > 0 && remaining === 0) || drawn) redirect(`/competitions/${params.id}/me`)
+  if (owned > 0 && remaining === 0) redirect(`/competitions/${params.id}/me`)
 
   const isTeamEvent = getEventConfig(c.id).teamSize === 2
   // On a 2v2 event the partner has nothing to do here — the captain runs the

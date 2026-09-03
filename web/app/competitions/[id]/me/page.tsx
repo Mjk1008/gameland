@@ -25,12 +25,11 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
   if (!uid || !getUserById(uid)) redirect(`/login?callbackUrl=/competitions/${params.id}/me`)
   const r = getRegistration(uid, params.id)
   if (!r) redirect(`/competitions/${params.id}/register`)
-  // buying more سهم stays open until the draw (cap 6 per discipline)
-  const preDraw = matchesForComp(params.id).length === 0
+  const seated = matchesForComp(params.id).some(m => m.p1UserId === uid || m.p2UserId === uid)
   const myTeam = r.teamId ? getTeam(r.teamId) : undefined
   const isTeamPartner = !!myTeam && myTeam.captainId !== uid
-  const canTopUp = preDraw && !isTeamPartner ? remainingTickets(uid, params.id) : 0
-  const manageBlock = preDraw && r.status !== 'rejected'
+  const canTopUp = !isTeamPartner ? remainingTickets(uid, params.id) : 0
+  const manageBlock = !seated && r.status !== 'rejected'
     ? <RegManage compId={params.id} attempts={r.attempts} isTeam={!!myTeam} isCaptain={!isTeamPartner} />
     : null
   const topUpBtn = canTopUp > 0 ? (

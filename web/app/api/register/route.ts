@@ -47,10 +47,10 @@ export async function POST(req: Request) {
     catch (e: any) { return NextResponse.json({ error: promoErrorMessage(e.message) }, { status: 400 }) }
   }
 
-  // V1: registration is free (sponsor-funded prizes). Only open events accept it.
-  if (c.status !== 'open') {
+  // Registration stays open through draw + live. Extra سهم after the trees
+  // exist go to leftovers (بازماندگان), filled into rest slots by admin.
+  if (c.status !== 'open' && c.status !== 'live') {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'
-      : c.status === 'live' ? 'ثبت‌نام بسته شده — مسابقه در حال برگزاری است'
       : 'ثبت‌نام این مسابقه هنوز باز نشده'
     return NextResponse.json({ error: why }, { status: 400 })
   }

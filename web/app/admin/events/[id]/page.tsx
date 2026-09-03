@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, unpaidAttempts, playerName } from '@/lib/store'
-import { computeQualifiers, bracketModeOf, bracketState, seatCountInPrelims } from '@/lib/bracket'
+import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
@@ -101,7 +101,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       }))
   }
 
-  // ── empty round-1 slots for manual add (solo events) ──
+  // ── rest slots for leftover fill (solo events, still-running brackets) ──
   let emptySlots: EmptySlot[] = []
   if (!isTeamEvent && drawn) {
     const firstRoundOf = new Map<string, number>()
@@ -110,18 +110,38 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       const cur = firstRoundOf.get(k)
       if (cur == null || m.round < cur) firstRoundOf.set(k, m.round)
     }
-    emptySlots = all
-      .filter(m => m.round === firstRoundOf.get(`${m.stage}|${m.groupKey}|${m.bracket}`))
-      .filter(m => !isRealPlayer(m.p1UserId) || !isRealPlayer(m.p2UserId))
-      .map(m => ({
-        matchId: m.id, groupKey: m.groupKey,
-        groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
-        bracket: m.bracket, slot: m.slot,
-        filledWith: m.p1UserId ? (getUserById(m.p1UserId)?.tag ? '@' + getUserById(m.p1UserId)!.tag : undefined)
-          : m.p2UserId ? (getUserById(m.p2UserId)?.tag ? '@' + getUserById(m.p2UserId)!.tag : undefined) : undefined,
-        state: bracketState(c.id, m.groupKey, m.bracket),
-      }))
+    for (const m of all) {
+      if (m.round !== firstRoundOf.get(`${m.stage}|${m.groupKey}|${m.bracket}`)) continue
+      const state = bracketState(c.id, m.groupKey, m.bracket)
+      if (state === 'done') continue
+      const groupLabel = m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول')
+      const otherTag = (uid?: string) => {
+        if (!uid || !isRealPlayer(uid)) return undefined
+        const t = getUserById(uid)?.tag
+        return t ? '@' + t : undefined
+      }
+      if (isRestSlot(m.p1UserId) || !m.p1UserId) {
+        emptySlots.push({
+          matchId: m.id, groupKey: m.groupKey, groupLabel, bracket: m.bracket, slot: m.slot, side: 1,
+          restName: isRestSlot(m.p1UserId) ? `rest${restIndex(m.p1UserId!)}` : 'rest',
+          filledWith: otherTag(m.p2UserId), state,
+        })
+      }
+      if (isRestSlot(m.p2UserId) || !m.p2UserId) {
+        emptySlots.push({
+          matchId: m.id, groupKey: m.groupKey, groupLabel, bracket: m.bracket, slot: m.slot, side: 2,
+          restName: isRestSlot(m.p2UserId) ? `rest${restIndex(m.p2UserId!)}` : 'rest',
+          filledWith: otherTag(m.p1UserId), state,
+        })
+      }
+    }
   }
+  const leftoverOpts = !isTeamEvent && drawn
+    ? leftoverPlayers(c.id).map(x => {
+        const u = getUserById(x.userId)
+        return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover }
+      })
+    : []
 
   // ── re-entry فیش awaiting approval (approved regs with an unpaid balance, post-draw) ──
   const reentryRows: ReentryRow[] = (!isTeamEvent && drawn)
@@ -237,7 +257,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
 
       {!isTeamEvent && drawn && <RunPanel matches={runMatches} />}
       {reentryRows.length > 0 && <ReentryPanel rows={reentryRows} />}
-      {!isTeamEvent && drawn && emptySlots.length > 0 && <AddPlayerPanel compId={c.id} slots={emptySlots} />}
+      {!isTeamEvent && drawn && <AddPlayerPanel compId={c.id} slots={emptySlots} leftovers={leftoverOpts} />}
 
       <FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} />
 

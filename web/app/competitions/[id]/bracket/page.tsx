@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, getRegistration, playerName } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
-import { bracketModeOf, entryCapFor, notStartedBracketsForUser } from '@/lib/bracket'
+import { bracketModeOf, entryCapFor, leftoverPlayers, notStartedBracketsForUser } from '@/lib/bracket'
 import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { prelimVenueForGroupKey } from '@/lib/prelim-venue'
 import { C, BackHeader } from '@/components/ui'
@@ -84,12 +84,18 @@ export default async function BracketPage({ params }: { params: { id: string } }
         reentryMax = Math.max(0, Math.min(entryCapFor(c.id) - myReg.attempts, notStartedBracketsForUser(c.id, uid)))
       }
     }
+    const leftovers = isAdmin && !isTeamEvent
+      ? leftoverPlayers(c.id).map(x => {
+          const u = getUserById(x.userId)
+          return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover }
+        })
+      : []
     return (
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
           {reentryMax > 0 && <ReentryBuy compId={c.id} max={reentryMax} />}
-          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} />
+          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} />
         </div>
       </div>
     )

@@ -16,7 +16,7 @@ import {
   Registration, Match, GroupMode,
   clearMatchesForComp, clearMatchesByStage, clearMatchesForGroup, pushMatch, saveMatch, matchesForComp, getMatch,
   findNextMatch, getUserById, prelimGroupKeys, approvedRegistrationsForComp, setRegSeeds,
-  getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent, type EventConfig,
+  getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent, getRegistration, type EventConfig,
 } from './store'
 import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './discipline-format'
 import { MAX_SEEDS_TO_FINAL } from './competition-engine'
@@ -108,6 +108,50 @@ function countsOf(seats: string[]): { userId: string; count: number }[] {
   const m = new Map<string, number>()
   for (const u of seats) m.set(u, (m.get(u) ?? 0) + 1)
   return [...m.entries()].map(([userId, count]) => ({ userId, count }))
+}
+
+/** Seats this account currently occupies in the trees (prelim R1, or final R1 if no prelims). */
+export function seatedTicketsOf(compId: string, userId: string): number {
+  const prelim = seatCountInPrelims(compId, userId)
+  if (prelim > 0) return prelim
+  const hasPrelim = matchesForComp(compId).some(m => m.stage === 'prelim')
+  if (hasPrelim) return 0
+  let c = 0
+  for (const m of matchesForComp(compId)) {
+    if (m.stage !== 'final' || m.round !== 1) continue
+    if (m.p1UserId === userId) c++
+    if (m.p2UserId === userId) c++
+  }
+  return c
+}
+
+export function leftoverTicketsOf(compId: string, userId: string): number {
+  const r = getRegistration(userId, compId)
+  if (!r || r.status !== 'approved') return 0
+  return Math.max(0, r.attempts - seatedTicketsOf(compId, userId))
+}
+
+export interface LeftoverPlayer { userId: string; leftover: number }
+
+/** Approved سهم that did not land in a tree — filled into rest slots by admin. */
+export function leftoverPlayers(compId: string): LeftoverPlayer[] {
+  const cfg = getEventConfig(compId)
+  const mode: GroupMode = cfg.groupMode ?? 'city'
+  const keys = new Set(prelimGroupKeys(compId))
+  const finalExists = matchesForComp(compId).some(m => m.stage === 'final')
+  const out: LeftoverPlayer[] = []
+  for (const r of approvedRegistrationsForComp(compId)) {
+    const extra = leftoverTicketsOf(compId, r.userId)
+    if (extra <= 0) continue
+    const seated = seatedTicketsOf(compId, r.userId)
+    const u = getUserById(r.userId)
+    const gk = groupKeyOf(r.userId, mode)
+    const gkp = `province:${resolveProvince(u?.province, u?.city)}`
+    const groupDrawn = keys.has(gk) || keys.has(gkp)
+    if (!groupDrawn && !finalExists && seated === 0) continue
+    out.push({ userId: r.userId, leftover: extra })
+  }
+  return out
 }
 
 /** Round-1 prelim seats already held by this account (any group/bracket). */
@@ -341,6 +385,27 @@ function clearCancelledFeed(m: Match) {
     if (next.status === 'ready') next.status = 'pending'
     saveMatch(next)
   }
+}
+
+function unwindAdvance(m: Match) {
+  const next = findNextMatch(m)
+  if (next && next.status === 'done') throw new Error('NEXT_ROUND_PLAYED')
+  const prev = m.winnerUserId
+  const key = cancelledSlotKey(m.id)
+  if (next) {
+    const fed = m.slot % 2 === 0 ? 'p1' : 'p2'
+    const cur = fed === 'p1' ? next.p1UserId : next.p2UserId
+    if (cur === prev || cur === key || isRestSlot(cur) || !isRealPlayer(cur)) {
+      if (fed === 'p1') next.p1UserId = undefined
+      else next.p2UserId = undefined
+      if (next.status === 'ready') next.status = 'pending'
+      saveMatch(next)
+    }
+  }
+  m.status = 'pending'
+  m.winnerUserId = undefined
+  m.cancelled = false
+  saveMatch(m)
 }
 
 function assignRestLabels(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number) {
@@ -742,6 +807,28 @@ export function notStartedBracketsForUser(compId: string, userId: string): numbe
   return idxs.filter(b => bracketState(compId, gk, b) === 'not-started').length
 }
 
+// ── fill a rest (or empty) slot from leftovers, in a still-running bracket ──
+export function fillRestSlot(matchId: string, side: 1 | 2, userId: string): Match {
+  const m = getMatch(matchId)
+  if (!m) throw new Error('SLOT_NOT_FOUND')
+  if (bracketState(m.compId, m.groupKey, m.bracket) === 'done') throw new Error('BRACKET_DONE')
+  if (leftoverTicketsOf(m.compId, userId) < 1) throw new Error('NOT_LEFTOVER')
+  const slotUid = side === 1 ? m.p1UserId : m.p2UserId
+  if (slotUid && !isRestSlot(slotUid)) throw new Error('NOT_REST')
+  const other = side === 1 ? m.p2UserId : m.p1UserId
+  if (other === userId) throw new Error('SELF_MATCH')
+  if (m.status === 'done') unwindAdvance(m)
+  if (side === 1) m.p1UserId = userId
+  else m.p2UserId = userId
+  m.cancelled = false
+  m.winnerUserId = undefined
+  m.status = (isRealPlayer(m.p1UserId) && isRealPlayer(m.p2UserId)) ? 'ready' : 'pending'
+  saveMatch(m)
+  resolveByes(m.compId, m.stage, m.groupKey, m.bracket)
+  if (m.stage === 'final') syncFinalEntries(m.compId)
+  return getMatch(matchId) ?? m
+}
+
 // ── manually place a player into an empty round-1 slot (admin "افزودن") ──
 export function addPlayerToSlot(compId: string, groupKey: string, bracket: number, slot: number, userId: string): Match {
   const m = matchesForComp(compId).find(x => x.groupKey === groupKey && x.bracket === bracket && x.round === 1 && x.slot === slot)
@@ -749,6 +836,8 @@ export function addPlayerToSlot(compId: string, groupKey: string, bracket: numbe
   const p1Open = !m.p1UserId || isRestSlot(m.p1UserId)
   const p2Open = !m.p2UserId || isRestSlot(m.p2UserId)
   if (!p1Open && !p2Open) throw new Error('SLOT_FULL')
+  const side: 1 | 2 = p1Open ? 1 : 2
+  if (leftoverTicketsOf(compId, userId) >= 1) return fillRestSlot(m.id, side, userId)
   if (p1Open) m.p1UserId = userId
   else m.p2UserId = userId
   if (isRealPlayer(m.p1UserId) && isRealPlayer(m.p2UserId)) m.status = 'ready'

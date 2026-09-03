@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
-import type { MatchDTO, Player } from './BracketView'
+import type { MatchDTO, Player, Leftover } from './BracketView'
 import { MatchOps, PlayerPeek, ANNOUNCE } from '@/app/admin/events/[id]/match-ops'
 
 export function roundLabel(playersInRound: number): string {
@@ -20,12 +20,15 @@ export function roundLabel(playersInRound: number): string {
 }
 
 export default function MatchSheet({
-  match, roundName, meUid, isAdmin, onClose, onFollow,
+  match, roundName, meUid, isAdmin, leftovers, restSide, restFillable, onClose, onFollow,
 }: {
   match: MatchDTO | null
   roundName?: string
   meUid?: string
   isAdmin?: boolean
+  leftovers?: Leftover[]
+  restSide?: 1 | 2 | null
+  restFillable?: boolean
   onClose: () => void
   onFollow?: (uid: string) => void
 }) {
@@ -52,6 +55,18 @@ export default function MatchSheet({
     } catch (e: any) { alert(e.message) }
     finally { setBusy(false) }
   }
+  async function fillRest(userId: string, side: 1 | 2) {
+    if (!match) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/admin/bracket-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: match.id, side, userId }) })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || 'اضافه نشد')
+      onClose()
+      router.refresh()
+    } catch (e: any) { alert(e.message) }
+    finally { setBusy(false) }
+  }
   async function announce(kind: typeof ANNOUNCE[number]['id'], who: 'p1' | 'p2' | 'both') {
     if (!match) return
     setBusy(true)
@@ -67,6 +82,10 @@ export default function MatchSheet({
   const { p1, p2, winnerUid, status, score, cancelled } = match
   const s1 = score?.split('-')[0]
   const s2 = score?.split('-')[1]
+  const fillSide: 1 | 2 | null = restFillable && isAdmin
+    ? (restSide === 1 && p1?.slotKind === 'rest' ? 1 : restSide === 2 && p2?.slotKind === 'rest' ? 2 : p1?.slotKind === 'rest' ? 1 : p2?.slotKind === 'rest' ? 2 : null)
+    : null
+  const fillLabel = fillSide === 1 ? p1?.name : fillSide === 2 ? p2?.name : null
 
   return createPortal(
     <>
@@ -91,13 +110,34 @@ export default function MatchSheet({
         )}
         {cancelled && <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.live, background: C.liveSoft, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>لغو شده</div>}
 
-        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 ? () => setPeek(p1.uid) : undefined} />
+        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '9px 2px' }}>
           <div style={{ flex: 1, height: 1, background: C.line }} />
           <span style={{ fontSize: 11, fontWeight: 800, color: C.tmut }}>vs</span>
           <div style={{ flex: 1, height: 1, background: C.line }} />
         </div>
-        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={isAdmin && p2 ? () => setPeek(p2.uid) : undefined} />
+        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={isAdmin && p2 && p2.slotKind !== 'rest' && p2.slotKind !== 'cancelled' ? () => setPeek(p2.uid) : undefined} />
+
+        {fillSide && (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.thi }}>بازماندگان{fillLabel ? ` · ${fillLabel}` : ''}</div>
+            {(leftovers ?? []).length === 0
+              ? <div style={{ fontSize: 12, color: C.tmut }}>کسی نیست</div>
+              : (leftovers ?? []).map(u => (
+                <button
+                  key={u.uid}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => fillRest(u.uid, fillSide)}
+                  style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px' }}
+                >
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.thi, textAlign: 'right' }}>{u.name}</span>
+                  <span dir="ltr" style={{ fontSize: 11.5, color: C.tmut }}>@{u.tag}</span>
+                  <span className="gl-num" style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>×{u.leftover}</span>
+                </button>
+              ))}
+          </div>
+        )}
 
         {isAdmin && (
           <MatchOps

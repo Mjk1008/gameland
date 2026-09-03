@@ -786,10 +786,10 @@ function deindexReg(r: Registration) {
 // Register / buy tickets. Each user may hold up to 6 سهم per discipline. Buying
 // more tops up the SAME registration (never a duplicate) up to that cap; the
 // top-up goes back to 'pending' for admin re-approval with the new receipt.
-// `attempts` = how many tickets to buy now. Locked once the bracket is drawn.
+// `attempts` = how many tickets to buy now. Stays open after the draw — extra
+// سهم land in the leftover pool (بازماندگان) instead of the existing trees.
 export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string): Registration {
   if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
-  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
   const key = userId + '|' + compId
   const existing = regs.get(key)
 
@@ -1250,7 +1250,10 @@ export function seatableTeamsForComp(compId: string): Team[] {
 export function reduceRegistrationAttempts(userId: string, compId: string, newAttempts: number): Registration {
   const r = getRegistration(userId, compId)
   if (!r || r.status === 'rejected') throw new Error('REG_NOT_FOUND')
-  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
+  if (matchesForComp(compId).length > 0) {
+    const seated = matchesForComp(compId).some(m => m.p1UserId === userId || m.p2UserId === userId)
+    if (seated) throw new Error('REG_LOCKED')
+  }
   if (r.teamId) {
     const t = teams.get(r.teamId)
     if (t && t.captainId !== userId) throw new Error('TEAM_PARTNER_LOCKED')
@@ -1274,7 +1277,14 @@ export function reduceRegistrationAttempts(userId: string, compId: string, newAt
 export function cancelRegistration(userId: string, compId: string): void {
   const r = getRegistration(userId, compId)
   if (!r) throw new Error('REG_NOT_FOUND')
-  if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
+  // Seated entries can't be pulled out after the draw. Unseated leftover
+  // registrations (بازماندگان) can still withdraw.
+  if (matchesForComp(compId).length > 0) {
+    const seated = matchesForComp(compId).some(m =>
+      m.p1UserId === userId || m.p2UserId === userId,
+    )
+    if (seated) throw new Error('REG_LOCKED')
+  }
   const drop = (uid: string) => {
     const rr = regs.get(uid + '|' + compId)
     if (!rr) return

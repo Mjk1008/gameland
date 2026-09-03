@@ -96,7 +96,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
                   <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
                   {/* top-up path — the store allows up to 6 سهم per discipline
                       until the draw; without this the buyer hits a dead end */}
-                  {!drawn && remainingLeft > 0 && !(myTeam && myTeam.captainId !== uid) && (
+                  {remainingLeft > 0 && !(myTeam && myTeam.captainId !== uid) && (
                     <Link href={`/competitions/${c.id}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, background: C.goldSoft, border: `1px solid ${C.gold}66`, borderRadius: 12, color: C.gold, fontWeight: 800, fontSize: 13.5 }}>
                       {myTeam ? '+ افزودنِ سهمِ تیم' : '+ خرید سهمِ بیشتر'} <span className="gl-num" style={{ opacity: .8 }}>({remainingLeft} تا مونده)</span>
                     </Link>

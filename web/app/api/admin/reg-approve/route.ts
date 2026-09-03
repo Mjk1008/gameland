@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
+import { isRealPlayer } from '@/lib/bracket-slots'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
 
@@ -19,10 +20,14 @@ export async function POST(req: Request) {
   const r = getRegistrationById(regId)
   if (!r) return NextResponse.json({ error: 'ثبت‌نام پیدا نشد' }, { status: 404 })
 
-  // Once the bracket is drawn, approvals feed seats — flipping a status would
-  // corrupt matches. Reversals (and everything else) lock at draw time.
-  if (matchesForComp(r.compId).length > 0) {
-    return NextResponse.json({ error: 'قرعه‌کشی انجام شده — وضعیت این ثبت‌نام دیگه قابل تغییر نیست' }, { status: 409 })
+  // After the draw, approve still works (leftover pool). Reject is blocked
+  // only if this account already has a real seat in a tree.
+  if (action === 'reject') {
+    const seated = matchesForComp(r.compId).some(m =>
+      (isRealPlayer(m.p1UserId) && m.p1UserId === r.userId) ||
+      (isRealPlayer(m.p2UserId) && m.p2UserId === r.userId),
+    )
+    if (seated) return NextResponse.json({ error: 'این گیمر تو براکت نشسته — رد ممکن نیست' }, { status: 409 })
   }
 
   if (action === 'approve' && unpaidAttempts(r) > 0 && !receiptCoversPendingPayment(r)) {
@@ -64,10 +69,11 @@ export async function POST(req: Request) {
   const c = getEvent(r.compId)
   const title = c?.title ?? 'مسابقه'
   if (action === 'approve') {
+    const drawn = matchesForComp(r.compId).length > 0
     pushNotif(r.userId, 'registration', prev === 'rejected' ? 'ثبت‌نامت بازبینی و تایید شد ✓' : 'ثبت‌نامت تایید شد ✓',
       prev === 'rejected'
-        ? `ثبت‌نام «${title}» دوباره بررسی شد و تایید شد — ردِ قبلی اشتباه بود، شرمنده. حالا در قرعه‌کشی شرکت داده می‌شوی.`
-        : `پرداخت «${title}» تایید شد.${rsn ? ` یادداشت: ${rsn}` : ''} حالا در قرعه‌کشی شرکت داده می‌شوی.`)
+        ? `ثبت‌نام «${title}» دوباره بررسی شد و تایید شد — ردِ قبلی اشتباه بود، شرمنده.${drawn ? '' : ' حالا در قرعه‌کشی شرکت داده می‌شوی.'}`
+        : `پرداخت «${title}» تایید شد.${rsn ? ` یادداشت: ${rsn}` : ''}${drawn ? '' : ' حالا در قرعه‌کشی شرکت داده می‌شوی.'}`)
   } else {
     pushNotif(r.userId, 'registration', 'ثبت‌نام رد شد',
       `ثبت‌نام «${title}» تایید نشد.${rsn ? ` دلیل: ${rsn}` : ' برای پیگیری با پشتیبانی تماس بگیر.'}`)
