@@ -114,12 +114,6 @@ function ensureHydrated() {
     },
     loadPlayRequest: (r: unknown) => { require('./arena').hydratePlayRequest(r as any) },
     loadPlayMatch: (m: unknown) => { require('./arena').hydratePlayMatch(m as any) },
-    loadMatchDesk: (row: MatchDesk) => { matchDesks.set(row.matchId, row) },
-    loadFollow: (followerId: string, followeeId: string) => {
-      let s = followMap.get(followerId)
-      if (!s) { s = new Set(); followMap.set(followerId, s) }
-      s.add(followeeId)
-    },
     loadPromoterCode: (c: unknown) => { require('./promoter').hydratePromoterCode(c as any) },
     loadPromoterEarning: (e: unknown) => { require('./promoter').hydratePromoterEarning(e as any) },
     loadPromoterCodeRequest: (r: unknown) => { require('./promoter').hydratePromoterCodeRequest(r as any) },
@@ -1833,21 +1827,6 @@ export function qualifyKey(groupKey: string, bracket: number) { return `${groupK
 
 const matches: Match[] = []
 
-export interface MatchDesk {
-  matchId: string
-  station?: number
-  calledAt?: number
-  p1Here: boolean
-  p2Here: boolean
-  p1Ready: boolean
-  p2Ready: boolean
-  refBy?: string
-  refAt?: number
-}
-
-const matchDesks = new Map<string, MatchDesk>()
-const followMap = new Map<string, Set<string>>()
-
 export function matchesForComp(compId: string): Match[] {
   return matches.filter(m => m.compId === compId).sort((a, b) => a.bracket - b.bracket || a.round - b.round || a.slot - b.slot)
 }
@@ -1914,62 +1893,6 @@ export function matchesForUser(userId: string): Match[] {
   )
 }
 
-export function getMatchDesk(matchId: string): MatchDesk {
-  return matchDesks.get(matchId) ?? { matchId, p1Here: false, p2Here: false, p1Ready: false, p2Ready: false }
-}
-
-export function allMatchDesks(): MatchDesk[] {
-  return Array.from(matchDesks.values())
-}
-
-function writeDesk(d: MatchDesk) {
-  matchDesks.set(d.matchId, d)
-  persist.matchDesk?.upsert(d)
-}
-
-export function patchMatchDesk(matchId: string, patch: Partial<Omit<MatchDesk, 'matchId'>>): MatchDesk {
-  const next = { ...getMatchDesk(matchId), ...patch, matchId }
-  writeDesk(next)
-  return next
-}
-
-export function followPlayer(followerId: string, followeeId: string) {
-  if (!followerId || !followeeId || followerId === followeeId) return
-  let s = followMap.get(followerId)
-  if (!s) { s = new Set(); followMap.set(followerId, s) }
-  if (s.has(followeeId)) return
-  s.add(followeeId)
-  persist.follow?.insert(followerId, followeeId)
-}
-
-export function unfollowPlayer(followerId: string, followeeId: string) {
-  followMap.get(followerId)?.delete(followeeId)
-  persist.follow?.remove(followerId, followeeId)
-}
-
-export function isFollowing(followerId: string, followeeId: string): boolean {
-  return followMap.get(followerId)?.has(followeeId) ?? false
-}
-
-export function followeesOf(followerId: string): string[] {
-  return Array.from(followMap.get(followerId) ?? [])
-}
-
-export function followersOf(followeeId: string): string[] {
-  const out: string[] = []
-  for (const [follower, set] of followMap) if (set.has(followeeId)) out.push(follower)
-  return out
-}
-
-export function notifyStaff(title: string, body: string) {
-  for (const u of users.values()) {
-    if (u.role === 'admin' || u.role === 'organizer') pushNotif(u.id, 'announcement', title, body)
-  }
-}
-
-export const MATCH_CENTER_KEY = 'match_center'
-
-// All prelim group keys that have matches in this comp.
 export function prelimGroupKeys(compId: string): string[] {
   return Array.from(new Set(matches.filter(m => m.compId === compId && m.stage === 'prelim').map(m => m.groupKey)))
 }
