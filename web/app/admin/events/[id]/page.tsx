@@ -146,7 +146,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   // ── re-entry فیش awaiting approval (approved regs with an unpaid balance, post-draw) ──
   const reentryRows: ReentryRow[] = (!isTeamEvent && drawn)
     ? approvedRegistrationsForComp(c.id)
-        .filter(r => unpaidAttempts(r) > 0)
+        .filter(r => (r.paidAttempts ?? null) != null && unpaidAttempts(r) > 0)
         .map(r => { const u = getUserById(r.userId); return { regId: r.id, tag: u?.tag || r.userId, name: u?.name || '?', unpaid: unpaidAttempts(r) } })
     : []
 
