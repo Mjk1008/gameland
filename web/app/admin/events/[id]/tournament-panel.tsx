@@ -71,12 +71,12 @@ export default function TournamentPanel(p: Props) {
   const destDrawn = p.brackets.some(b => b.groupKey === `province:${dest}`)
 
   async function draw() {
-    if (p.drawn && !confirm('براکت‌های قبلی پاک می‌شن و از نو چیده می‌شن. مطمئنی؟')) return
+    if ((p.drawn || p.finalExists) && !confirm(`براکت‌های قبلی پاک می‌شن و از نو چیده می‌شن${p.finalExists ? ' و فینال هم پاک می‌شه' : ''}. مطمئنی؟`)) return
     const j = await post('/api/admin/draw', { compId: p.compId, groupMode: mode }, 'draw')
     if (j) setMsg({ ok: true, text: direct ? `جدول چیده شد · ${j.players ?? j.seats} نفر` : `چیده شد · ${j.groups} گروه · ${j.brackets} براکت` })
   }
   async function drawProvince() {
-    if (destDrawn && !confirm(`براکت‌های ${dest} پاک می‌شن و از نو چیده می‌شن. مطمئنی؟`)) return
+    if ((destDrawn || p.finalExists) && !confirm(`براکت‌های ${dest} پاک می‌شن و از نو چیده می‌شن${p.finalExists ? ' و فینال هم پاک می‌شه' : ''}. مطمئنی؟`)) return
     const j = await post('/api/admin/draw', {
       compId: p.compId, destProvince: dest, sourceProvince: source, nBrackets, bracketSize: size,
     }, 'draw')
@@ -92,6 +92,7 @@ export default function TournamentPanel(p: Props) {
     if (j) setMsg({ ok: true, text: `${label} · ${j.deleted} مسابقه پاک شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
   }
   async function assemble() {
+    if (p.finalExists && !confirm('فینال از قبل چیده شده؛ نتیجه‌های ثبت‌شده پاک می‌شن و از نو چیده می‌شه. مطمئنی؟')) return
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
     if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ' (به ۱۲۸ محدود شد)' : ''}` })
   }

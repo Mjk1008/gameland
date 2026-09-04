@@ -113,8 +113,14 @@ export default function RunPanel({ matches }: Props) {
             <NameRow p={live.p2} win={!live.cancelled && live.winnerUid === live.p2?.uid} onPeek={() => live.p2 && setPeek(live.p2.uid)} />
             <MatchOps
               p1={live.p1} p2={live.p2} cancelled={live.cancelled} status={live.status} busy={busy}
-              onWin={uid => post({ matchId: live.id, winnerUserId: uid, correct: live.status === 'done' })}
-              onCancelMatch={() => post({ matchId: live.id, cancel: true })}
+              onWin={uid => {
+                if (live.status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
+                post({ matchId: live.id, winnerUserId: uid, correct: live.status === 'done' })
+              }}
+              onCancelMatch={() => {
+                if (!confirm('این مسابقه لغو می‌شه. مطمئنی؟')) return
+                post({ matchId: live.id, cancel: true })
+              }}
               onAnnounce={announce}
               winnerUid={live.winnerUid}
             />
