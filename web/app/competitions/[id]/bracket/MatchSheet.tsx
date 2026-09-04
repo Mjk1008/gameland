@@ -27,8 +27,9 @@ export default function MatchSheet({
   roundName?: string
   meUid?: string
   isAdmin?: boolean
-  // Scoped 'result_entry' grant — sees only the win/correct buttons below,
-  // never peek (phone numbers), rest-fill, cancel or announce.
+  // Scoped 'result_entry' grant — gets full match-day ops (win/correct,
+  // cancel, announce), same as staff. Never peek (phone numbers) or
+  // rest-fill (bracket building) — those stay isAdmin-only below.
   canRecord?: boolean
   leftovers?: Leftover[]
   restSide?: 1 | 2 | null
@@ -174,7 +175,6 @@ export default function MatchSheet({
             p1={p1 ? { uid: p1.uid, name: p1.name, placeholder: !!p1.slotKind } : null}
             p2={p2 ? { uid: p2.uid, name: p2.name, placeholder: !!p2.slotKind } : null}
             cancelled={cancelled} status={status} busy={busy}
-            restricted={!isAdmin}
             onWin={uid => {
               if (status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
               post({ matchId: match.id, winnerUserId: uid, correct: status === 'done' })

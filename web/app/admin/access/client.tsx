@@ -5,7 +5,7 @@ import { C, DISP, EmptyState } from '@/components/ui'
 // Kept in sync with lib/store.ts PERMISSIONS — small enough not to warrant a
 // server round-trip just to render labels.
 const PERMISSIONS = [
-  { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'فقط ثبت برنده روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
+  { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'ثبت نتیجه، لغو مسابقه و اعلان به بازیکن روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
 ] as const
 
 type UserRow = { id: string; name: string; tag: string; phone: string; role: string; permissions: string[] }

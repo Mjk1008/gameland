@@ -10,14 +10,14 @@ export async function POST(req: Request) {
   const uid = (session as any)?.uid
   const role = (session as any)?.role
   const staff = role === 'admin' || role === 'organizer'
-  // A 'result_entry' grant lets a plain gamer account record match results —
-  // nothing else on this route (cancelling a match stays staff-only below).
+  // A 'result_entry' grant lets a plain gamer account do full match-day ops
+  // here — win/correct, cancel, announce — same as staff. What stays
+  // staff-only is elsewhere: the draw itself, player peek, rest-fill.
   const resultOnly = !staff && hasPermission(uid ? getUserById(uid) : undefined, 'result_entry')
   if (!staff && !resultOnly) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const { matchId, winnerUserId, score, correct, cancel } = await req.json().catch(() => ({}))
   if (!matchId) return NextResponse.json({ error: 'matchId الزامی' }, { status: 400 })
-  if (cancel && !staff) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const existing = getMatch(matchId)
   if (!existing) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 400 })

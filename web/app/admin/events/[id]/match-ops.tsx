@@ -11,13 +11,11 @@ export const ANNOUNCE = [
 ] as const
 
 export function MatchOps({
-  p1, p2, cancelled, status, busy, restricted, onWin, onCancelMatch, onAnnounce, winnerUid,
+  p1, p2, cancelled, status, busy, onWin, onCancelMatch, onAnnounce, winnerUid,
 }: {
   p1: OpsPlayer; p2: OpsPlayer; cancelled?: boolean
   status: 'pending' | 'ready' | 'done'
   busy: boolean
-  // Scoped 'result_entry' grant — win/correct buttons only, no cancel or announce.
-  restricted?: boolean
   onWin: (uid: string) => void
   onCancelMatch: () => void
   onAnnounce: (kind: typeof ANNOUNCE[number]['id'], who: 'p1' | 'p2' | 'both') => void
@@ -44,13 +42,11 @@ export function MatchOps({
           <button type="button" disabled={busy || !p2Win || (!canRestore && p2.uid === winnerUid)} onClick={() => p2Win && p2 && onWin(p2.uid)} style={editBtn}>وین {p2?.name ?? ''}</button>
         </div>
       )}
-      {canRecord && !restricted && (
+      {canRecord && (
         <button type="button" disabled={busy} onClick={onCancelMatch} style={ghostBtn}>لغو مسابقه</button>
       )}
-      {!restricted && (
       <button type="button" disabled={busy || (!p1 && !p2)} onClick={() => setAnnounce(a => !a)} style={ghostBtn}>اعلان به بازیکن</button>
-      )}
-      {!restricted && announce && (
+      {announce && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             {p1 && <button type="button" onClick={() => setWho('p1')} style={seg(who === 'p1')}>{p1.name}</button>}

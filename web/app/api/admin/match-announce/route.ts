@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getMatch, getUserById, playerName, pushNotif } from '@/lib/store'
+import { getMatch, getUserById, hasPermission, playerName, pushNotif } from '@/lib/store'
 
 const KINDS = {
   elim5: 'حذف تا پنج دقیقه آینده',
@@ -11,8 +11,11 @@ const KINDS = {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
+  const meUid = (session as any)?.uid
   const role = (session as any)?.role
-  if (role !== 'admin' && role !== 'organizer') return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
+  const staff = role === 'admin' || role === 'organizer'
+  const resultOnly = !staff && hasPermission(meUid ? getUserById(meUid) : undefined, 'result_entry')
+  if (!staff && !resultOnly) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const { matchId, kind, who } = await req.json().catch(() => ({}))
   const title = KINDS[kind as keyof typeof KINDS]

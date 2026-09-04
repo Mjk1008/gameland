@@ -63,7 +63,7 @@ export interface User {
 // /admin/access.
 export type Permission = 'result_entry'
 export const PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
-  { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'فقط ثبت برنده روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
+  { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'ثبت نتیجه، لغو مسابقه و اعلان به بازیکن روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
 ]
 
 export function hasPermission(u: User | undefined | null, perm: Permission): boolean {
