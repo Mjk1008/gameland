@@ -121,6 +121,7 @@ function ensureHydrated() {
     reconcileDefaultPromos()
     reconcileTeams()
     seedRankingIfEmpty()
+    backfillLegacyReceiptTracking()
     // Heavy seeds must not block auth (whenReady).
     setImmediate(() => {
       reconcileDefaultEventCovers().catch(e => console.warn('[covers]', e))
@@ -222,6 +223,22 @@ export function attachReceiptToBatch(reg: Registration): void {
   reg.receiptPayBatch = reg.payBatch ?? 1
   reg.receiptAttemptsAt = reg.attempts
   persist.reg.update(reg.id, { receiptPayBatch: reg.receiptPayBatch, receiptAttemptsAt: reg.attempts } as any)
+}
+
+// One-time repair, run after hydration: registrations whose فیش was uploaded
+// BEFORE receiptPayBatch/receiptAttemptsAt existed have a real receipt in
+// app_receipts but neither field was ever set, so receiptCoversPendingPayment
+// silently returns false for them — they vanish from /admin/requests and
+// /admin/requests/history even though money was taken and a فیش is on file.
+// Treat the existing legacy receipt as covering the registration's current
+// attempts (the same assumption the app made before batch tracking existed).
+export function backfillLegacyReceiptTracking(): void {
+  for (const r of regs.values()) {
+    if (!hasReceipt(r.id)) continue
+    if (r.receiptPayBatch != null || r.receiptAttemptsAt != null) continue
+    r.receiptAttemptsAt = r.attempts
+    persist.reg.update(r.id, { receiptAttemptsAt: r.attempts } as any)
+  }
 }
 
 // Admin-set manual ranking points (added on top of points earned from results).
