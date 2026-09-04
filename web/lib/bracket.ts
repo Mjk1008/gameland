@@ -742,6 +742,8 @@ export function cancelMatch(matchId: string): Match {
   const m = getMatch(matchId)
   if (!m) throw new Error('MATCH_NOT_FOUND')
   if (m.status === 'done' && !m.cancelled) throw new Error('MATCH_ALREADY_DONE')
+  const next = findNextMatch(m)
+  if (next && next.status === 'done') throw new Error('NEXT_ROUND_PLAYED')
   m.status = 'done'
   m.cancelled = true
   m.winnerUserId = undefined
