@@ -969,7 +969,11 @@ export function liveFinalEntries(compId: string, userId: string): number {
     m.status === 'done' && m.winnerUserId && m.winnerUserId !== userId &&
     (m.p1UserId === userId || m.p2UserId === userId),
   ).length
-  return Math.max(0, total - lost)
+  // a self-match (both slots the same account) always "wins" for that userId
+  // (there's no other side to lose), but one of the two entries still retires —
+  // count each resolved self-match as one loss too, or the live count never drops.
+  const selfLosses = fin.filter(m => m.status === 'done' && m.p1UserId === userId && m.p2UserId === userId).length
+  return Math.max(0, total - lost - selfLosses)
 }
 
 // ── assemble / re-assemble the final bracket from current qualifiers ──
