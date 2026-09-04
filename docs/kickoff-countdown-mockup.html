@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kickoff bar — weighted</title>
+<style>
+@font-face { font-family:'Vazirmatn'; font-weight:500; src:url('../web/public/proposal/fonts/vazirmatn-500.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:700; src:url('../web/public/proposal/fonts/vazirmatn-700.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:800; src:url('../web/public/proposal/fonts/vazirmatn-800.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:800; src:url('../web/public/proposal/fonts/saira-800.woff2') format('woff2'); }
+:root {
+  --ink:#14110D; --sf1:#1E1A14; --line:#322A1F; --line2:#40362A;
+  --gold:#F5A623; --gold-soft:rgba(245,166,35,.16);
+  --thi:#F6EFE4; --tbody:#A89A88; --tmut:#6E6252;
+}
+* { box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+html, body { margin:0; background:#0b0907; color:var(--tbody); font-family:'Vazirmatn', Tahoma, sans-serif; }
+body { padding:18px 16px 28px; }
+.wrap { width:390px; margin:0 auto; }
+.phone { background:var(--ink); border:1px solid var(--line2); border-radius:28px; overflow:hidden; padding-bottom:14px; }
+.status {
+  height:38px; display:flex; align-items:flex-end; justify-content:space-between;
+  padding:0 22px 6px; font-family:'Saira Condensed', sans-serif; font-size:13px; font-weight:800;
+  color:var(--thi); direction:ltr;
+}
+
+.bar {
+  position:relative; isolation:isolate; overflow:hidden;
+  display:flex; align-items:center; gap:12px;
+  padding:8px 12px 8px 10px;
+  background:#1a1510;
+  border-bottom:1px solid var(--line);
+}
+.wash {
+  position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+}
+.wash img {
+  position:absolute; inset:-24%; width:148%; height:148%; object-fit:cover;
+  filter:blur(20px) saturate(1.2);
+  opacity:0; animation:washFade 18s ease-in-out infinite;
+}
+.wash img:nth-child(1) { opacity:.5; }
+.wash img:nth-child(2) { animation-delay:6s; }
+.wash img:nth-child(3) { animation-delay:12s; }
+@keyframes washFade { 0%{opacity:.5} 28%{opacity:.5} 36%{opacity:0} 100%{opacity:0} }
+.wash::after {
+  content:''; position:absolute; inset:0;
+  background:
+    linear-gradient(90deg, rgba(20,17,13,.5) 0%, rgba(20,17,13,.62) 55%, rgba(20,17,13,.72) 100%),
+    rgba(245,166,35,.06);
+}
+.bar::before {
+  content:''; position:absolute; top:0; right:0; left:0; height:2px; z-index:3;
+  background:linear-gradient(90deg, transparent, var(--gold) 18%, var(--gold) 82%, transparent);
+}
+.bar > .thumb, .bar > .clock, .bar > .cta { position:relative; z-index:2; }
+
+.thumb {
+  position:relative; width:44px; height:44px; border-radius:10px; overflow:hidden;
+  flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(245,166,35,.45), 0 0 0 1px rgba(0,0,0,.35);
+}
+.thumb img {
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  opacity:0; animation:xfade 18s ease-in-out infinite;
+}
+.thumb img:nth-child(1) { opacity:1; }
+.thumb img:nth-child(2) { animation-delay:6s; }
+.thumb img:nth-child(3) { animation-delay:12s; }
+@keyframes xfade { 0%{opacity:1} 28%{opacity:1} 36%{opacity:0} 100%{opacity:0} }
+
+.clock { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+.lockup {
+  direction:ltr; font-family:'Saira Condensed', sans-serif; font-weight:800;
+  font-variant-numeric:tabular-nums; font-size:23px; line-height:1; color:var(--gold);
+  letter-spacing:.04em;
+}
+.lockup .sep { color:rgba(245,166,35,.38); font-weight:700; padding:0 3px; letter-spacing:0; }
+.caption { font-size:10.5px; font-weight:700; color:rgba(246,239,228,.72); text-shadow:0 1px 8px rgba(20,17,13,.8); }
+.lockup { text-shadow:0 1px 10px rgba(20,17,13,.55); }
+
+.cta {
+  flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+  height:34px; padding:0 13px; border-radius:10px;
+  background:rgba(20,17,13,.35); color:var(--gold);
+  border:1px solid rgba(245,166,35,.6);
+  backdrop-filter:blur(8px);
+  font-size:12.5px; font-weight:800; text-decoration:none;
+}
+
+.head { display:flex; align-items:center; padding:11px 16px 10px; }
+.wm { font-family:'Saira Condensed', sans-serif; font-weight:800; font-size:17px; letter-spacing:.14em; color:var(--thi); direction:ltr; }
+.promo { margin:4px 16px 0; height:140px; border-radius:14px; background:#1a1612; border:1px solid var(--line); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>■■■</span></div>
+      <div class="bar">
+        <div class="wash" aria-hidden="true">
+          <img src="../web/public/games/fc26-banner.jpg" alt="" />
+          <img src="../web/public/games/ufc6-banner.jpg" alt="" />
+          <img src="../web/public/games/efootball-banner.jpg" alt="" />
+        </div>
+        <div class="thumb" aria-hidden="true">
+          <img src="../web/public/games/fc26-banner.jpg" alt="" />
+          <img src="../web/public/games/ufc6-banner.jpg" alt="" />
+          <img src="../web/public/games/efootball-banner.jpg" alt="" />
+        </div>
+        <div class="clock">
+          <div class="lockup" dir="ltr">۱۲<span class="sep">:</span>۰۸<span class="sep">:</span>۱۴<span class="sep">:</span>۴۳</div>
+          <div class="caption">شروع · ۱۶ شهریور</div>
+        </div>
+        <a class="cta" href="/competitions">ثبت‌نام</a>
+      </div>
+      <div class="head"><span class="wm">GAMELAND</span></div>
+      <div class="promo"></div>
+    </div>
+  </div>
+</body>
+</html>

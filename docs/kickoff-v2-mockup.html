@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kickoff v2 — days-first scorebug</title>
+<style>
+@font-face { font-family:'Vazirmatn'; font-weight:700; src:url('../web/public/fonts/vazirmatn-700.woff2') format('woff2'); }
+@font-face { font-family:'Vazirmatn'; font-weight:800; src:url('../web/public/fonts/vazirmatn-800.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:700; src:url('../web/public/fonts/saira-700.woff2') format('woff2'); }
+@font-face { font-family:'Saira Condensed'; font-weight:800; src:url('../web/public/fonts/saira-800.woff2') format('woff2'); }
+:root {
+  --ink:#14110D; --sf1:#1E1A14; --line:#322A1F; --line2:#40362A;
+  --gold:#F5A623; --thi:#F6EFE4; --tbody:#A89A88; --tmut:#6E6252;
+}
+* { box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+html, body { margin:0; background:#0b0907; color:var(--tbody); font-family:'Vazirmatn', Tahoma, sans-serif; }
+body { padding:20px 16px 32px; }
+.page { max-width:860px; margin:0 auto; }
+h1 { font-size:15px; font-weight:800; color:var(--thi); margin:0 0 6px; }
+.lede { font-size:12.5px; line-height:1.7; color:var(--tbody); margin:0 0 22px; max-width:52ch; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:820px) { .grid { grid-template-columns:1fr; } }
+.col h2 { font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--tmut); margin:0 0 10px; }
+.phone { width:390px; max-width:100%; background:var(--ink); border:1px solid var(--line2); border-radius:28px; overflow:hidden; }
+.status { height:36px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 22px 6px; font-family:'Saira Condensed', sans-serif; font-size:13px; font-weight:800; color:var(--thi); direction:ltr; }
+.promo { margin:10px 16px 14px; height:132px; border-radius:14px; background:#1a1612; border:1px solid var(--line); }
+
+/* ── current ── */
+.v1 { position:relative; isolation:isolate; overflow:hidden; display:flex; align-items:center; gap:12px; padding:8px 12px 8px 10px; background:#1a1510; border-bottom:1px solid var(--line); }
+.v1::before { content:''; position:absolute; top:0; right:0; left:0; height:2px; z-index:3; background:linear-gradient(90deg, transparent, var(--gold) 18%, var(--gold) 82%, transparent); }
+.wash { position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.wash img { position:absolute; inset:-24%; width:148%; height:148%; object-fit:cover; filter:blur(20px) saturate(1.2); opacity:.5; }
+.wash::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(20,17,13,.5), rgba(20,17,13,.62) 55%, rgba(20,17,13,.72)), rgba(245,166,35,.06); }
+.v1-thumb { position:relative; z-index:2; width:44px; height:44px; border-radius:10px; overflow:hidden; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(245,166,35,.45), 0 0 0 1px rgba(0,0,0,.35); }
+.v1-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.v1-clock { position:relative; z-index:2; flex:1; min-width:0; }
+.v1-lock { direction:ltr; font-family:'Saira Condensed', sans-serif; font-weight:800; font-size:23px; color:var(--gold); letter-spacing:.04em; line-height:1; text-shadow:0 1px 10px rgba(20,17,13,.55); }
+.v1-lock .sep { color:rgba(245,166,35,.38); font-weight:700; padding:0 3px; letter-spacing:0; }
+.v1-cap { font-size:10.5px; font-weight:700; color:rgba(246,239,228,.72); margin-top:3px; }
+.v1-cta { position:relative; z-index:2; height:34px; padding:0 13px; border-radius:10px; background:rgba(20,17,13,.35); color:var(--gold); border:1px solid rgba(245,166,35,.6); font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; }
+.head { display:flex; align-items:center; padding:12px 16px 10px; background:rgba(20,17,13,.92); border-bottom:1px solid var(--line); }
+.wm { font-family:'Saira Condensed', sans-serif; font-weight:800; font-size:17px; letter-spacing:.14em; color:var(--thi); direction:ltr; }
+
+/* ── v2 scorebug ── */
+.slab { background:#16120e; border-bottom:1px solid var(--line); }
+.v2 { position:relative; isolation:isolate; overflow:hidden; display:flex; align-items:center; gap:10px; padding:7px 10px 7px 10px; min-height:56px; }
+.v2::before { content:''; position:absolute; top:0; right:0; left:0; height:2px; z-index:3; background:linear-gradient(90deg, transparent, var(--gold) 22%, var(--gold) 78%, transparent); }
+.v2 .wash img { opacity:.28; filter:blur(24px) saturate(1.05); }
+.v2 .wash::after { background:linear-gradient(90deg, rgba(20,17,13,.55) 0%, rgba(20,17,13,.7) 48%, rgba(20,17,13,.82) 100%); }
+.bug { position:relative; z-index:2; width:40px; height:40px; flex-shrink:0; }
+.bug img { width:100%; height:100%; object-fit:cover; display:block; border-radius:8px; }
+.bug::before, .bug::after { content:''; position:absolute; width:11px; height:11px; pointer-events:none; z-index:3; }
+.bug::before { top:-1px; right:-1px; border-top:1.5px solid var(--gold); border-right:1.5px solid var(--gold); }
+.bug::after { bottom:-1px; left:-1px; border-bottom:1.5px solid var(--gold); border-left:1.5px solid var(--gold); }
+.mid { position:relative; z-index:2; flex:1; min-width:0; display:flex; align-items:baseline; gap:10px; }
+.days { display:flex; align-items:baseline; gap:4px; flex-shrink:0; }
+.days b { font-family:'Saira Condensed', sans-serif; font-weight:800; font-size:28px; line-height:.9; color:var(--gold); letter-spacing:.02em; text-shadow:0 1px 12px rgba(20,17,13,.7); }
+.days span { font-size:11.5px; font-weight:800; color:rgba(245,166,35,.82); }
+.time { font-family:'Saira Condensed', sans-serif; font-weight:700; font-size:15px; color:rgba(246,239,228,.88); letter-spacing:.06em; direction:ltr; }
+.time .sep { color:rgba(246,239,228,.28); padding:0 2px; font-weight:700; }
+.v2-cta { position:relative; z-index:2; flex-shrink:0; min-width:44px; min-height:44px; padding:0 14px; border-radius:10px; background:rgba(20,17,13,.25); color:var(--thi); border:1px solid rgba(246,239,228,.22); font-size:13px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+.head2 { display:flex; align-items:center; padding:10px 16px 10px; background:#16120e; }
+.note { margin-top:12px; font-size:11.5px; line-height:1.7; color:var(--tmut); }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>نوار شروع — نسخهٔ scorebug</h1>
+    <p class="lede">الان هر چهار رقم طلایی هم‌وزن‌اند؛ چشم نمی‌داند روز مهم است یا ثانیه. نسخهٔ جدید روز را قهرمان می‌کند، ساعت را فرعی می‌گذارد، دکمه را از جنگ با طلا درمی‌آورد، و هدر را با نوار یکی می‌کند.</p>
+    <div class="grid">
+      <div class="col">
+        <h2>الان روی پروداکشن</h2>
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>■■■</span></div>
+          <div class="v1">
+            <div class="wash" aria-hidden="true"><img src="../web/public/games/fc26-banner.jpg" alt="" /></div>
+            <div class="v1-thumb"><img src="../web/public/games/fc26-banner.jpg" alt="" /></div>
+            <div class="v1-clock">
+              <div class="v1-lock" dir="ltr">۱۲<span class="sep">:</span>۱۱<span class="sep">:</span>۱۸<span class="sep">:</span>۱۵</div>
+              <div class="v1-cap">شروع · ۱۶ شهریور</div>
+            </div>
+            <span class="v1-cta">ثبت‌نام</span>
+          </div>
+          <div class="head"><span class="wm">GAMELAND</span></div>
+          <div class="promo"></div>
+        </div>
+      </div>
+      <div class="col">
+        <h2>پیشنهاد</h2>
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>■■■</span></div>
+          <div class="slab">
+            <div class="v2">
+              <div class="wash" aria-hidden="true"><img src="../web/public/games/fc26-banner.jpg" alt="" /></div>
+              <div class="bug"><img src="../web/public/games/fc26-banner.jpg" alt="" /></div>
+              <div class="mid">
+                <div class="days"><b>۱۲</b><span>روز</span></div>
+                <div class="time" dir="ltr">۱۱<span class="sep">:</span>۱۸<span class="sep">:</span>۱۵</div>
+              </div>
+              <span class="v2-cta">ثبت‌نام</span>
+            </div>
+            <div class="head2"><span class="wm">GAMELAND</span></div>
+          </div>
+          <div class="promo"></div>
+        </div>
+        <p class="note">روز بزرگ · ساعت کوچک · دکمه استخوانی نه طلایی · پوستر با گوشهٔ broadcast نه قاب کامل · واش آرام‌تر · سطح هدر یکی با نوار.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

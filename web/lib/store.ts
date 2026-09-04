@@ -1902,6 +1902,7 @@ export function matchesForUser(userId: string): Match[] {
   )
 }
 
+// All prelim group keys that have matches in this comp.
 export function prelimGroupKeys(compId: string): string[] {
   return Array.from(new Set(matches.filter(m => m.compId === compId && m.stage === 'prelim').map(m => m.groupKey)))
 }
