@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion, hasAvatar, teamsForUser, currentTeamMembers, getRegistration, getEvent } from '@/lib/store'
+import { getUserById, registrationsForUser, notifsForUser, unreadCount, allEvents, profileCompletion, hasAvatar, teamsForUser, currentTeamMembers, getRegistration, getEvent, hasPermission } from '@/lib/store'
 import { challengePointsOf } from '@/lib/arena'
 import { isArenaEnabled } from '@/lib/arena-enabled'
 import { isPromoter, promoterDashboard } from '@/lib/promoter'
@@ -131,6 +131,13 @@ export default async function MePage() {
       {u.role !== 'gamer' && (
         <Link href="/admin" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>پنل ادمین</span>
+          <span style={{ color: C.gold }}>›</span>
+        </Link>
+      )}
+
+      {u.role === 'gamer' && hasPermission(u, 'result_entry') && (
+        <Link href="/competitions" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>ثبت نتیجه براکت</span>
           <span style={{ color: C.gold }}>›</span>
         </Link>
       )}

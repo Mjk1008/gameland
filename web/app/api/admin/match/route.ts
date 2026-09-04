@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getMatch } from '@/lib/store'
+import { getMatch, getUserById, hasPermission } from '@/lib/store'
 import { setMatchWinner, correctMatchResult, cancelMatch, recordCancelledMatchResult } from '@/lib/bracket'
 import { setTeamMatchWinner } from '@/lib/bracket-team'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
+  const uid = (session as any)?.uid
   const role = (session as any)?.role
-  if (role !== 'admin' && role !== 'organizer') return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
+  const staff = role === 'admin' || role === 'organizer'
+  // A 'result_entry' grant lets a plain gamer account record match results —
+  // nothing else on this route (cancelling a match stays staff-only below).
+  const resultOnly = !staff && hasPermission(uid ? getUserById(uid) : undefined, 'result_entry')
+  if (!staff && !resultOnly) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const { matchId, winnerUserId, score, correct, cancel } = await req.json().catch(() => ({}))
   if (!matchId) return NextResponse.json({ error: 'matchId الزامی' }, { status: 400 })
+  if (cancel && !staff) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const existing = getMatch(matchId)
   if (!existing) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 400 })

@@ -13,6 +13,7 @@
 | New DB table/column (ships via deploy) | `web/lib/db/persistence.ts` → `ensureSchema` |
 | Drizzle table defs | `web/lib/db/schema.ts` |
 | Auth / roles / admin allow-list | `web/lib/auth.ts` |
+| Scoped access levels (سطوح دسترسی) — e.g. bracket result-entry for a plain gamer account | `hasPermission()`/`setUserPermissions()` in `web/lib/store.ts` · grant/revoke UI (super admin only): `/admin/access` · API: `web/app/api/admin/permissions/route.ts` |
 | Registration approve/reject | `web/app/api/admin/reg-approve/route.ts` + `web/app/admin/requests/` |
 | Bracket draw / match results | `web/lib/bracket.ts`, `web/lib/bracket-team.ts` (2v2) |
 | Ranking / placement points | `web/lib/ranking.ts` + `activityPointsOf()` in store |

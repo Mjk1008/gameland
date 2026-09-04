@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById } from '@/lib/store'
+import { getUserById, isSuperAdmin } from '@/lib/store'
 import { pendingCodeRequests } from '@/lib/promoter'
 import { C, DISP } from '@/components/ui'
 
@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/promoters', label: 'پروموتر', badge: codeReqPending },
     { href: '/admin/gamers', label: 'گیمرها' },
     { href: '/admin/notify', label: 'اعلان' },
+    ...(isSuperAdmin(u) ? [{ href: '/admin/access', label: 'دسترسی‌ها' }] : []),
   ]
 
   return (

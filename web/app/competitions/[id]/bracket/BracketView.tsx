@@ -26,7 +26,7 @@ function EntryBadge({ p }: { p: Player }) {
   )
 }
 export type Leftover = { uid: string; name: string; tag: string; leftover: number; groupKey?: string }
-type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; compId: string; venueLabels?: Record<string, string>; schedules?: Record<string, { date?: string; time?: string; note?: string }>; leftovers?: Leftover[] }
+type Props = { matches: MatchDTO[]; meUid?: string; isAdmin?: boolean; canRecord?: boolean; compId: string; venueLabels?: Record<string, string>; schedules?: Record<string, { date?: string; time?: string; note?: string }>; leftovers?: Leftover[] }
 type Scope = { key: string; label: string; stage: 'prelim' | 'final'; groupKey: string }
 
 // card + layout geometry (in canvas px, before zoom)
@@ -34,7 +34,7 @@ const CARD_W = 156, CARD_H = 52, COL_GAP = 54, ROW_H = 70, ROUND_LABEL_H = 28
 
 const roundName = roundLabel
 
-export default function BracketView({ matches, meUid, isAdmin, compId, venueLabels, schedules, leftovers }: Props) {
+export default function BracketView({ matches, meUid, isAdmin, canRecord, compId, venueLabels, schedules, leftovers }: Props) {
   const scopes = useMemo<Scope[]>(() => {
     const out: Scope[] = []
     const prelimKeys = Array.from(new Set(matches.filter(m => m.stage === 'prelim').map(m => m.groupKey)))
@@ -162,6 +162,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
           meUid={meUid}
           isAdmin={isAdmin}
+          canRecord={canRecord}
           leftovers={(leftovers ?? []).filter(u => leftoverFillOpen(sel?.groupKey ?? '') || !u.groupKey || u.groupKey === (sel?.groupKey ?? ''))}
           restSide={restSide}
           restFillable={!!isAdmin}

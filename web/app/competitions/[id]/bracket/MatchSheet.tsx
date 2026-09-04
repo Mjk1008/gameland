@@ -21,12 +21,15 @@ export function roundLabel(playersInRound: number): string {
 }
 
 export default function MatchSheet({
-  match, roundName, meUid, isAdmin, leftovers, restSide, restFillable, onClose, onFollow,
+  match, roundName, meUid, isAdmin, canRecord, leftovers, restSide, restFillable, onClose, onFollow,
 }: {
   match: MatchDTO | null
   roundName?: string
   meUid?: string
   isAdmin?: boolean
+  // Scoped 'result_entry' grant — sees only the win/correct buttons below,
+  // never peek (phone numbers), rest-fill, cancel or announce.
+  canRecord?: boolean
   leftovers?: Leftover[]
   restSide?: 1 | 2 | null
   restFillable?: boolean
@@ -166,11 +169,12 @@ export default function MatchSheet({
           </div>
         )}
 
-        {isAdmin && (
+        {(isAdmin || canRecord) && (
           <MatchOps
             p1={p1 ? { uid: p1.uid, name: p1.name, placeholder: !!p1.slotKind } : null}
             p2={p2 ? { uid: p2.uid, name: p2.name, placeholder: !!p2.slotKind } : null}
             cancelled={cancelled} status={status} busy={busy}
+            restricted={!isAdmin}
             onWin={uid => {
               if (status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
               post({ matchId: match.id, winnerUserId: uid, correct: status === 'done' })

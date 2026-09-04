@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, playerName } from '@/lib/store'
+import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, playerName, hasPermission } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { leftoverPlayers, matchNumberMap, isDrawPublished } from '@/lib/bracket'
 import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
@@ -19,6 +19,9 @@ export default async function BracketPage({ params }: { params: { id: string } }
   const uid = (session as any)?.uid as string | undefined
   const role = (session as any)?.role
   const isAdmin = role === 'admin' || role === 'organizer'
+  // Scoped 'result_entry' grant: sees the real (undrawn-hidden) bracket and
+  // gets a result-only MatchSheet — never leftovers, rest-fill or peek.
+  const canRecord = !isAdmin && hasPermission(uid ? getUserById(uid) : undefined, 'result_entry')
   const isTeamEvent = getEventConfig(c.id).teamSize === 2
   const cfg = getEventConfig(c.id)
   const venueLabels: Record<string, string> = {}
@@ -37,7 +40,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
     : uid
 
   const allMatches = matchesForComp(c.id)
-  const real = isAdmin ? allMatches : allMatches.filter(m => isDrawPublished(c.id, m.groupKey))
+  const real = (isAdmin || canRecord) ? allMatches : allMatches.filter(m => isDrawPublished(c.id, m.groupKey))
   const drawn = real.length > 0
   const attemptsMap = isTeamEvent ? new Map<string, number>() : attemptsForComp(c.id)
   const entryMap = isTeamEvent ? new Map<string, number>() : entryIndexForComp(c.id)
@@ -88,7 +91,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
-          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} />
+          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} canRecord={canRecord} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} />
         </div>
       </div>
     )

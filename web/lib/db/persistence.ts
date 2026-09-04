@@ -86,6 +86,7 @@ export function startHydration(loaders: {
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referred_by TEXT`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS free_tickets INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referral_milestone INTEGER`,
+        `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS permissions TEXT NOT NULL DEFAULT ''`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS free_attempts INTEGER`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS reject_reason TEXT`,
         `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS paid_attempts INTEGER`,
@@ -242,6 +243,7 @@ export function startHydration(loaders: {
         promoterActivatedAt: u.promoterActivatedAt ? ms(u.promoterActivatedAt) : undefined,
         rankingPoints: (u as any).rankingPoints ?? 0,
         rankingEvents: (u as any).rankingEvents ?? 0,
+        permissions: (u as any).permissions ? (u as any).permissions.split(',').filter(Boolean) : undefined,
       })
 
       authReadyDone = true
@@ -508,6 +510,7 @@ function userValues(u: User) {
     promoterActivatedAt: u.promoterActivatedAt ? new Date(u.promoterActivatedAt) : undefined,
     rankingPoints: u.rankingPoints ?? 0,
     rankingEvents: u.rankingEvents ?? 0,
+    permissions: (u.permissions ?? []).join(','),
   }
 }
 
@@ -537,6 +540,7 @@ function userUpdateSet(patch: Partial<User>) {
   if (patch.email !== undefined)       set.email = patch.email
   if (patch.googleSub !== undefined)   set.googleSub = patch.googleSub
   if (patch.avatarUrl !== undefined)   set.avatarUrl = patch.avatarUrl
+  if (patch.permissions !== undefined) set.permissions = (patch.permissions ?? []).join(',')
   return set
 }
 

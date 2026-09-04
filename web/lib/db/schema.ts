@@ -84,6 +84,7 @@ export const users = pgTable('app_users', {
   promoterActivatedAt: timestamp('promoter_activated_at', { withTimezone: true }),
   rankingPoints: integer('ranking_points').notNull().default(0),
   rankingEvents: integer('ranking_events').notNull().default(0),
+  permissions: text('permissions').notNull().default(''), // csv of scoped Permission keys
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:   timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({
