@@ -1126,12 +1126,16 @@ function mirrorCaptainToPartner(team: Team): void {
     const leftover = existing.status === 'rejected' || !old || old.status === 'disbanded'
     if (!leftover) return
   }
+  // Mirror what's actually SETTLED, not the raw ticket count — the captain's
+  // row can carry an unpaid top-up on top of an already-approved base, and
+  // the partner must not look fully paid for attempts nobody's paid for yet.
+  const capSettled = settledAttempts(cap)
   if (existing) {
     existing.attempts = cap.attempts
     existing.status = cap.status
     existing.teamId = team.id
     existing.freeAttempts = 0
-    existing.paidAttempts = cap.attempts
+    existing.paidAttempts = capSettled
     persist.reg.update(existing.id, { attempts: existing.attempts, status: existing.status, teamId: team.id, freeAttempts: 0, paidAttempts: existing.paidAttempts } as any)
     bumpNationalRanking(partnerMem.userId)
     return
@@ -1142,7 +1146,7 @@ function mirrorCaptainToPartner(team: Team): void {
     attempts: cap.attempts, status: cap.status,
     seedsEarned: 0, prelimsCompleted: 0,
     teamId: team.id,
-    freeAttempts: 0, paidAttempts: cap.attempts,
+    freeAttempts: 0, paidAttempts: capSettled,
     createdAt: Date.now(),
   }
   indexReg(pr)
