@@ -19,3 +19,6 @@ build/
 .npmcache/
 /web/.next/
 web/tsconfig.tsbuildinfo
+
+# Claude Code personal/session settings (never commit — may hold local overrides)
+.claude/settings.local.json
