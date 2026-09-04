@@ -28,8 +28,9 @@ export default function MatchSheet({
   meUid?: string
   isAdmin?: boolean
   // Scoped 'result_entry' grant — gets full match-day ops (win/correct,
-  // cancel, announce), same as staff. Never peek (phone numbers) or
-  // rest-fill (bracket building) — those stay isAdmin-only below.
+  // cancel, announce) and player peek (phone number, no سهم breakdown —
+  // the API strips that for this grant), same as staff. Rest-fill (bracket
+  // building) stays isAdmin-only below.
   canRecord?: boolean
   leftovers?: Leftover[]
   restSide?: 1 | 2 | null
@@ -132,13 +133,13 @@ export default function MatchSheet({
           <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.tmut, background: C.sf2, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>خودی</div>
         )}
 
-        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} />
+        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={(isAdmin || canRecord) && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '9px 2px' }}>
           <div style={{ flex: 1, height: 1, background: C.line }} />
           <span style={{ fontSize: 11, fontWeight: 800, color: C.tmut }}>vs</span>
           <div style={{ flex: 1, height: 1, background: C.line }} />
         </div>
-        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={isAdmin && p2 && p2.slotKind !== 'rest' && p2.slotKind !== 'cancelled' ? () => setPeek(p2.uid) : undefined} />
+        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={(isAdmin || canRecord) && p2 && p2.slotKind !== 'rest' && p2.slotKind !== 'cancelled' ? () => setPeek(p2.uid) : undefined} />
 
         {fillSide && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
