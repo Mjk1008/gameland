@@ -59,8 +59,8 @@ export interface User {
 // ─── Scoped access levels (سطوح دسترسی) ────────────────────────────────────
 // Narrow grants for people who need one admin capability without full staff
 // access. Independent of Role: a plain 'gamer' account can hold these.
-// Only a super admin (role === 'admin', see isSuperAdmin) can grant/revoke
-// them, from /admin/access.
+// Only the super admin (see isSuperAdmin) can grant/revoke them, from
+// /admin/access.
 export type Permission = 'result_entry'
 export const PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
   { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'فقط ثبت برنده روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
@@ -70,10 +70,15 @@ export function hasPermission(u: User | undefined | null, perm: Permission): boo
   return !!u?.permissions?.includes(perm)
 }
 
-// The single account allowed to grant/revoke access levels — a real 'admin',
-// never 'organizer' (organizer is already full staff access, not scoped).
+// The single account allowed to grant/revoke access levels. There are
+// several 'admin'-role accounts running the app day to day — this is *not*
+// all of them, only the one phone in SUPER_ADMIN_PHONE (env, single number,
+// same pattern as ADMIN_PHONES/HONOR_USER_PHONE). Unset → nobody, not "every
+// admin" — the feature is meant to belong to exactly one person.
 export function isSuperAdmin(u: User | undefined | null): boolean {
-  return u?.role === 'admin'
+  if (!u || u.role !== 'admin') return false
+  const superPhone = (process.env.SUPER_ADMIN_PHONE || '').trim()
+  return !!superPhone && u.phone === superPhone
 }
 
 const users = new Map<string, User>()

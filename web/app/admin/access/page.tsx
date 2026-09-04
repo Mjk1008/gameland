@@ -7,8 +7,8 @@ import AccessClient from './client'
 
 export const dynamic = 'force-dynamic'
 
-// Only the super admin manages access levels — 'organizer' already has full
-// staff access and is not a grantor of scoped ones.
+// Only the super admin (SUPER_ADMIN_PHONE) manages access levels — the other
+// admin accounts don't get this, even though they're full staff otherwise.
 export default async function AccessAdmin() {
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid

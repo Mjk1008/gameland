@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { allUsers, getUserById, isSuperAdmin, setUserPermissions, whenReady, PERMISSIONS, type Permission, type User } from '@/lib/store'
 
-// Only the super admin (role === 'admin') can see or change access levels —
-// 'organizer' is already full staff access, not a grantor of scoped ones.
+// Only the super admin (SUPER_ADMIN_PHONE — one specific admin, not every
+// 'admin' account) can see or change access levels.
 async function superAdminOnly() {
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid
