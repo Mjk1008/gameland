@@ -980,6 +980,12 @@ export const persist = {
       const rows = await d.select({ dataUrl: schema.receipts.dataUrl }).from(schema.receipts).where(eq(schema.receipts.regId, regId)).limit(1)
       return rows[0]?.dataUrl ?? null
     },
+    // Called when a registration is hard-deleted (user cancels pre-draw) so
+    // the فیش row doesn't outlive the row it belongs to.
+    delete(regId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.receipts).where(eq(schema.receipts.regId, regId)))
+    },
   },
   // Behavioral events — write-only from the running app, read back only by
   // /admin/behavior. Never hydrated into memory (see schema.ts comment).

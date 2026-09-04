@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getUserById, reduceRegistrationAttempts, cancelRegistration, getEvent, pushNotif, whenReady } from '@/lib/store'
+import { voidPendingEarningsForReg } from '@/lib/promoter'
 
 // User-initiated, pre-draw only: lower your own سهم count, or withdraw
 // entirely. Kept deliberately understated in the UI — this route is the
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     REG_NOT_FOUND: 'ثبت‌نامی برای این مسابقه نداری',
     REG_LOCKED: 'قرعه‌کشی انجام شده — دیگه نمی‌شه تغییرش داد',
     TEAM_PARTNER_LOCKED: 'کاهش یا انصراف فقط از طرفِ کاپیتانِ تیم انجام می‌شه',
-    BAD_COUNT: 'تعداد سهمِ جدید باید کمتر از تعداد فعلی و حداقل ۱ باشه',
+    BAD_COUNT: 'تعداد سهمِ جدید باید کمتر از تعداد فعلی باشه و نمی‌تونه کمتر از سهمِ پرداخت‌شده بشه',
   }
 
   try {
@@ -34,7 +35,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, attempts: r.attempts })
     }
     if (action === 'cancel') {
-      cancelRegistration(uid, compId)
+      const droppedIds = cancelRegistration(uid, compId)
+      for (const id of droppedIds) {
+        try { await voidPendingEarningsForReg(id) }
+        catch (e) { console.error('[register/manage] voidPendingEarningsForReg failed', id, e) }
+      }
       pushNotif(uid, 'registration', 'از مسابقه انصراف دادی',
         `ثبت‌نامت تو «${c.title}» لغو شد. هر وقت خواستی می‌تونی دوباره ثبت‌نام کنی (تا وقتی ثبت‌نام بازه).`)
       return NextResponse.json({ ok: true, cancelled: true })
