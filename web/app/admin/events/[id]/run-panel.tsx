@@ -86,6 +86,7 @@ export default function RunPanel({ matches }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <span style={{ fontSize: 10, color: C.tmut }}>{m.n != null ? `بازی ${m.n} · ` : ''}{m.roundLabel}{m.bracket ? ` · براکت ${m.bracket}` : ''}</span>
                     {m.cancelled && <span style={miniBadge}>لغو شده</span>}
+                    {m.selfMatch && <span style={miniBadge}>خودی</span>}
                   </div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi, textAlign: 'right' }}>
                     <span style={{ color: !m.cancelled && m.winnerUid === m.p1?.uid ? C.gold : C.thi }}>{m.p1?.name ?? '—'}</span>
@@ -108,6 +109,7 @@ export default function RunPanel({ matches }: Props) {
             <div style={{ width: 38, height: 4, borderRadius: 3, background: C.line2, margin: '0 auto 12px' }} />
             <div style={{ fontSize: 11.5, fontWeight: 700, color: C.tmut, textAlign: 'center', marginBottom: 12 }}>
               {live.n != null ? `بازی ${live.n} · ` : ''}{live.roundLabel}{live.bracket ? ` · براکت ${live.bracket}` : ''}
+              {live.selfMatch && <span style={{ ...miniBadge, marginRight: 6 }}>خودی</span>}
             </div>
             <NameRow p={live.p1} win={!live.cancelled && live.winnerUid === live.p1?.uid} onPeek={() => live.p1 && setPeek(live.p1.uid)} />
             <NameRow p={live.p2} win={!live.cancelled && live.winnerUid === live.p2?.uid} onPeek={() => live.p2 && setPeek(live.p2.uid)} />

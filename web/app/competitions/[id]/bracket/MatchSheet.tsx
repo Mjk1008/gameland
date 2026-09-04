@@ -124,6 +124,9 @@ export default function MatchSheet({
           </div>
         )}
         {cancelled && <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.live, background: C.liveSoft, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>لغو شده</div>}
+        {isAdmin && !cancelled && !!p1 && p1.uid === p2?.uid && (
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.tmut, background: C.sf2, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>خودی</div>
+        )}
 
         <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '9px 2px' }}>
