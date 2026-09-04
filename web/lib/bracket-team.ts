@@ -15,6 +15,7 @@ import {
   clearMatchesForComp, clearMatchesByStage, pushMatch, saveMatch, matchesForComp, getMatch,
   findNextMatch, prelimGroupKeys, currentTeamMembers, getUserById,
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
+  getRegistration, settledAttempts,
 } from './store'
 import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY } from './bracket'
 import { drawProvinceOf, resolveProvince } from './iran-geo'
@@ -105,9 +106,17 @@ export async function generateTeamPrelims({ compId, teams, groupMode }: TeamDraw
 
   const groups = new Map<string, { userId: string; attempts: number }[]>()
   for (const t of teams) {
+    // Seat by what the captain has actually SETTLED, not the team's raw
+    // attempts — an unpaid top-up bumps t.attempts immediately (createTeam
+    // mirrors it in unconditionally) but shouldn't buy the team extra seats
+    // before an admin ever approves the payment. Same rule the solo draw
+    // already applies via settledAttempts() in bracket.ts generatePrelims.
+    const capReg = getRegistration(t.captainId, compId)
+    const k = capReg ? settledAttempts(capReg) : 0
+    if (k < 1) continue
     const gk = teamGroupKeyOf(t, mode)
     if (!groups.has(gk)) groups.set(gk, [])
-    groups.get(gk)!.push({ userId: t.id, attempts: t.attempts })   // distributeSeats is opaque on the id field — a team id works verbatim
+    groups.get(gk)!.push({ userId: t.id, attempts: k })   // distributeSeats is opaque on the id field — a team id works verbatim
   }
 
   const qualify: Record<string, number> = {}
