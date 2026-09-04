@@ -266,8 +266,15 @@ export function activityPointsOf(u: User): number {
   if (u.role === 'gamer' && profileCompletion(u).complete) pts += 25
   if (hasAvatar(u.id)) pts += 10
   for (const r of registrationsForUser(u.id)) {
-    if (r.status === 'approved') pts += r.attempts * 15
-    else if (r.status === 'pending') pts += r.attempts * 5
+    // Use settledAttempts, not raw attempts: an approved row can carry an
+    // unpaid top-up on top of it (createRegistration keeps status 'approved'
+    // while the new attempts sit unpaid) — only the actually-settled سهم earn
+    // the full approved rate. The unpaid remainder still nets the small
+    // pending-style credit so it isn't worth nothing while awaiting approval.
+    if (r.status === 'approved') {
+      const settled = settledAttempts(r)
+      pts += settled * 15 + Math.max(0, r.attempts - settled) * 5
+    } else if (r.status === 'pending') pts += r.attempts * 5
   }
   return pts
 }
