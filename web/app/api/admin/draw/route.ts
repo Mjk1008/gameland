@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { approvedRegistrationsForComp, seatableTeamsForComp, currentTeamMembers, getEventConfig, pushNotif } from '@/lib/store'
+import { drawEligibleRegistrations, getEventConfig, seatableTeamsForComp } from '@/lib/store'
 import { generatePrelims, generateProvincePrelims, generateDirectBracket, bracketModeOf, isDrawn } from '@/lib/bracket'
 import { generateTeamPrelims } from '@/lib/bracket-team'
 
@@ -19,19 +19,15 @@ export async function POST(req: Request) {
     const teams = seatableTeamsForComp(compId)
     if (teams.length === 0) return NextResponse.json({ error: 'هیچ تیمِ کاملی نداریم' }, { status: 400 })
     const result = await generateTeamPrelims({ compId, teams, groupMode: mode })
-    for (const t of teams) for (const m of currentTeamMembers(t.id)) {
-      pushNotif(m.userId, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرِ تیمت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
-    }
     return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })
   }
 
-  const regs = approvedRegistrationsForComp(compId)
+  const regs = drawEligibleRegistrations(compId)
   if (regs.length === 0) return NextResponse.json({ error: 'هیچ ثبت‌نام تاییدشده‌ای نداریم' }, { status: 400 })
 
   // Direct disciplines (everything except EA FC 26) → one bracket, no grouping.
   if (bracketModeOf(compId) === 'direct') {
     const result = await generateDirectBracket({ compId, registrations: regs })
-    for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی انجام شد', 'جدول مسابقه چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
     return NextResponse.json({ ok: true, mode: 'direct', ...result, redrawn: isDrawn(compId) })
   }
 
@@ -44,9 +40,6 @@ export async function POST(req: Request) {
         nBrackets: Number(nBrackets),
         bracketSize: Number(bracketSize),
       })
-      for (const uid of result.userIds) {
-        pushNotif(uid, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
-      }
       return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
     } catch (e: any) {
       const map: Record<string, string> = {
@@ -61,7 +54,5 @@ export async function POST(req: Request) {
   }
 
   const result = await generatePrelims({ compId, registrations: regs, groupMode: mode })
-  for (const r of regs) pushNotif(r.userId, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
-
   return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
 }

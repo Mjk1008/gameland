@@ -3,7 +3,9 @@ import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, roadmapStages } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, remainingTickets, matchesForComp, getTeam } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, remainingTickets, matchesForComp, getTeam, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { isDrawPublished, bracketModeOf } from '@/lib/bracket'
+import { isTehranPrelimHome } from '@/lib/iran-geo'
 import { C, DISP, Num, StatusChip, BackHeader, Button, DISC_DOT } from '@/components/ui'
 import RegManage from './reg-manage'
 
@@ -23,9 +25,13 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid
   if (!uid || !getUserById(uid)) redirect(`/login?callbackUrl=/competitions/${params.id}/me`)
+  const u = getUserById(uid)!
   const r = getRegistration(uid, params.id)
   if (!r) redirect(`/competitions/${params.id}/register`)
-  const seated = matchesForComp(params.id).some(m => m.p1UserId === uid || m.p2UserId === uid)
+  const seated = matchesForComp(params.id).some(m =>
+    (m.p1UserId === uid || m.p2UserId === uid) && isDrawPublished(params.id, m.groupKey),
+  )
+  const leftoverNote = bracketModeOf(params.id) === 'prelims' && !isTehranPrelimHome(u.province, u.city) && !seated
   const myTeam = r.teamId ? getTeam(r.teamId) : undefined
   const isTeamPartner = !!myTeam && myTeam.captainId !== uid
   const canTopUp = !isTeamPartner ? remainingTickets(uid, params.id) : 0
@@ -38,8 +44,8 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
     </Link>
   ) : null
 
-  // Not yet approved → payment/approval gate, not the bracket roadmap.
-  if (r.status !== 'approved') {
+  // Rejected, or never-settled pending — payment/approval gate, not the bracket roadmap.
+  if (r.status === 'rejected' || settledAttempts(r) === 0) {
     const rejected = r.status === 'rejected'
     return (
       <div className="animate-fade-up">
@@ -52,6 +58,11 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
               <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 2 }}>{DISC[c.disc]?.name}</div>
             </div>
           </div>
+          {leftoverNote && (
+            <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', fontSize: 13, fontWeight: 700, color: C.thi }}>
+              می‌ری تو براکت بازمانده‌ها
+            </div>
+          )}
           <div style={{ background: C.sf1, border: `1px solid ${rejected ? C.live : C.accent}55`, borderRadius: 14, padding: 18, textAlign: 'center' }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: rejected ? C.live : C.accent }}>
               {rejected ? 'ثبت‌نامت رد شد' : 'منتظر تایید پرداخت'}
@@ -90,6 +101,12 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
           </div>
           <StatusChip status={c.status} />
         </div>
+
+        {leftoverNote && (
+          <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', fontSize: 13, fontWeight: 700, color: C.thi }}>
+            می‌ری تو براکت بازمانده‌ها
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
           <Tile label="بلیط‌هام" value={r.attempts} color={C.accent} />
@@ -133,6 +150,7 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
           </div>
         </div>
 
+        {unpaidAttempts(r) > 0 && <Button href={`/competitions/${c.id}/pay`}>پرداخت و ارسال رسید ›</Button>}
         {topUpBtn}
         <Button href={`/competitions/${c.id}/bracket`} kind="secondary">مشاهدهٔ کامل براکت ›</Button>
         {manageBlock}

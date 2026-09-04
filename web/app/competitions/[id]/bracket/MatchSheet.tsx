@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
+import { leftoverFillOpen } from '@/lib/bracket-slots'
 import type { MatchDTO, Player, Leftover } from './BracketView'
 import { MatchOps, PlayerPeek, ANNOUNCE } from '@/app/admin/events/[id]/match-ops'
 
@@ -89,11 +90,12 @@ export default function MatchSheet({
     : null
   const fillLabel = fillSide === 1 ? p1?.name : fillSide === 2 ? p2?.name : null
   const otherUid = fillSide === 1 ? p2?.uid : fillSide === 2 ? p1?.uid : undefined
-  const tehran = match.groupKey === 'province:تهران'
+  const openFill = leftoverFillOpen(match.groupKey)
   const needle = q.trim()
   const fillable = (leftovers ?? []).filter(u => {
     if (u.uid === otherUid) return false
-    if (!tehran || !needle) return true
+    if (!openFill && u.groupKey && u.groupKey !== match.groupKey) return false
+    if (!openFill || !needle) return true
     const prov = (u.groupKey || '').split(':')[1] || ''
     return [u.name, u.tag, '@' + u.tag, prov].some(x => String(x).includes(needle))
   })
@@ -116,8 +118,10 @@ export default function MatchSheet({
         }}
       >
         <div style={{ width: 38, height: 4, borderRadius: 3, background: C.line2, margin: '0 auto 14px' }} />
-        {roundName && (
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.tmut, textAlign: 'center', marginBottom: 12 }}>{roundName}</div>
+        {(roundName || match.n != null) && (
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.tmut, textAlign: 'center', marginBottom: 12 }}>
+            {match.n != null ? `بازی ${match.n}` : ''}{match.n != null && roundName ? ' · ' : ''}{roundName ?? ''}
+          </div>
         )}
         {cancelled && <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.live, background: C.liveSoft, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>لغو شده</div>}
 
@@ -132,7 +136,7 @@ export default function MatchSheet({
         {fillSide && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.thi }}>بازماندگان{fillLabel ? ` · ${fillLabel}` : ''}</div>
-            {tehran && (
+            {openFill && (
               <input
                 value={q}
                 onChange={e => setQ(e.target.value)}
@@ -151,7 +155,7 @@ export default function MatchSheet({
                   style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px' }}
                 >
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.thi, textAlign: 'right' }}>{u.name}</span>
-                  {tehran && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
+                  {openFill && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
                   <span dir="ltr" style={{ fontSize: 11.5, color: C.tmut }}>@{u.tag}</span>
                   <span className="gl-num" style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>×{u.leftover}</span>
                 </button>

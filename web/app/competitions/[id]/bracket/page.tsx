@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, playerName } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
-import { leftoverPlayers } from '@/lib/bracket'
+import { leftoverPlayers, matchNumberMap, isDrawPublished } from '@/lib/bracket'
 import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { prelimVenueForGroupKey } from '@/lib/prelim-venue'
 import { C, BackHeader } from '@/components/ui'
@@ -36,7 +36,8 @@ export default async function BracketPage({ params }: { params: { id: string } }
     ? (uid ? teamForUser(uid, c.id)?.id : undefined)
     : uid
 
-  const real = matchesForComp(c.id)
+  const allMatches = matchesForComp(c.id)
+  const real = isAdmin ? allMatches : allMatches.filter(m => isDrawPublished(c.id, m.groupKey))
   const drawn = real.length > 0
   const attemptsMap = isTeamEvent ? new Map<string, number>() : attemptsForComp(c.id)
   const entryMap = isTeamEvent ? new Map<string, number>() : entryIndexForComp(c.id)
@@ -69,8 +70,10 @@ export default async function BracketPage({ params }: { params: { id: string } }
   }
 
   if (drawn) {
+    const nums = matchNumberMap(real)
     const dto: MatchDTO[] = real.map(m => ({
       id: m.id, stage: m.stage, groupKey: m.groupKey, bracket: m.bracket, round: m.round, slot: m.slot,
+      n: nums.get(m.id),
       p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1),
       p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
       winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status, cancelled: m.cancelled,

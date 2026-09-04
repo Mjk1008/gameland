@@ -7,7 +7,7 @@ import type { PrelimVenue } from '@/lib/store'
 import PrelimVenuePanel from './prelim-venue-panel'
 import PrelimBatchPanel, { type BatchPlayer } from './prelim-batch-panel'
 
-export type BracketInfo = { groupKey: string; groupLabel: string; bracket: number; players: number; done: number; total: number; qualify: number; complete: boolean }
+export type BracketInfo = { groupKey: string; groupLabel: string; bracket: number; players: number; done: number; total: number; qualify: number; complete: boolean; published: boolean }
 export type BracketSchedule = Record<string, { date?: string; time?: string; note?: string }>
 export type ProvincePool = { province: string; players: number; tickets: number; maxK: number; drawn: boolean }
 type Props = {
@@ -24,6 +24,7 @@ type Props = {
   emptySlotCount?: number
   teamSize?: number
   provincePools?: ProvincePool[]
+  directPublished?: boolean
 }
 
 const BRACKET_SIZES = [4, 8, 16, 32, 64, 128]
@@ -80,6 +81,10 @@ export default function TournamentPanel(p: Props) {
       compId: p.compId, destProvince: dest, sourceProvince: source, nBrackets, bracketSize: size,
     }, 'draw')
     if (j) setMsg({ ok: true, text: `${j.province} · ${j.brackets} براکت · ${j.seats} سهم` })
+  }
+  async function publishGroup(gk: string, label: string) {
+    const j = await post('/api/admin/publish-draw', { compId: p.compId, groupKey: gk }, `pub${gk}`)
+    if (j) setMsg({ ok: true, text: `${label}` })
   }
   async function clearGroup(gk: string, label: string) {
     if (!confirm(`براکت‌های ${label} پاک می‌شن${p.finalExists ? ' و فینال هم پاک می‌شه' : ''}. مطمئنی؟`)) return
@@ -174,6 +179,11 @@ export default function TournamentPanel(p: Props) {
         )}
         {direct && p.drawn && (
           <>
+            {p.directPublished === false && (
+              <button onClick={() => publishGroup('', 'جدول')} disabled={busy != null} style={{ ...primaryBtn(false, !!busy), marginTop: 10 }}>
+                {busy?.startsWith('pub') ? '…' : 'انتشار'}
+              </button>
+            )}
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>تاریخ و ساعت برگزاری جدول</div>
               <ScheduleEditor init={schedOf('', 0)} disabled={busy != null} onSave={v => saveSchedule('', 0, v)} />
@@ -199,6 +209,11 @@ export default function TournamentPanel(p: Props) {
                   <div style={{ flex: 1, fontSize: 12.5, fontWeight: 800, color: C.thi }}>
                     {g.label} <span style={{ color: C.tmut, fontWeight: 400 }}>· {g.brackets.length} براکت</span>
                   </div>
+                  {!g.brackets[0]?.published && (
+                    <button type="button" disabled={busy != null} onClick={() => publishGroup(gk, g.label)} style={pubBtn}>
+                      انتشار
+                    </button>
+                  )}
                   <button type="button" disabled={busy != null} onClick={() => clearGroup(gk, g.label)} style={clearBtn}>
                     پاک کردن
                   </button>
@@ -277,7 +292,7 @@ function Stepper({ value, onChange, disabled }: { value: number; onChange: (n: n
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <button type="button" disabled={disabled || value <= 0} onClick={() => onChange(value - 1)} style={stepBtn}>−</button>
       <span className="gl-num" style={{ minWidth: 24, textAlign: 'center', fontWeight: 800, fontSize: 15, color: C.thi }}>{value}</span>
-      <button type="button" disabled={disabled} onClick={() => onChange(value + 1)} style={stepBtn}>+</button>
+      <button type="button" disabled={disabled || value >= 2} onClick={() => onChange(value + 1)} style={stepBtn}>+</button>
     </div>
   )
 }
@@ -301,6 +316,7 @@ function Stat({ label, value, c }: { label: string; value: number; c: string }) 
 const seg = (on: boolean): React.CSSProperties => ({ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, fontSize: 13, fontWeight: 700, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, border: `1px solid ${on ? C.accent : C.line}` })
 const stepBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, fontSize: 18, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}` }
 const clearBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}44`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
+const pubBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
 function primaryBtn(secondary: boolean, disabled: boolean): React.CSSProperties {
   return { all: 'unset', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: secondary ? 'transparent' : C.accent, border: secondary ? `1px solid ${C.accent}` : 'none', color: secondary ? C.accent : '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: disabled ? 0.5 : 1 }
 }

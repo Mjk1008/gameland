@@ -17,6 +17,7 @@ import {
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
 } from './store'
 import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY } from './bracket'
+import { drawProvinceOf, resolveProvince } from './iran-geo'
 
 // Team's group key: captain's city/province (surfaced at team-creation time),
 // same `${mode}:${value}` format as the solo groupKeyOf — so prelimGroupKeys(),
@@ -24,8 +25,8 @@ import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY } from './brac
 // to handle a team event (docs/27 §4.2, founder call §12 Q1).
 function teamGroupKeyOf(team: Team, mode: GroupMode): string {
   const captain = getUserById(team.captainId)
-  const val = (mode === 'province' ? captain?.province : captain?.city) || 'نامشخص'
-  return `${mode}:${val}`
+  if (mode === 'province') return `province:${drawProvinceOf(resolveProvince(captain?.province, captain?.city))}`
+  return `city:${captain?.city || 'نامشخص'}`
 }
 
 function feedTeamWinner(m: Match) {
@@ -121,7 +122,9 @@ export async function generateTeamPrelims({ compId, teams, groupMode }: TeamDraw
       bracketCount++
     })
   }
-  setEventConfig(compId, { groupMode: mode, qualify })
+  const unpublished: Record<string, boolean> = { ...(getEventConfig(compId).publishedGroups ?? {}) }
+  for (const gk of groups.keys()) unpublished[gk] = false
+  setEventConfig(compId, { groupMode: mode, qualify, publishedGroups: unpublished })
   return { groups: groups.size, brackets: bracketCount, matches: matchesForComp(compId).length }
 }
 

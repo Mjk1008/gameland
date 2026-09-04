@@ -62,12 +62,21 @@ execFileSync('pg_dump', [
   ...SKIP_DATA.flatMap(t => ['--exclude-table-data', t]),
 ], { stdio: 'inherit' })
 
-console.log('\n▶ 2/2  pg_restore  (→ rehearsal)')
-// no --exit-on-error → pg_restore continues past benign "already exists" noise
+console.log('\n▶ 2/2  wipe rehearsal public schema, then pg_restore')
+// --clean --if-exists cannot DROP tables that still have FKs pointing at them
+// (app_matches → app_users). Empty the target schema first. DST already passed
+// assertSafeTarget(); refuse anyway if host:port/db equals live.
+if (`${d.host}:${d.port}/${d.db}` === `${s.host}:${s.port}/${s.db}`) {
+  console.error('✖ abort: restore URL equals live DB')
+  process.exit(1)
+}
+execFileSync('psql', [
+  DST, '-v', 'ON_ERROR_STOP=1',
+  '-c', 'DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;',
+], { stdio: 'inherit' })
 execFileSync('pg_restore', [
   '--dbname=' + DST,
   '--no-owner', '--no-privileges',
-  '--clean', '--if-exists',
   '--jobs=3',
   dumpFile,
 ], { stdio: 'inherit' })

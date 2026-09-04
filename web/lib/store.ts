@@ -798,7 +798,9 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (existing.attempts >= 6) throw new Error('MAX_TICKETS')
     if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
-    existing.status = 'pending'
+    // Keep previously-approved rows approved so settled سهم stay in the draw.
+    // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
+    if (existing.status !== 'approved' && (existing.paidAttempts ?? 0) === 0) existing.status = 'pending'
     existing.payBatch = (existing.payBatch ?? 1) + 1
     existing.receiptPayBatch = undefined
     existing.receiptAttemptsAt = undefined
@@ -807,7 +809,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.lockedUnitPrice = undefined
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, {
-      attempts: existing.attempts, status: 'pending', teamId: existing.teamId,
+      attempts: existing.attempts, status: existing.status, teamId: existing.teamId,
       payBatch: existing.payBatch, receiptPayBatch: null, receiptAttemptsAt: null,
       promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
     } as any)
@@ -948,8 +950,12 @@ export function approvedRegistrationsForComp(compId: string): Registration[] {
 // queue entry.
 export function pendingRegistrations(): Registration[] {
   return Array.from(regs.values())
-    .filter(r => r.status === 'pending' && !isTeamPartnerReg(r))
-    .filter(r => unpaidAttempts(r) === 0 || receiptCoversPendingPayment(r))
+    .filter(r => r.status !== 'rejected' && !isTeamPartnerReg(r))
+    .filter(r => {
+      const unpaid = unpaidAttempts(r)
+      if (r.status === 'pending') return unpaid === 0 || receiptCoversPendingPayment(r)
+      return r.status === 'approved' && unpaid > 0 && receiptCoversPendingPayment(r)
+    })
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
@@ -1810,6 +1816,9 @@ export interface EventConfig {
   // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
   // drives bracketState() 'not-started' checks for re-entry (MD-5b).
   bracketSchedule?: Record<string, { date?: string; time?: string; note?: string }>
+  // Per-group publish. Missing key / missing map = already public (legacy draws).
+  // New draws set the group's key to false until admin presses انتشار.
+  publishedGroups?: Record<string, boolean>
 }
 const eventConfigs = new Map<string, EventConfig>()
 
@@ -1952,4 +1961,16 @@ export function unpaidAttempts(r: Registration): number {
   // as fully settled — otherwise they look like unpaid re-entry after a draw.
   if (r.status === 'approved' && r.paidAttempts == null) return 0
   return Math.max(0, r.attempts - (r.paidAttempts ?? 0) - (r.freeAttempts ?? 0))
+}
+
+/** Tickets already settled — these are the ones that enter a draw. A pending
+ *  top-up does not pull previously-approved سهم out of the pool. */
+export function settledAttempts(r: Registration): number {
+  if (r.status === 'rejected') return 0
+  if (r.paidAttempts == null) return r.status === 'approved' ? r.attempts : 0
+  return Math.max(0, r.paidAttempts)
+}
+
+export function drawEligibleRegistrations(compId: string): Registration[] {
+  return Array.from(regs.values()).filter(r => r.compId === compId && settledAttempts(r) > 0)
 }

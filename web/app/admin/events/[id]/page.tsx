@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, approvedRegistrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName } from '@/lib/store'
-import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims } from '@/lib/bracket'
+import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
-import { resolveProvince } from '@/lib/iran-geo'
+import { drawProvinceOf, resolveProvince } from '@/lib/iran-geo'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, GameBadge } from '@/components/ui'
 import StatusControl from './status-control'
@@ -27,11 +27,9 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
 
   const allRegs = registrationsForComp(c.id)
-  const pendingCount = allRegs.filter(r => r.status === 'pending').length
-  // Drop a 2v2 partner's mirrored row from the counts — a team's سهم total
-  // is the captain's row; the mirror would double it.
-  const regs = approvedRegistrationsForComp(c.id).filter(r => !isTeamPartnerReg(r))
-  const totalAttempts = regs.reduce((s, r) => s + r.attempts, 0)
+  const pendingCount = allRegs.filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length
+  const regs = drawEligibleRegistrations(c.id).filter(r => !isTeamPartnerReg(r))
+  const totalAttempts = regs.reduce((s, r) => s + settledAttempts(r), 0)
   const cfg = getEventConfig(c.id)
   const isTeamEvent = cfg.teamSize === 2
   const soloParticipants = regs.map(r => { const u = getUserById(r.userId); return { id: r.userId, name: u?.name || '?', tag: u?.tag || '?' } })
@@ -58,7 +56,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       const r1 = ms.filter(m => m.round === Math.min(...ms.map(x => x.round)))
       const players = r1.reduce((s, m) => s + (isRealPlayer(seatOf(m, 1)) ? 1 : 0) + (isRealPlayer(seatOf(m, 2)) ? 1 : 0), 0)
       const done = ms.filter(m => m.status === 'done').length
-      brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: cfg.qualify[qualifyKey(gk, b)] ?? 2, complete: ms.every(m => m.status === 'done') })
+      brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: Math.min(2, cfg.qualify[qualifyKey(gk, b)] ?? 2), complete: ms.every(m => m.status === 'done'), published: isDrawPublished(c.id, gk) })
     }
   }
   // ── run-panel: playable + recorded matches (solo events only) ──
@@ -89,11 +87,12 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
       const u = getUserById(uid)
       return { uid, name: u ? playerName(u) : uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`) }
     }
+    const nums = matchNumberMap(all)
     runMatches = all
       .filter(m => m.status === 'ready' || m.status === 'done')
       .map(m => ({
         id: m.id, groupKey: m.groupKey, groupLabel: m.groupKey.split(':')[1] || (m.stage === 'final' ? 'فینال' : 'جدول'),
-        bracket: m.bracket, round: m.round, slot: m.slot, roundLabel: label(m),
+        bracket: m.bracket, round: m.round, slot: m.slot, n: nums.get(m.id), roundLabel: label(m),
         p1: player(m.p1UserId, m.id, 1), p2: player(m.p2UserId, m.id, 2),
         winnerUid: m.winnerUserId, status: m.status, cancelled: m.cancelled,
         selfMatch: !!m.p1UserId && m.p1UserId === m.p2UserId,
@@ -156,10 +155,10 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
           tag: u?.tag || r.userId,
           name: u?.name || '?',
           city: u?.city || 'نامشخص',
-          province: u?.province || 'نامشخص',
-          attempts: r.attempts,
+          province: drawProvinceOf(resolveProvince(u?.province, u?.city)),
+          attempts: settledAttempts(r),
           seated,
-          assigned: seated >= r.attempts,
+          assigned: seated >= settledAttempts(r),
         }
       })
     : []
@@ -167,11 +166,11 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
   const byProv = new Map<string, ProvincePool>()
   for (const r of regs) {
     const u = getUserById(r.userId)
-    const province = resolveProvince(u?.province, u?.city)
+    const province = drawProvinceOf(resolveProvince(u?.province, u?.city))
     const cur = byProv.get(province) ?? { province, players: 0, tickets: 0, maxK: 0, drawn: false }
     cur.players++
-    cur.tickets += r.attempts
-    cur.maxK = Math.max(cur.maxK, r.attempts)
+    cur.tickets += settledAttempts(r)
+    cur.maxK = Math.max(cur.maxK, settledAttempts(r))
     byProv.set(province, cur)
   }
   const drawnNames = new Set(prelimGroupKeys(c.id).filter(k => k.startsWith('province:')).map(k => k.slice('province:'.length)))
@@ -244,7 +243,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
         batchPlayers={batchPlayers}
         emptySlotCount={emptySlots.length}
-        teamSize={cfg.teamSize} provincePools={provincePools}
+        teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
       />
 
       {!isTeamEvent && drawn && <RunPanel matches={runMatches} />}

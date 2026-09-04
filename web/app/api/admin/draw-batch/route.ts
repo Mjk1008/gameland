@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import {
-  approvedRegistrationsForComp, getEvent, getEventConfig,
-  isTeamPartnerReg, pushNotif, type GroupMode,
+  drawEligibleRegistrations, getEvent, getEventConfig,
+  isTeamPartnerReg, settledAttempts, type GroupMode,
 } from '@/lib/store'
 import { bracketModeOf, generatePrelimBatch, groupKeyForUser } from '@/lib/bracket'
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   if (ids.length === 0) return NextResponse.json({ error: 'حداقل یک بازیکن انتخاب کن' }, { status: 400 })
 
   const regByUser = new Map(
-    approvedRegistrationsForComp(compId)
+    drawEligibleRegistrations(compId)
       .filter(r => !isTeamPartnerReg(r))
       .map(r => [r.userId, r]),
   )
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     if (!isMixed && groupKeyForUser(uid, mode) !== groupKey) {
       return NextResponse.json({ error: 'بازیکن خارج از این گروهه' }, { status: 400 })
     }
-    players.push({ userId: uid, attempts: r.attempts })
+    players.push({ userId: uid, attempts: settledAttempts(r) })
   }
 
   const nBrackets = Math.min(6, Math.max(1, Math.floor(Number(bracketCount)) || 0))
@@ -62,9 +62,6 @@ export async function POST(req: Request) {
       capacityPerBracket: nCap,
       players,
     })
-    for (const uid of ids) {
-      pushNotif(uid, 'draw', 'قرعه‌کشی مقدماتی انجام شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
-    }
     return NextResponse.json({ ok: true, groupKey, mixed: isMixed, ...result })
   } catch (e: any) {
     const msg = e.message as string

@@ -2,7 +2,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { C, DISP } from '@/components/ui'
 import { track } from '@/lib/track'
-import { cancelledSlotKey, restColor } from '@/lib/bracket-slots'
+import { cancelledSlotKey, leftoverFillOpen, restColor } from '@/lib/bracket-slots'
 import RadialBracket from './RadialBracket'
 import MatchSheet, { roundLabel } from './MatchSheet'
 
@@ -10,6 +10,7 @@ import MatchSheet, { roundLabel } from './MatchSheet'
 export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number; slotKind?: 'rest' | 'cancelled'; restIndex?: number } | null
 export type MatchDTO = {
   id: string; stage: 'prelim' | 'final'; groupKey: string; bracket: number; round: number; slot: number
+  n?: number
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
   cancelled?: boolean
@@ -161,7 +162,7 @@ export default function BracketView({ matches, meUid, isAdmin, compId, venueLabe
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
           meUid={meUid}
           isAdmin={isAdmin}
-          leftovers={(leftovers ?? []).filter(u => sel?.groupKey === 'province:تهران' || !u.groupKey || u.groupKey === (sel?.groupKey ?? ''))}
+          leftovers={(leftovers ?? []).filter(u => leftoverFillOpen(sel?.groupKey ?? '') || !u.groupKey || u.groupKey === (sel?.groupKey ?? ''))}
           restSide={restSide}
           restFillable={!!isAdmin}
           onClose={() => { setSel(null); setRestSide(null) }}
@@ -332,6 +333,7 @@ function MatchCardRow({ m, meUid, onOpen, restPick }: { m: MatchDTO; meUid?: str
         <div style={{ height: 1, background: C.line }} />
         <PlayerLine p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} onRest={restPick && m.p2?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 2) } : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
+          {m.n != null && <span className="gl-num" style={{ fontSize: 10.5, fontWeight: 800, color: C.tmut }}>بازی {m.n}</span>}
           <StatusPill status={m.cancelled ? 'cancelled' : m.status} />
         </div>
       </div>
@@ -540,6 +542,7 @@ const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen, restPick }: { 
       style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
     >
       {m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.live, background: C.liveSoft, textAlign: 'center', padding: '2px 0' }}>لغو شده</div>}
+      {m.n != null && !m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.tmut, textAlign: 'center', padding: '2px 0' }}>بازی {m.n}</div>}
       <TreeSlot p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} onRest={restPick && m.p1?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 1) } : undefined} />
       <div style={{ height: 1, background: C.line }} />
       <TreeSlot p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} onRest={restPick && m.p2?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 2) } : undefined} />

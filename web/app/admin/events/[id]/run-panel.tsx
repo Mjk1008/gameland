@@ -8,6 +8,7 @@ import { MatchOps, PlayerPeek, ANNOUNCE } from './match-ops'
 export type RunPlayer = { uid: string; name: string; attempts: number; entry?: number } | null
 export type RunMatch = {
   id: string; groupKey: string; groupLabel: string; bracket: number; round: number; slot: number
+  n?: number
   roundLabel: string
   p1: RunPlayer; p2: RunPlayer; winnerUid?: string
   status: 'pending' | 'ready' | 'done'
@@ -83,7 +84,7 @@ export default function RunPanel({ matches }: Props) {
               {visible.map(m => (
                 <button key={m.id} type="button" onClick={() => { setOpen(m); setErr(null) }} style={rowBtn}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: C.tmut }}>{m.roundLabel}{m.bracket ? ` · براکت ${m.bracket}` : ''} · مسابقهٔ {m.slot + 1}</span>
+                    <span style={{ fontSize: 10, color: C.tmut }}>{m.n != null ? `بازی ${m.n} · ` : ''}{m.roundLabel}{m.bracket ? ` · براکت ${m.bracket}` : ''}</span>
                     {m.cancelled && <span style={miniBadge}>لغو شده</span>}
                   </div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: C.thi, textAlign: 'right' }}>
@@ -106,7 +107,7 @@ export default function RunPanel({ matches }: Props) {
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: C.sf1, borderRadius: '18px 18px 0 0', padding: '12px 16px calc(20px + env(safe-area-inset-bottom))' }}>
             <div style={{ width: 38, height: 4, borderRadius: 3, background: C.line2, margin: '0 auto 12px' }} />
             <div style={{ fontSize: 11.5, fontWeight: 700, color: C.tmut, textAlign: 'center', marginBottom: 12 }}>
-              {live.roundLabel}{live.bracket ? ` · براکت ${live.bracket}` : ''}
+              {live.n != null ? `بازی ${live.n} · ` : ''}{live.roundLabel}{live.bracket ? ` · براکت ${live.bracket}` : ''}
             </div>
             <NameRow p={live.p1} win={!live.cancelled && live.winnerUid === live.p1?.uid} onPeek={() => live.p1 && setPeek(live.p1.uid)} />
             <NameRow p={live.p2} win={!live.cancelled && live.winnerUid === live.p2?.uid} onPeek={() => live.p2 && setPeek(live.p2.uid)} />

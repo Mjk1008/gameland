@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, getRegistrationById, setRegistrationStatus, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
+import { getUserById, getRegistrationById, setRegistrationStatus, settleRegistrationAttempts, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
 import { isRealPlayer } from '@/lib/bracket-slots'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
@@ -37,6 +37,20 @@ export async function POST(req: Request) {
   const prev = r.status
   const prevPaid = r.paidAttempts ?? 0
   const rsn = (reason ?? '').toString().trim().slice(0, 240)   // optional admin reason/note
+
+  // Top-up on an already-approved row: settle the new tickets, keep seats.
+  if (action === 'approve' && prev === 'approved') {
+    if (unpaidAttempts(r) === 0) return NextResponse.json({ ok: true, status: 'approved' })
+    settleRegistrationAttempts(regId)
+    grantReferralRewards(r.userId)
+    try { await recordPromoterEarning(r, prevPaid) }
+    catch (e) { console.error('[reg-approve] recordPromoterEarning failed', regId, e) }
+    const c = getEvent(r.compId)
+    pushNotif(r.userId, 'registration', 'سهمِ جدیدت تایید شد ✓',
+      `پرداخت «${c?.title ?? 'مسابقه'}» تایید شد.`)
+    return NextResponse.json({ ok: true, status: 'approved' })
+  }
+
   const status = action === 'approve' ? 'approved' : 'rejected'
   if (prev === status) return NextResponse.json({ ok: true, status })   // no-op, no duplicate notif
   setRegistrationStatus(regId, status, action === 'reject' ? rsn || undefined : undefined)

@@ -60,3 +60,17 @@ export function resolveProvince(province?: string | null, city?: string | null):
   const c = (city || '').trim()
   return (c && CITY_TO_PROVINCE[c]) || 'نامشخص'
 }
+
+/** Alborz (کرج) draws with Tehran — one prelim group. */
+export function drawProvinceOf(province: string): string {
+  return province === 'البرز' ? 'تهران' : province
+}
+
+export function provincesInDrawGroup(dest: string): string[] {
+  return dest === 'تهران' ? ['تهران', 'البرز'] : [dest]
+}
+
+/** Tehran + Alborz sit in the Tehran prelim; everyone else is leftover-fill only. */
+export function isTehranPrelimHome(province?: string | null, city?: string | null): boolean {
+  return drawProvinceOf(resolveProvince(province, city)) === 'تهران'
+}

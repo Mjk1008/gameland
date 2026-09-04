@@ -24,6 +24,11 @@ export function isRealPlayer(uid?: string): uid is string {
   return !!uid && !isCancelledSlot(uid) && !isRestSlot(uid)
 }
 
+/** Rest-fill from the leftover list: Tehran prelims + mixed «بازماندگان» brackets. */
+export function leftoverFillOpen(groupKey: string): boolean {
+  return groupKey === 'province:تهران' || groupKey.startsWith('mixed:')
+}
+
 export function restIndex(uid: string): number {
   const n = parseInt(uid.slice(REST_PREFIX.length), 10)
   return Number.isFinite(n) && n > 0 ? n : 1

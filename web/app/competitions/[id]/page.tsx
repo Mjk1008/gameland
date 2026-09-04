@@ -6,6 +6,8 @@ import { DISC, prizeBreakdown } from '@/lib/mock-data'
 import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, getCompetition } from '@/lib/store'
 import { prelimVenueForUser } from '@/lib/prelim-venue'
 import { rulesForDisc } from '@/lib/discipline-rules'
+import { isDrawPublished, bracketModeOf } from '@/lib/bracket'
+import { isTehranPrelimHome } from '@/lib/iran-geo'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -17,23 +19,28 @@ export default async function CompetitionPage({ params }: { params: { id: string
 
   const session = await getServerSession(authOptions)
   const uid = (session as any)?.uid as string | undefined
+  const isAdmin = (session as any)?.role === 'admin' || (session as any)?.role === 'organizer'
   const reg = uid ? getRegistration(uid, params.id) : undefined
   const remainingLeft = uid ? remainingTickets(uid, params.id) : 0
   const myTeam = uid ? teamForUser(uid, params.id) : undefined
 
   const cfg = getEventConfig(params.id)
   const me = uid ? getUserById(uid) : undefined
-  const myVenue = me ? prelimVenueForUser(cfg.prelimVenues, me.city, me.province, cfg.groupMode) : null
+  const leftoverProvince = !!me && bracketModeOf(params.id) === 'prelims' && !isTehranPrelimHome(me.province, me.city)
+  const myVenue = me && !leftoverProvince ? prelimVenueForUser(cfg.prelimVenues, me.city, me.province, cfg.groupMode) : null
 
   const allMatches = matchesForComp(params.id)
-  const drawn = allMatches.length > 0
-  const prelimMatches = allMatches.filter(m => m.stage === 'prelim')
-  const finalMatches = allMatches.filter(m => m.stage === 'final')
+  const seatedHere = !!uid && allMatches.some(m => m.p1UserId === uid || m.p2UserId === uid)
+  const leftoverNote = leftoverProvince && c.status !== 'done' && !seatedHere
+  const visibleMatches = isAdmin ? allMatches : allMatches.filter(m => isDrawPublished(params.id, m.groupKey))
+  const drawn = visibleMatches.length > 0
+  const prelimMatches = visibleMatches.filter(m => m.stage === 'prelim')
+  const finalMatches = visibleMatches.filter(m => m.stage === 'final')
   const prelimGroups = Array.from(new Set(prelimMatches.map(m => m.groupKey)))
   const finalSize = c.finalSize ?? 128
   const isTeamEvent = cfg.teamSize === 2
   const myTeamId = myTeam?.id
-  const myMatch = uid ? allMatches.find(m => {
+  const myMatch = uid ? visibleMatches.find(m => {
     if (isTeamEvent && myTeamId) return m.p1TeamId === myTeamId || m.p2TeamId === myTeamId
     return m.p1UserId === uid || m.p2UserId === uid
   }) : undefined
@@ -87,6 +94,12 @@ export default async function CompetitionPage({ params }: { params: { id: string
               {myVenue.mapUrl && (
                 <a href={myVenue.mapUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12.5, fontWeight: 700, color: C.accent }}>نقشه ›</a>
               )}
+            </div>
+          )}
+
+          {leftoverNote && (
+            <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', fontSize: 13, fontWeight: 700, color: C.thi }}>
+              می‌ری تو براکت بازمانده‌ها
             </div>
           )}
 

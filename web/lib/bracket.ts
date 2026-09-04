@@ -15,14 +15,15 @@
 import {
   Registration, Match, GroupMode,
   clearMatchesForComp, clearMatchesByStage, clearMatchesForGroup, pushMatch, saveMatch, matchesForComp, getMatch,
-  findNextMatch, getUserById, prelimGroupKeys, approvedRegistrationsForComp, setRegSeeds,
-  getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent, getRegistration, type EventConfig,
+  findNextMatch, getUserById, prelimGroupKeys, setRegSeeds,
+  getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent, getRegistration,
+  settledAttempts, drawEligibleRegistrations, type EventConfig,
 } from './store'
 import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './discipline-format'
 import { MAX_SEEDS_TO_FINAL } from './competition-engine'
-import { resolveProvince } from './iran-geo'
+import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 import {
-  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, restSlotKey,
+  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restSlotKey,
 } from './bracket-slots'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
@@ -45,8 +46,11 @@ export function groupKeyForUser(userId: string, mode: GroupMode): string {
 }
 function groupKeyOf(userId: string, mode: GroupMode): string {
   const u = getUserById(userId)
-  const val = (mode === 'province' ? u?.province : u?.city) || 'نامشخص'
-  return `${mode}:${val}`
+  if (mode === 'province') {
+    const p = drawProvinceOf(resolveProvince(u?.province, u?.city))
+    return `province:${p}`
+  }
+  return `city:${u?.city || 'نامشخص'}`
 }
 
 // Deterministic seat distribution: an account with k سهم takes exactly one seat
@@ -127,48 +131,31 @@ export function seatedTicketsOf(compId: string, userId: string): number {
 
 export function leftoverTicketsOf(compId: string, userId: string): number {
   const r = getRegistration(userId, compId)
-  if (!r || r.status !== 'approved') return 0
-  return Math.max(0, r.attempts - seatedTicketsOf(compId, userId))
+  if (!r) return 0
+  const settled = settledAttempts(r)
+  if (settled < 1) return 0
+  return Math.max(0, settled - seatedTicketsOf(compId, userId))
 }
 
 export interface LeftoverPlayer { userId: string; leftover: number; groupKey: string }
 
 function prelimGroupKeyOf(userId: string, mode: GroupMode): string {
-  if (mode !== 'province') return groupKeyOf(userId, mode)
-  const u = getUserById(userId)
-  return `province:${resolveProvince(u?.province, u?.city)}`
-}
-
-function seatedUserIdsInGroup(compId: string, groupKey: string): Set<string> {
-  const ids = new Set<string>()
-  for (const m of matchesForComp(compId)) {
-    if (m.stage !== 'prelim' || m.groupKey !== groupKey) continue
-    if (isRealPlayer(m.p1UserId)) ids.add(m.p1UserId)
-    if (isRealPlayer(m.p2UserId)) ids.add(m.p2UserId)
-  }
-  return ids
+  return groupKeyOf(userId, mode)
 }
 
 /**
- * Rest-fill pool: approved tickets that are not sitting in that player's
- * own drawn tree. Includes people the admin left out of a province draw,
- * and everyone from provinces not drawn yet. Extra tickets of people
- * already in their own tree stay out.
+ * Rest-fill pool: settled tickets that are not sitting in a tree.
+ * Extra tickets of someone already seated stay in the list (one per rest fill).
  */
 export function leftoverPlayers(compId: string): LeftoverPlayer[] {
   const all = matchesForComp(compId)
   if (all.length === 0) return []
   const mode: GroupMode = getEventConfig(compId).groupMode ?? 'city'
-  const drawn = new Set(all.filter(m => m.stage === 'prelim').map(m => m.groupKey))
-  const seated = new Map<string, Set<string>>()
-  for (const gk of drawn) seated.set(gk, seatedUserIdsInGroup(compId, gk))
   const out: LeftoverPlayer[] = []
-  for (const r of approvedRegistrationsForComp(compId)) {
-    const gk = prelimGroupKeyOf(r.userId, mode)
-    if (drawn.has(gk) && seated.get(gk)!.has(r.userId)) continue
+  for (const r of drawEligibleRegistrations(compId)) {
     const extra = leftoverTicketsOf(compId, r.userId)
     if (extra <= 0) continue
-    out.push({ userId: r.userId, leftover: extra, groupKey: gk })
+    out.push({ userId: r.userId, leftover: extra, groupKey: prelimGroupKeyOf(r.userId, mode) })
   }
   return out
 }
@@ -257,6 +244,7 @@ export async function generatePrelimBatch(input: PrelimBatchInput): Promise<{ br
   const patch: Partial<EventConfig> = { qualify }
   if (groupKey.startsWith('province:')) patch.groupMode = 'province'
   else if (groupKey.startsWith('city:')) patch.groupMode = 'city'
+  if (maxIdx === 0) patch.publishedGroups = { ...(cfg.publishedGroups ?? {}), [groupKey]: false }
   setEventConfig(compId, patch)
   return {
     brackets: built,
@@ -547,9 +535,11 @@ export async function generatePrelims({ compId, registrations, groupMode }: Draw
 
   const groups = new Map<string, { userId: string; attempts: number }[]>()
   for (const r of registrations) {
+    const k = settledAttempts(r)
+    if (k < 1) continue
     const gk = groupKeyOf(r.userId, mode)
     if (!groups.has(gk)) groups.set(gk, [])
-    groups.get(gk)!.push({ userId: r.userId, attempts: r.attempts })
+    groups.get(gk)!.push({ userId: r.userId, attempts: k })
   }
 
   const qualify: Record<string, number> = {}
@@ -564,7 +554,9 @@ export async function generatePrelims({ compId, registrations, groupMode }: Draw
       bracketCount++
     })
   }
-  setEventConfig(compId, { groupMode: mode, qualify })
+  const unpublished: Record<string, boolean> = { ...(getEventConfig(compId).publishedGroups ?? {}) }
+  for (const gk of groups.keys()) unpublished[gk] = false
+  setEventConfig(compId, { groupMode: mode, qualify, publishedGroups: unpublished })
   return { groups: groups.size, brackets: bracketCount, matches: matchesForComp(compId).length }
 }
 
@@ -581,7 +573,7 @@ export interface ProvinceDrawInput {
 export async function generateProvincePrelims(input: ProvinceDrawInput): Promise<{
   province: string; source: string; groups: number; brackets: number; seats: number; matches: number; userIds: string[]
 }> {
-  const dest = (input.destProvince || '').trim() || 'نامشخص'
+  const dest = drawProvinceOf((input.destProvince || '').trim() || 'نامشخص')
   const src = (input.sourceProvince || '').trim() || dest
   const N = Math.floor(input.nBrackets)
   const size = Math.floor(input.bracketSize)
@@ -602,12 +594,15 @@ export async function generateProvincePrelims(input: ProvinceDrawInput): Promise
     if (m.p2UserId) seated.add(m.p2UserId)
   }
 
+  const allowed = new Set(src === dest ? provincesInDrawGroup(dest) : [src])
   const players: { userId: string; attempts: number }[] = []
-  for (const r of approvedRegistrationsForComp(input.compId)) {
+  for (const r of drawEligibleRegistrations(input.compId)) {
     if (seated.has(r.userId)) continue
     const u = getUserById(r.userId)
-    if (resolveProvince(u?.province, u?.city) !== src) continue
-    players.push({ userId: r.userId, attempts: Math.max(1, r.attempts) })
+    if (!allowed.has(resolveProvince(u?.province, u?.city))) continue
+    const k = settledAttempts(r)
+    if (k < 1) continue
+    players.push({ userId: r.userId, attempts: k })
   }
 
   const tickets = players.reduce((s, p) => s + p.attempts, 0)
@@ -632,7 +627,10 @@ export async function generateProvincePrelims(input: ProvinceDrawInput): Promise
     seatCount += seats.length
   })
 
-  setEventConfig(input.compId, { groupMode: 'province', qualify })
+  setEventConfig(input.compId, {
+    groupMode: 'province', qualify,
+    publishedGroups: { ...(getEventConfig(input.compId).publishedGroups ?? {}), [gk]: false },
+  })
   return {
     province: dest,
     source: src,
@@ -662,7 +660,9 @@ export async function clearPrelimGroup(compId: string, groupKey: string): Promis
   for (const k of Object.keys(qualify)) if (k.startsWith(gk + '#')) delete qualify[k]
   const bracketSchedule = { ...(cfg.bracketSchedule ?? {}) }
   for (const k of Object.keys(bracketSchedule)) if (k.startsWith(gk + '#')) delete bracketSchedule[k]
-  setEventConfig(compId, { qualify, bracketSchedule })
+  const publishedGroups = { ...(cfg.publishedGroups ?? {}) }
+  delete publishedGroups[gk]
+  setEventConfig(compId, { qualify, bracketSchedule, publishedGroups })
   return { deleted, finalCleared }
 }
 
@@ -684,13 +684,19 @@ export async function generateDirectBracket(
   await clearMatchesForComp(compId)
   const cap = entryCapFor(compId)
   const entries = registrations
-    .map(r => ({ userId: r.userId, count: Math.min(Math.max(1, r.attempts), cap) }))
+    .map(r => {
+      const k = settledAttempts(r)
+      return { userId: r.userId, count: Math.min(Math.max(0, k), cap) }
+    })
     .filter(e => e.count > 0)
   const seats = spreadSeats(entries, seedFrom(compId + 'direct'))
   if (seats.filter(Boolean).length >= 2) {
     buildTree(compId, 'final', '', 0, seats, seedFrom(compId + 'direct-tree'), true)
   }
-  setEventConfig(compId, { bracketMode: 'direct' })
+  setEventConfig(compId, {
+    bracketMode: 'direct',
+    publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false },
+  })
   syncFinalEntries(compId)
   return {
     seats: seats.filter(Boolean).length,
@@ -837,9 +843,7 @@ export function fillRestSlot(matchId: string, side: 1 | 2, userId: string): Matc
   if (!m) throw new Error('SLOT_NOT_FOUND')
   if (bracketState(m.compId, m.groupKey, m.bracket) === 'done') throw new Error('BRACKET_DONE')
   const mode: GroupMode = getEventConfig(m.compId).groupMode ?? 'city'
-  const tehran = m.groupKey === 'province:تهران'
-  if (!tehran && prelimGroupKeyOf(userId, mode) !== m.groupKey) throw new Error('NOT_LEFTOVER')
-  if (seatedUserIdsInGroup(m.compId, m.groupKey).has(userId)) throw new Error('NOT_LEFTOVER')
+  if (!leftoverFillOpen(m.groupKey) && prelimGroupKeyOf(userId, mode) !== m.groupKey) throw new Error('NOT_LEFTOVER')
   if (leftoverTicketsOf(m.compId, userId) < 1) throw new Error('NOT_LEFTOVER')
   const slotUid = side === 1 ? m.p1UserId : m.p2UserId
   if (slotUid && !isRestSlot(slotUid)) throw new Error('NOT_REST')
@@ -944,7 +948,7 @@ export function computeQualifiers(compId: string): Qualifier[] {
 // Recompute Registration.seedsEarned (= live final entries) for every approved
 // account in the comp. Call after any change to the final bracket.
 export function syncFinalEntries(compId: string): void {
-  for (const r of approvedRegistrationsForComp(compId)) {
+  for (const r of drawEligibleRegistrations(compId)) {
     setRegSeeds(r.userId, compId, liveFinalEntries(compId, r.userId))
   }
 }
@@ -1010,8 +1014,53 @@ export function setFinalSeeding(compId: string, orderedUserIds: string[]) {
 
 export function setBracketQualify(compId: string, groupKey: string, bracket: number, count: number) {
   const cfg = getEventConfig(compId)
-  const qualify = { ...cfg.qualify, [qualifyKey(groupKey, bracket)]: Math.max(0, Math.floor(count)) }
+  const qualify = { ...cfg.qualify, [qualifyKey(groupKey, bracket)]: Math.max(0, Math.min(2, Math.floor(count))) }
   setEventConfig(compId, { qualify })
+}
+
+export function publishKeyOf(groupKey: string): string {
+  return groupKey || 'final'
+}
+
+export function isDrawPublished(compId: string, groupKey: string): boolean {
+  const g = getEventConfig(compId).publishedGroups
+  if (!g) return true
+  const key = publishKeyOf(groupKey)
+  if (!Object.prototype.hasOwnProperty.call(g, key)) return true
+  return g[key] === true
+}
+
+export function publishDrawGroup(compId: string, groupKey: string): { notified: number } {
+  const key = publishKeyOf(groupKey)
+  const cfg = getEventConfig(compId)
+  setEventConfig(compId, { publishedGroups: { ...(cfg.publishedGroups ?? {}), [key]: true } })
+  const uids = new Set<string>()
+  for (const m of matchesForComp(compId)) {
+    if (publishKeyOf(m.groupKey) !== key) continue
+    if (isRealPlayer(m.p1UserId)) uids.add(m.p1UserId)
+    if (isRealPlayer(m.p2UserId)) uids.add(m.p2UserId)
+  }
+  for (const uid of uids) {
+    pushNotif(uid, 'draw', 'قرعه‌کشی منتشر شد', 'براکت‌های شهرت چیده شد. مسابقه‌ات رو در صفحهٔ مسابقه ببین.')
+  }
+  return { notified: uids.size }
+}
+
+/** 1-based match number inside its own bracket (round then slot). */
+export function matchNumberMap(ms: { id: string; stage: string; groupKey: string; bracket: number; round: number; slot: number }[]): Map<string, number> {
+  const groups = new Map<string, typeof ms>()
+  for (const m of ms) {
+    const k = `${m.stage}|${m.groupKey}|${m.bracket}`
+    const list = groups.get(k)
+    if (list) list.push(m)
+    else groups.set(k, [m])
+  }
+  const out = new Map<string, number>()
+  for (const list of groups.values()) {
+    list.sort((a, b) => a.round - b.round || a.slot - b.slot)
+    list.forEach((m, i) => out.set(m.id, i + 1))
+  }
+  return out
 }
 
 export function isDrawn(compId: string): boolean {

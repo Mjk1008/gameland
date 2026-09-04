@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
+import { leftoverFillOpen } from '@/lib/bracket-slots'
 
 export type EmptySlot = {
   groupKey: string; groupLabel: string; bracket: number; slot: number
@@ -70,7 +71,7 @@ export default function AddPlayerPanel({ compId: _compId, slots, leftovers }: { 
                 <button type="button" onClick={() => setTarget(null)} style={{ all: 'unset', cursor: 'pointer', color: C.accent, marginInlineStart: 8, fontWeight: 700 }}>تغییر</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {target.groupKey === 'province:تهران' && (
+                {leftoverFillOpen(target.groupKey) && (
                   <input
                     value={q}
                     onChange={e => setQ(e.target.value)}
@@ -79,24 +80,24 @@ export default function AddPlayerPanel({ compId: _compId, slots, leftovers }: { 
                   />
                 )}
                 {leftovers.filter(u => {
-                  const tehran = target.groupKey === 'province:تهران'
-                  if (!tehran && u.groupKey && u.groupKey !== target.groupKey) return false
-                  if (!tehran || !q.trim()) return true
+                  const open = leftoverFillOpen(target.groupKey)
+                  if (!open && u.groupKey && u.groupKey !== target.groupKey) return false
+                  if (!open || !q.trim()) return true
                   const needle = q.trim()
                   const prov = (u.groupKey || '').split(':')[1] || ''
                   return [u.name, u.tag, '@' + u.tag, prov].some(x => String(x).includes(needle))
                 }).map(u => (
                   <button key={u.uid} type="button" disabled={busy} onClick={() => add(u)} style={rowBtn}>
                     <span style={{ flex: 1, fontSize: 12.5, color: C.thi }}>{u.name}</span>
-                    {target.groupKey === 'province:تهران' && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
+                    {leftoverFillOpen(target.groupKey) && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
                     <span dir="ltr" style={{ fontSize: 11, color: C.tmut }}>@{u.tag}</span>
                     <span className="gl-num" style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>×{u.leftover}</span>
                   </button>
                 ))}
                 {leftovers.filter(u => {
-                  const tehran = target.groupKey === 'province:تهران'
-                  if (!tehran && u.groupKey && u.groupKey !== target.groupKey) return false
-                  if (!tehran || !q.trim()) return true
+                  const open = leftoverFillOpen(target.groupKey)
+                  if (!open && u.groupKey && u.groupKey !== target.groupKey) return false
+                  if (!open || !q.trim()) return true
                   const needle = q.trim()
                   const prov = (u.groupKey || '').split(':')[1] || ''
                   return [u.name, u.tag, '@' + u.tag, prov].some(x => String(x).includes(needle))
