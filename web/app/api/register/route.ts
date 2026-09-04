@@ -45,6 +45,17 @@ export async function POST(req: Request) {
   if (promoRaw) {
     try { promo = validatePromoCode(promoRaw, uid, compId) }
     catch (e: any) { return NextResponse.json({ error: promoErrorMessage(e.message) }, { status: 400 }) }
+    // A promo code only ever applies to a fresh purchase, never a top-up —
+    // lockRegistrationUnitPrice() freezes the discounted unit price on the
+    // whole registration row, and regPayableAmount() bills unpaidAttempts()
+    // (old balance + new) at that price, so attaching a code on a top-up
+    // would retroactively discount attempts bought before it. It also lets
+    // one buyer burn a code's maxUses alone across repeated top-ups, since
+    // attachPromoToRegistration only skips useCount on an EXACT repeat of
+    // the same code already on the row.
+    const existing = getRegistration(uid, compId)
+    const isTopUp = !!existing && existing.status !== 'rejected' && existing.attempts > 0
+    if (isTopUp) return NextResponse.json({ error: 'کد تخفیف فقط برای اولین خرید سهم اعمال می‌شه' }, { status: 400 })
   }
 
   // Registration stays open through draw + live. Extra سهم after the trees
