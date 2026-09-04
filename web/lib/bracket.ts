@@ -870,12 +870,17 @@ export function addPlayerToSlot(compId: string, groupKey: string, bracket: numbe
   if (!p1Open && !p2Open) throw new Error('SLOT_FULL')
   const side: 1 | 2 = p1Open ? 1 : 2
   if (leftoverTicketsOf(compId, userId) >= 1) return fillRestSlot(m.id, side, userId)
-  if (p1Open) m.p1UserId = userId
+  const other = side === 1 ? m.p2UserId : m.p1UserId
+  if (other === userId) throw new Error('SELF_MATCH')
+  if (m.status === 'done') unwindAdvance(m)
+  if (side === 1) m.p1UserId = userId
   else m.p2UserId = userId
-  if (isRealPlayer(m.p1UserId) && isRealPlayer(m.p2UserId)) m.status = 'ready'
+  m.cancelled = false
+  m.winnerUserId = undefined
+  m.status = (isRealPlayer(m.p1UserId) && isRealPlayer(m.p2UserId)) ? 'ready' : 'pending'
   saveMatch(m)
   resolveByes(compId, m.stage, groupKey, bracket)
-  return m
+  return getMatch(m.id) ?? m
 }
 
 // ── rank the players of one bracket, best → worst ──
