@@ -1293,11 +1293,16 @@ export function reduceRegistrationAttempts(userId: string, compId: string, newAt
     if (t && t.captainId !== userId) throw new Error('TEAM_PARTNER_LOCKED')
   }
   const n = Math.round(newAttempts)
-  if (!(n >= 1 && n < r.attempts)) throw new Error('BAD_COUNT')
+  // Never let self-service reduction erase already-PAID attempts — there's no
+  // automated refund path, so dropping paidAttempts here would silently lose
+  // the record that money was taken, and raising the count back up later
+  // would bill again for attempts already paid for once. Floor at whatever's
+  // already paid; only the unpaid excess (e.g. an unapproved top-up) can shrink.
+  const floor = Math.max(1, r.paidAttempts ?? 0)
+  if (!(n >= floor && n < r.attempts)) throw new Error('BAD_COUNT')
   r.attempts = n
-  if ((r.paidAttempts ?? 0) > n) r.paidAttempts = n
   if ((r.freeAttempts ?? 0) > n - (r.paidAttempts ?? 0)) r.freeAttempts = Math.max(0, n - (r.paidAttempts ?? 0))
-  persist.reg.update(r.id, { attempts: r.attempts, paidAttempts: r.paidAttempts, freeAttempts: r.freeAttempts } as any)
+  persist.reg.update(r.id, { attempts: r.attempts, freeAttempts: r.freeAttempts } as any)
   bumpNationalRanking(userId)
   if (r.teamId) {
     const t = teams.get(r.teamId)
@@ -1307,8 +1312,14 @@ export function reduceRegistrationAttempts(userId: string, compId: string, newAt
 }
 
 // Full withdrawal. On a team, only the captain can withdraw — it disbands the
-// team and drops both registrations (rows kept flagged 'disbanded' for audit).
-export function cancelRegistration(userId: string, compId: string): void {
+// team and HARD-DELETES both registrations (there's no automated refund path,
+// so there's nothing to keep "for audit" — the row itself is the only record
+// that existed). The receipt row and in-memory receipt flag are cleaned up
+// with it so a فیش never outlives the registration it belongs to. Returns the
+// dropped registration ids so the caller can void any still-pending promoter
+// commission on them (voidPendingEarningsForReg — lives in lib/promoter,
+// called from the API route to avoid a store↔promoter import cycle).
+export function cancelRegistration(userId: string, compId: string): string[] {
   const r = getRegistration(userId, compId)
   if (!r) throw new Error('REG_NOT_FOUND')
   // Seated entries can't be pulled out after the draw. Unseated leftover
@@ -1319,10 +1330,13 @@ export function cancelRegistration(userId: string, compId: string): void {
     )
     if (seated) throw new Error('REG_LOCKED')
   }
+  const dropped: string[] = []
   const drop = (uid: string) => {
     const rr = regs.get(uid + '|' + compId)
     if (!rr) return
     deindexReg(rr); regs.delete(uid + '|' + compId); persist.reg.delete(rr.id)
+    receiptRegIds.delete(rr.id); persist.receipt.delete(rr.id)
+    dropped.push(rr.id)
     bumpNationalRanking(uid)
   }
   if (r.teamId) {
@@ -1332,10 +1346,11 @@ export function cancelRegistration(userId: string, compId: string): void {
       for (const m of currentTeamMembers(t.id)) drop(m.userId)
       t.status = 'disbanded'
       persist.team.update(t.id, { status: 'disbanded' })
-      return
+      return dropped
     }
   }
   drop(userId)
+  return dropped
 }
 
 // ─── Notifications ──────────────────────────────────────────────────────────
