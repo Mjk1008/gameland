@@ -11,15 +11,19 @@ export const ANNOUNCE = [
 ] as const
 
 export function MatchOps({
-  p1, p2, cancelled, status, busy, restricted, onWin, onCancelMatch, onAnnounce, winnerUid,
+  p1, p2, cancelled, status, busy, restricted, canReopen, onWin, onCancelMatch, onReopen, onAnnounce, winnerUid,
 }: {
   p1: OpsPlayer; p2: OpsPlayer; cancelled?: boolean
   status: 'pending' | 'ready' | 'done'
   busy: boolean
   // Scoped 'result_entry' grant — win/correct buttons only, no cancel or announce.
   restricted?: boolean
+  // Super-admin only — reverts a played/cancelled match back to "not played"
+  // so a downstream bye-advance can be undone and the real result re-entered.
+  canReopen?: boolean
   onWin: (uid: string) => void
   onCancelMatch: () => void
+  onReopen?: () => void
   onAnnounce: (kind: typeof ANNOUNCE[number]['id'], who: 'p1' | 'p2' | 'both') => void
   winnerUid?: string
 }) {
@@ -61,6 +65,9 @@ export function MatchOps({
             <button key={k.id} type="button" disabled={busy} onClick={() => onAnnounce(k.id, who)} style={ghostBtn}>{k.label}</button>
           ))}
         </div>
+      )}
+      {(canEdit || canRestore) && canReopen && (
+        <button type="button" disabled={busy} onClick={onReopen} style={ghostBtn}>بازگردانی به حالت انجام‌نشده</button>
       )}
       {cancelled && !canRestore && <span style={badge}>لغو شده</span>}
     </div>

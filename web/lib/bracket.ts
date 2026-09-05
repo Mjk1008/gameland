@@ -804,6 +804,29 @@ export function correctMatchResult(matchId: string, newWinnerUserId: string): Ma
   return m
 }
 
+// ── reopen a finished match back to "not played" (super-admin escape hatch) ──
+// Undoes cancelMatch / setMatchWinner / correctMatchResult / recordCancelledMatchResult:
+// clears the winner and the cancelled flag, and — via unwindAdvance — un-feeds
+// the result from whatever it advanced into. Blocked with NEXT_ROUND_PLAYED if
+// the next-round match is itself already done; that one has to be reopened
+// first, working backward from the latest round played.
+//
+// Deliberately does NOT call resolveByes() afterward: when the other seat is
+// a cancelled-slot placeholder (a match that auto-won past a cancellation),
+// resolveByes would immediately re-collapse this match back to 'done' before
+// the admin gets a chance to record the real result underneath it — exactly
+// the bug this exists to fix (a cancelled match that turns out to be playable
+// after all, once its downstream bye-advance has already gone live).
+export function reopenMatch(matchId: string): Match {
+  const m = getMatch(matchId)
+  if (!m) throw new Error('MATCH_NOT_FOUND')
+  if (m.status !== 'done') throw new Error('MATCH_NOT_DONE')
+  const stage = m.stage, compId = m.compId
+  unwindAdvance(m)
+  if (stage === 'final') syncFinalEntries(compId)
+  return getMatch(matchId) ?? m
+}
+
 // ── re-entry (MD-5b): seat a returning player into later not-started brackets ──
 // Places up to `n` new entries for `userId`, one per not-started bracket in the
 // player's own prelim group (lowest bracket index first — same "early first" as

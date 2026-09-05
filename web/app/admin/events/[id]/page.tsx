@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, isSuperAdmin } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -21,10 +23,14 @@ import EventCoverPanel from './event-cover-panel'
 
 export const dynamic = 'force-dynamic'
 
-export default function AdminEventPage({ params }: { params: { id: string } }) {
+export default async function AdminEventPage({ params }: { params: { id: string } }) {
   const c = getEvent(params.id)
   if (!c) return notFound()
   const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
+
+  const session = await getServerSession(authOptions)
+  const sessionUid = (session as any)?.uid
+  const canReopenMatches = isSuperAdmin(sessionUid ? getUserById(sessionUid) : undefined)
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length
@@ -246,7 +252,7 @@ export default function AdminEventPage({ params }: { params: { id: string } }) {
         teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
       />
 
-      {!isTeamEvent && drawn && <RunPanel matches={runMatches} />}
+      {!isTeamEvent && drawn && <RunPanel matches={runMatches} canReopen={canReopenMatches} />}
       {!isTeamEvent && drawn && <AddPlayerPanel compId={c.id} slots={emptySlots} leftovers={leftoverOpts} />}
 
       <FinalizeControls compId={c.id} mode={isTeamEvent ? 'team' : 'solo'} participants={isTeamEvent ? teamParticipants : soloParticipants} done={alreadyFinalized} />

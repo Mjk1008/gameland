@@ -16,9 +16,9 @@ export type RunMatch = {
   selfMatch: boolean
 }
 
-type Props = { matches: RunMatch[] }
+type Props = { matches: RunMatch[]; canReopen?: boolean }
 
-export default function RunPanel({ matches }: Props) {
+export default function RunPanel({ matches, canReopen }: Props) {
   const router = useRouter()
   const [showDone, setShowDone] = useState(false)
   const [open, setOpen] = useState<RunMatch | null>(null)
@@ -115,6 +115,7 @@ export default function RunPanel({ matches }: Props) {
             <NameRow p={live.p2} win={!live.cancelled && live.winnerUid === live.p2?.uid} onPeek={() => live.p2 && setPeek(live.p2.uid)} />
             <MatchOps
               p1={live.p1} p2={live.p2} cancelled={live.cancelled} status={live.status} busy={busy}
+              canReopen={canReopen}
               onWin={uid => {
                 if (live.status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
                 post({ matchId: live.id, winnerUserId: uid, correct: live.status === 'done' })
@@ -122,6 +123,10 @@ export default function RunPanel({ matches }: Props) {
               onCancelMatch={() => {
                 if (!confirm('این مسابقه لغو می‌شه. مطمئنی؟')) return
                 post({ matchId: live.id, cancel: true })
+              }}
+              onReopen={() => {
+                if (!confirm('این مسابقه به حالت انجام‌نشده برمی‌گرده و نتیجه/لغوش پاک می‌شه. مطمئنی؟')) return
+                post({ matchId: live.id, reopen: true })
               }}
               onAnnounce={announce}
               winnerUid={live.winnerUid}
