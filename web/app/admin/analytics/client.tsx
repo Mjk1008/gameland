@@ -7,7 +7,12 @@ import { toman } from '@/lib/payment'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
 export type RegStatus = 'pending' | 'approved' | 'rejected'
-export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; province: string; status: RegStatus; tickets: number; price: number; at: number }
+// `tickets` = total سهم requested (attempts) — used for ticket-count widgets.
+// `revenue` = actually-settled money for this row (settledAttempts × effective
+// unit price — locked/discounted price, never the raw list price), used for
+// every money figure. The two diverge whenever a سهم is unpaid (top-up
+// awaiting admin approval) or bought with a promo/referral discount.
+export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; province: string; status: RegStatus; tickets: number; price: number; revenue: number; at: number }
 export interface UserRec { at: number; city: string; province: string; disc: Disc | null }
 
 // Status is the only categorical encoding — three reserved status colors, never
@@ -100,9 +105,10 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
   const rejectedTickets = sum(fReg, 'rejected')
   const activeUsers = new Set(fReg.map(r => r.uid)).size
   const compCount = new Set(fReg.map(r => r.compId)).size
-  // Per-event price (ticketPriceFor), never a single global constant — an
-  // event can be priced differently from the platform default.
-  const revenue = fReg.reduce((a, r) => a + (r.status === 'approved' ? r.tickets * r.price : 0), 0)
+  // Real money only: r.revenue is already settledAttempts × effective unit
+  // price (never the raw list price × total attempts — that overcounts
+  // unpaid top-up سهم and ignores promo/referral discounts).
+  const revenue = fReg.reduce((a, r) => a + (r.status === 'approved' ? r.revenue : 0), 0)
 
   // Grouped breakdowns (stacked by status).
   const group = (keyOf: (r: RegRec) => string, dotOf?: (r: RegRec) => string): Bucket[] => {

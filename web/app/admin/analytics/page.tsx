@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
-import { allUsers, allRegistrations, allEvents, getUserById, getEventConfig, referralLeaderboard, isTeamPartnerReg } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, getEventConfig, referralLeaderboard, isTeamPartnerReg, settledAttempts } from '@/lib/store'
 import { disciplineDisplayName, normalizeTeamSize } from '@/lib/discipline-format'
 import { ticketPriceFor } from '@/lib/ticket-price'
+import { unitPriceForReg } from '@/lib/promoter'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
 import { BackHeader } from '@/components/ui'
@@ -25,7 +26,7 @@ function behaviorBusiness(regs: RegRec[], range: ReturnType<typeof parseBehavior
   )
   const pending = f.filter(r => r.status === 'pending').reduce((a, r) => a + r.tickets, 0)
   const approvedTickets = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.tickets, 0)
-  const revenue = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.tickets * r.price, 0)
+  const revenue = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.revenue, 0)
   return { pending, approvedTickets, revenueM: Math.round(revenue / 1_000_000) }
 }
 
@@ -55,6 +56,10 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       status: r.status,
       tickets: r.attempts,
       price: priceForComp(r.compId),
+      // Real settled money: settledAttempts (paid_attempts, not raw attempts —
+      // an approved row can carry an unpaid top-up) × the actual per-ticket
+      // price the buyer paid (locked/discounted, not the event's list price).
+      revenue: settledAttempts(r) * unitPriceForReg(r),
       at: r.createdAt,
     }
   })
