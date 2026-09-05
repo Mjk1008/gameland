@@ -2,8 +2,9 @@
 // No new source of truth: reads app_matches (+ the new match_desk/follows
 // tables via lib/match-desk.ts) and derives everything on each request.
 // See docs/35-live-day-hub-plan.md and docs/36-live-day-hub-design-brief.md.
-import { allEvents, allMatches, matchesForUser, getUserById, hasAvatar, type Match } from './store'
+import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, notifsForUser, type Match } from './store'
 import { getDesk, followingList, type MatchDeskRow } from './match-desk'
+import { queryUserRank } from './ranking-store'
 
 export function liveEventIds(): string[] {
   return allEvents().filter(e => e.status === 'live').map(e => e.id)
@@ -19,10 +20,10 @@ export interface HeroOpponent {
 export type HeroState =
   | { kind: 'none' }
   | { kind: 'waiting'; roundLabel: string }
-  | { kind: 'ready'; step: 1 | 2; matchId: string; roundLabel: string; station?: string; opponent?: HeroOpponent }
-  | { kind: 'playing'; matchId: string; roundLabel: string; station?: string; opponent?: HeroOpponent; score?: string }
-  | { kind: 'advanced'; matchId: string; score?: string }
-  | { kind: 'eliminated'; matchId: string; score?: string; opponent?: HeroOpponent }
+  | { kind: 'ready'; step: 1 | 2; matchId: string; compId: string; roundLabel: string; station?: string; opponent?: HeroOpponent }
+  | { kind: 'playing'; matchId: string; compId: string; roundLabel: string; station?: string; opponent?: HeroOpponent; score?: string }
+  | { kind: 'advanced'; matchId: string; compId: string; score?: string }
+  | { kind: 'eliminated'; matchId: string; compId: string; score?: string; opponent?: HeroOpponent }
 
 function mySide(m: Match, userId: string): 'p1' | 'p2' | undefined {
   if (m.p1UserId === userId) return 'p1'
@@ -69,20 +70,20 @@ export function deriveHeroState(userId: string, liveIds: string[]): HeroState {
     const desk = getDesk(active.id)
     const opponent = side ? opponentOf(active, side) : undefined
     if (deskPlayingReady(desk)) {
-      return { kind: 'playing', matchId: active.id, roundLabel: roundLabel(active, all), station: desk?.station, opponent, score: active.score }
+      return { kind: 'playing', matchId: active.id, compId: active.compId, roundLabel: roundLabel(active, all), station: desk?.station, opponent, score: active.score }
     }
     const meHere = side === 'p1' ? desk?.p1Here : desk?.p2Here
     const step: 1 | 2 = meHere ? 2 : 1
-    return { kind: 'ready', step, matchId: active.id, roundLabel: roundLabel(active, all), station: desk?.station, opponent }
+    return { kind: 'ready', step, matchId: active.id, compId: active.compId, roundLabel: roundLabel(active, all), station: desk?.station, opponent }
   }
 
   const done = mine.filter(m => m.status === 'done')
     .sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt))
   const last = done[0]
   if (last) {
-    if (last.winnerUserId === userId) return { kind: 'advanced', matchId: last.id, score: last.score }
+    if (last.winnerUserId === userId) return { kind: 'advanced', matchId: last.id, compId: last.compId, score: last.score }
     const side = mySide(last, userId)
-    return { kind: 'eliminated', matchId: last.id, score: last.score, opponent: side ? opponentOf(last, side) : undefined }
+    return { kind: 'eliminated', matchId: last.id, compId: last.compId, score: last.score, opponent: side ? opponentOf(last, side) : undefined }
   }
 
   const pending = mine.find(m => m.status === 'pending')
@@ -157,12 +158,81 @@ function followingFor(userId: string, liveIds: string[]): FollowingRow[] {
     .map(u => ({ uid: u.id, name: u.name, tag: u.tag, hasPhoto: hasAvatar(u.id), hero: deriveHeroState(u.id, liveIds) }))
 }
 
+export interface AnnouncementBanner {
+  title: string
+  body: string
+  at: number
+}
+
+const ANNOUNCEMENT_WINDOW_MS = 3 * 3600_000   // an admin announcement is "of today" for 3h
+
+function latestAnnouncement(userId: string): AnnouncementBanner | undefined {
+  const n = notifsForUser(userId).find(x => x.type === 'announcement' && Date.now() - x.createdAt < ANNOUNCEMENT_WINDOW_MS)
+  return n ? { title: n.title, body: n.body, at: n.createdAt } : undefined
+}
+
 export interface TodaySnapshot {
   live: boolean
   hero: HeroState
   feed: FeedItem[]
   provincePulse: ProvincePulse[]
   following: FollowingRow[]
+  announcement?: AnnouncementBanner
+}
+
+export interface MatchDetailPlayer {
+  uid: string
+  name: string
+  tag: string
+  hasPhoto: boolean
+  rank: number | null
+}
+
+export interface MatchDetail {
+  matchId: string
+  compId: string
+  disc: string
+  roundLabel: string
+  station?: string
+  venueAddress?: string
+  mySide?: 'p1' | 'p2'
+  p1?: MatchDetailPlayer
+  p2?: MatchDetailPlayer
+  desk: { p1Here: boolean; p2Here: boolean; p1Ready: boolean; p2Ready: boolean; refRequestedAt?: number; refHandledAt?: number }
+}
+
+export const VENUE_ADDRESS_SETTING_KEY = 'TODAY_HUB_VENUE_ADDRESS'
+
+async function playerBrief(uid?: string): Promise<MatchDetailPlayer | undefined> {
+  if (!uid) return undefined
+  const u = getUserById(uid)
+  if (!u) return undefined
+  let rank: number | null = null
+  try { rank = (await queryUserRank(uid)).rank } catch { /* ranking unavailable — show without it */ }
+  return { uid: u.id, name: u.name, tag: u.tag, hasPhoto: hasAvatar(u.id), rank }
+}
+
+// Match-detail sheet data — any Today-hub user may view any live match's
+// public face-to-face info (spectating a followee's match), not just its
+// two participants; mySide is only set when the viewer is one of them.
+export async function matchDetailFor(userId: string, matchId: string): Promise<MatchDetail | null> {
+  const liveIds = liveEventIds()
+  const m = allMatches().find(x => x.id === matchId && liveIds.includes(x.compId) && !x.cancelled)
+  if (!m) return null
+  const event = getEvent(m.compId)
+  const desk = getDesk(matchId)
+  const [p1, p2] = await Promise.all([playerBrief(m.p1UserId), playerBrief(m.p2UserId)])
+  return {
+    matchId: m.id, compId: m.compId, disc: event?.disc ?? '',
+    roundLabel: roundLabel(m, allMatches()), station: desk?.station,
+    venueAddress: getSetting(VENUE_ADDRESS_SETTING_KEY) || undefined,
+    mySide: mySide(m, userId), p1, p2,
+    desk: {
+      p1Here: desk?.p1Here ?? false, p2Here: desk?.p2Here ?? false,
+      p1Ready: desk?.p1Ready ?? false, p2Ready: desk?.p2Ready ?? false,
+      refRequestedAt: desk?.refRequestedAt, refHandledAt: desk?.refHandledAt,
+    },
+  }
 }
 
 export function buildTodaySnapshot(userId: string): TodaySnapshot {
@@ -173,5 +243,6 @@ export function buildTodaySnapshot(userId: string): TodaySnapshot {
     feed: feedFor(liveIds),
     provincePulse: provincePulseFor(liveIds),
     following: followingFor(userId, liveIds),
+    announcement: latestAnnouncement(userId),
   }
 }
