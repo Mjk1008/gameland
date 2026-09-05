@@ -13,10 +13,18 @@ export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}))
   const title = (b.title ?? '').toString().trim()
   const body  = (b.body  ?? '').toString().trim()
-  const audience = b.audience ?? 'all' // 'all' | 'gamers'
+  // 'all' | 'gamers' | 'province:<name>' | 'disc:<id>' — the province/disc
+  // forms back the Live Day Hub admin ops board's group-announce form.
+  const audience = (b.audience ?? 'all').toString()
   if (!title || !body) return NextResponse.json({ error: 'عنوان و متن الزامی' }, { status: 400 })
 
-  const targets = allUsers().filter(u => audience === 'all' || u.role === 'gamer')
+  const targets = allUsers().filter(u => {
+    if (audience === 'all') return true
+    if (audience === 'gamers') return u.role === 'gamer'
+    if (audience.startsWith('province:')) return u.province === audience.slice('province:'.length)
+    if (audience.startsWith('disc:')) { const d = audience.slice('disc:'.length); return u.primaryDisc === d || !!u.discs?.includes(d as any) }
+    return false
+  })
   for (const u of targets) pushNotif(u.id, 'announcement', title, body)
   return NextResponse.json({ ok: true, sent: targets.length })
 }

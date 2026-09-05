@@ -3,7 +3,7 @@
 // tables via lib/match-desk.ts) and derives everything on each request.
 // See docs/35-live-day-hub-plan.md and docs/36-live-day-hub-design-brief.md.
 import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, notifsForUser, type Match } from './store'
-import { getDesk, followingList, type MatchDeskRow } from './match-desk'
+import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS, type MatchDeskRow } from './match-desk'
 import { queryUserRank } from './ranking-store'
 
 export function liveEventIds(): string[] {
@@ -245,4 +245,84 @@ export function buildTodaySnapshot(userId: string): TodaySnapshot {
     following: followingFor(userId, liveIds),
     announcement: latestAnnouncement(userId),
   }
+}
+
+// ─── Admin ops board («تختهٔ روز») ──────────────────────────────────────────
+
+export interface QueueRow {
+  matchId: string
+  p1Name: string
+  p2Name: string
+  station?: string
+  sinceMs: number         // how long this match has been in its current bucket
+  refRequestedAt?: number
+}
+
+export type QueueBucket = 'waiting' | 'playing' | 'late' | 'absent' | 'ref'
+
+export interface StationCard {
+  station: string
+  status: 'playing' | 'late'
+  current?: string   // "p1 — p2"
+  next?: string
+}
+
+export interface AdminTodaySnapshot {
+  stations: StationCard[]
+  queue: Record<QueueBucket, QueueRow[]>
+  counts: Record<QueueBucket, number>
+}
+
+function nameOf(uid?: string): string {
+  if (!uid) return '؟'
+  return getUserById(uid)?.name ?? '؟'
+}
+
+export function buildAdminToday(): AdminTodaySnapshot {
+  const liveIds = liveEventIds()
+  const active = allMatches().filter(m => liveIds.includes(m.compId) && m.status === 'ready' && !m.cancelled)
+  const now = Date.now()
+
+  const queue: Record<QueueBucket, QueueRow[]> = { waiting: [], playing: [], late: [], absent: [], ref: [] }
+
+  for (const m of active) {
+    const desk = getDesk(m.id)
+    const row: QueueRow = {
+      matchId: m.id, p1Name: nameOf(m.p1UserId), p2Name: nameOf(m.p2UserId),
+      station: desk?.station, sinceMs: now - (desk?.calledAt ?? m.createdAt),
+    }
+    if (desk?.refRequestedAt && !desk.refHandledAt) {
+      queue.ref.push({ ...row, refRequestedAt: desk.refRequestedAt })
+    }
+    if (!desk?.station) {
+      queue.waiting.push(row)
+    } else {
+      const waited = now - (desk.calledAt ?? now)
+      if (desk.p1Ready && desk.p2Ready) queue.playing.push(row)
+      else if (waited >= ABSENT_MS) queue.absent.push(row)
+      else if (waited >= LATE_MS) queue.late.push(row)
+      else queue.playing.push(row)
+    }
+  }
+  for (const b of Object.keys(queue) as QueueBucket[]) queue[b].sort((a, c) => a.sinceMs - c.sinceMs).reverse()
+
+  const stations: StationCard[] = allDesks()
+    .filter(d => d.station && active.some(m => m.id === d.matchId))
+    .map(d => {
+      const m = active.find(x => x.id === d.matchId)!
+      const waited = now - (d.calledAt ?? now)
+      return {
+        station: d.station!,
+        status: (waited >= LATE_MS && !(d.p1Ready && d.p2Ready)) ? 'late' : 'playing',
+        current: `${nameOf(m.p1UserId)} — ${nameOf(m.p2UserId)}`,
+      } as StationCard
+    })
+    .sort((a, b) => a.station.localeCompare(b.station))
+
+  const counts: Record<QueueBucket, number> = {
+    waiting: queue.waiting.length, playing: queue.playing.length,
+    late: queue.late.length, absent: queue.absent.length, ref: queue.ref.length,
+  }
+
+  return { stations, queue, counts }
 }

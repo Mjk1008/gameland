@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/promoters', label: 'پروموتر', badge: codeReqPending },
     { href: '/admin/gamers', label: 'گیمرها' },
     { href: '/admin/notify', label: 'اعلان' },
+    { href: '/admin/today', label: 'روزِ زنده' },
   ]
 
   return (
