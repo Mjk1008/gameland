@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, registrationsForUser, activePromos, activeNews, allCompetitions, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, allEvents, allUsers, type Event } from '@/lib/store'
+import { getUserById, registrationsForUser, activePromos, newsForPlacement, allCompetitions, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, allEvents, allUsers, type Event } from '@/lib/store'
 import { queryTopGamers, queryUserRank, queryGamerCount, queryLeaderboard } from '@/lib/ranking-store'
 import { playerCard } from '@/lib/player-cards'
 import { hasAvatar } from '@/lib/store'
@@ -77,8 +77,9 @@ export default async function HomePage() {
     .sort((a, b) => (a.regDeadline ?? 0) - (b.regDeadline ?? 0))[0]
   const deadlineDays = nextDeadline ? Math.max(1, Math.ceil(((nextDeadline.regDeadline ?? 0) - Date.now()) / 86400000)) : null
 
-  // news slides — covers served via /api/news-image (same anti-bloat rule as promos)
-  const newsSlides = activeNews().slice(0, 5).map(n => ({
+  // news slides — covers served via /api/news-image (same anti-bloat rule as
+  // promos). Excludes items placed only on /today (Live Day Hub's news rail).
+  const newsSlides = newsForPlacement('home').slice(0, 5).map(n => ({
     id: n.id, title: n.title, body: n.body, tags: n.tags, at: n.createdAt,
     cover: n.imageData.startsWith('data:') ? `/api/news-image/${n.id}` : n.imageData,
   }))

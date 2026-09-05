@@ -143,6 +143,8 @@ function ensureHydrated() {
     loadPromoterCode: (c: unknown) => { require('./promoter').hydratePromoterCode(c as any) },
     loadPromoterEarning: (e: unknown) => { require('./promoter').hydratePromoterEarning(e as any) },
     loadPromoterCodeRequest: (r: unknown) => { require('./promoter').hydratePromoterCodeRequest(r as any) },
+    loadMatchDesk: (row: unknown) => { require('./match-desk').hydrateMatchDesk(row as any) },
+    loadFollow:    (f: unknown) => { require('./match-desk').hydrateFollow(f as any) },
   }).then(() => {
     reconcileDefaultPromos()
     reconcileTeams()
@@ -1710,6 +1712,8 @@ export function deletePromo(id: string): void {
 }
 
 // ─── News (home news slider + detail modal, admin-managed) ──────────────────
+export type NewsPlacement = 'home' | 'today' | 'both'
+
 export interface NewsRow {
   id: string
   imageData: string     // cover — data: URL (base64) or external URL
@@ -1719,6 +1723,10 @@ export interface NewsRow {
   sort: number
   active: boolean
   createdAt: number
+  // Live Day Hub — where this item is shown. 'home' (default) is the existing
+  // home-page NewsSlider; 'today'/'both' also (or only) show it on /today's
+  // news rail. Reuses the same admin/news upload flow for both placements.
+  placement: NewsPlacement
 }
 const newsRows = new Map<string, NewsRow>()
 
@@ -1726,13 +1734,17 @@ export function allNews(): NewsRow[] {
   return Array.from(newsRows.values()).sort((a, b) => a.sort - b.sort || b.createdAt - a.createdAt)
 }
 export function activeNews(): NewsRow[] { return allNews().filter(n => n.active) }
+export function newsForPlacement(place: 'home' | 'today'): NewsRow[] {
+  return activeNews().filter(n => n.placement === place || n.placement === 'both')
+}
 export function getNews(id: string): NewsRow | undefined { return newsRows.get(id) }
-export function createNews(input: { imageData: string; title: string; body: string; tags?: string[]; sort?: number; active?: boolean }): NewsRow {
+export function createNews(input: { imageData: string; title: string; body: string; tags?: string[]; sort?: number; active?: boolean; placement?: NewsPlacement }): NewsRow {
   const id = 'news_' + Math.random().toString(36).slice(2, 10)
   const n: NewsRow = {
     id, imageData: input.imageData, title: input.title.trim(), body: input.body.trim(),
     tags: (input.tags ?? []).map(t => t.trim()).filter(Boolean).slice(0, 6),
     sort: input.sort ?? allNews().length, active: input.active ?? true, createdAt: Date.now(),
+    placement: input.placement ?? 'home',
   }
   newsRows.set(id, n)
   persist.news?.insert(n)
@@ -1746,6 +1758,7 @@ export function updateNews(id: string, patch: Partial<Omit<NewsRow, 'id' | 'crea
   if (patch.tags !== undefined) n.tags = patch.tags.map(t => t.trim()).filter(Boolean).slice(0, 6)
   if (patch.sort !== undefined) n.sort = patch.sort
   if (patch.active !== undefined) n.active = patch.active
+  if (patch.placement !== undefined) n.placement = patch.placement
   persist.news?.insert(n)   // upsert
   return n
 }
@@ -1842,6 +1855,9 @@ export interface Match {
   status: 'pending' | 'ready' | 'done'
   cancelled?: boolean
   createdAt: number
+  // Live Day Hub — stamped once, the first time status becomes 'done'
+  // (see saveMatch/pushMatch below). Drives the /today live feed ordering.
+  completedAt?: number
 }
 
 // Per-event tournament config: grouping mode, per-bracket qualify counts, and
@@ -1943,12 +1959,21 @@ export async function clearMatchesForGroup(compId: string, stage: 'prelim' | 'fi
   await persist.match.clearByGroup?.(compId, stage, groupKey)
 }
 
+// Live Day Hub — stamp completion time exactly once, the first time a match
+// is saved with status 'done'. This is the sole hook point for the /today
+// live feed; it never reads or changes any bracket/draw logic.
+function stampCompletedAt(m: Match) {
+  if (m.status === 'done' && !m.completedAt) m.completedAt = Date.now()
+}
+
 export function pushMatch(m: Match) {
+  stampCompletedAt(m)
   matches.push(m)
   persist.match.insert(m)
 }
 
 export function saveMatch(m: Match) {
+  stampCompletedAt(m)
   persist.match.insert(m)
 }
 

@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allNews, createNews, updateNews, deleteNews } from '@/lib/store'
+import { allNews, createNews, updateNews, deleteNews, type NewsPlacement } from '@/lib/store'
 
 const MAX_IMG = 3_000_000   // ~2.2MB decoded — covers are compressed client-side
+const PLACEMENTS: NewsPlacement[] = ['home', 'today', 'both']
 
 function guard(session: any) {
   const role = session?.role
   return role === 'admin' || role === 'organizer'
+}
+
+function parsePlacement(v: unknown): NewsPlacement | undefined {
+  return PLACEMENTS.includes(v as NewsPlacement) ? (v as NewsPlacement) : undefined
 }
 
 export async function GET() {
@@ -43,6 +48,11 @@ export async function POST(req: Request) {
       if (b.tags !== undefined) patch.tags = tags
       if (b.active !== undefined) patch.active = !!b.active
       if (b.sort !== undefined) patch.sort = Number(b.sort) || 0
+      if (b.placement !== undefined) {
+        const placement = parsePlacement(b.placement)
+        if (!placement) return NextResponse.json({ error: 'محلِ نمایش نامعتبره' }, { status: 400 })
+        patch.placement = placement
+      }
       if (imageData) {
         if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageData)) return NextResponse.json({ error: 'عکس معتبر نیست' }, { status: 400 })
         if (imageData.length > MAX_IMG) return NextResponse.json({ error: 'حجم عکس زیاده' }, { status: 413 })
@@ -55,7 +65,8 @@ export async function POST(req: Request) {
     if (!title) return NextResponse.json({ error: 'تیتر خبر رو بنویس' }, { status: 400 })
     if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageData)) return NextResponse.json({ error: 'کاور خبر رو آپلود کن' }, { status: 400 })
     if (imageData.length > MAX_IMG) return NextResponse.json({ error: 'حجم عکس زیاده — سبک‌ترش کن' }, { status: 413 })
-    const n = createNews({ imageData, title, body, tags })
+    const placement = parsePlacement(b.placement) ?? 'home'
+    const n = createNews({ imageData, title, body, tags, placement })
     return NextResponse.json({ ok: true, news: n })
   } catch (e: any) {
     return NextResponse.json({ error: e.message === 'NEWS_NOT_FOUND' ? 'خبر پیدا نشد' : 'انجام نشد' }, { status: 400 })
