@@ -72,9 +72,12 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   const [myPathOnly, setMyPathOnly] = useState(false)
   const [sel, setSel] = useState<MatchDTO | null>(null)
   const [restSide, setRestSide] = useState<1 | 2 | null>(null)
+  // Round tab lives here, not inside RoundsView, so search can jump it to the
+  // round holding a hit and so it can be restored after a remount (below).
+  const [roundSel, setRoundSel] = useState<number | null>(null)
   // Admin-only: search players/tags or a match number within the currently
-  // selected scope+bracket — bypasses round tabs, since a name or number
-  // could sit in any round.
+  // selected scope+bracket. It LOCATES inside whichever view is open (like
+  // ctrl+F) — it must never swap the admin into a different view.
   const [query, setQuery] = useState('')
 
   function openMatch(m: MatchDTO, side?: 1 | 2) {
@@ -85,19 +88,28 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
   const rounds = useMemo(() => Array.from(new Set(bMatches.map(m => m.round))).sort((a, b) => a - b), [bMatches])
 
-  const searching = isAdmin && query.trim() !== ''
-  const searchResults = useMemo(() => {
-    if (!searching) return []
+  // The radial view has no per-match card to mark and its own pan/zoom model,
+  // so the field isn't offered there rather than sitting dead.
+  const canSearch = !!isAdmin && mode !== 'radial'
+  const searching = canSearch && query.trim() !== ''
+  // Hits are ids, not a replacement list: every view keeps rendering, and each
+  // one marks/jumps to these itself.
+  const hits = useMemo(() => {
+    if (!searching) return null
     const q = query.trim().toLowerCase()
     const qDigits = q.replace(/[^\d]/g, '')
-    return bMatches
-      .filter(m => {
-        const numHit = qDigits !== '' && m.n != null && String(m.n).includes(qDigits)
-        const hay = [m.p1?.name, m.p1?.tag, m.p2?.name, m.p2?.tag].filter(Boolean).join(' ').toLowerCase()
-        return numHit || hay.includes(q)
-      })
-      .sort((a, b) => a.round - b.round || a.slot - b.slot)
+    const ids = new Set<string>()
+    for (const m of bMatches) {
+      const numHit = qDigits !== '' && m.n != null && String(m.n).includes(qDigits)
+      const hay = [m.p1?.name, m.p1?.tag, m.p2?.name, m.p2?.tag].filter(Boolean).join(' ').toLowerCase()
+      if (numHit || hay.includes(q)) ids.add(m.id)
+    }
+    return ids
   }, [searching, query, bMatches])
+  const firstHit = useMemo(() => {
+    if (!hits || hits.size === 0) return null
+    return bMatches.filter(m => hits.has(m.id)).sort((a, b) => a.round - b.round || a.slot - b.slot)[0] ?? null
+  }, [hits, bMatches])
   const maxRound = rounds[rounds.length - 1] ?? 1
   const r1count = bMatches.filter(m => m.round === (rounds[0] ?? 1)).length
   const totalPlayers = r1count * 2
@@ -113,14 +125,57 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   const winPath = useMemo(() => computeWinPath(bMatches, rounds), [bMatches, rounds])
 
   const seatsInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
+  const round = roundSel != null && rounds.includes(roundSel) ? roundSel : (rounds[0] ?? 1)
+
+  // Searching in the rounds view moves the round tab to the first round that
+  // holds a hit — but only when the round already open has none, so stepping
+  // through tabs by hand isn't fought.
+  useEffect(() => {
+    if (mode !== 'rounds' || !hits || !firstHit) return
+    if (bMatches.some(m => m.round === round && hits.has(m.id))) return
+    setRoundSel(firstHit.round)
+  }, [mode, hits, firstHit, bMatches, round])
+
+  // ── keep the admin's place across a router.refresh() ──
+  // Next 14's App Router remounts the client subtree on the FIRST
+  // router.refresh() after a page load (verified against a production build
+  // with a bare useState counter), which is exactly what MatchSheet fires
+  // after a result is recorded. Everything below — scope, bracket, view mode,
+  // round tab, search — is useState, so that first record threw the admin back
+  // to the default scope/round and cleared their search. Mirroring it into
+  // sessionStorage survives the remount. Result-entry surfaces only; a player's
+  // bracket keeps its "jump to my own match" defaults untouched.
+  const stateKey = (isAdmin || canRecord) ? `gl:bracket:${compId}` : null
+  const [restored, setRestored] = useState(!stateKey)
+  useEffect(() => {
+    if (!stateKey) return
+    try {
+      const raw = sessionStorage.getItem(stateKey)
+      const v = raw ? JSON.parse(raw) : null
+      if (v && typeof v === 'object') {
+        if (typeof v.scopeKey === 'string') setScopeKey(v.scopeKey)
+        if (typeof v.bracket === 'number') setBracket(v.bracket)
+        if (v.mode === 'rounds' || v.mode === 'tree' || v.mode === 'radial') setMode(v.mode)
+        if (typeof v.round === 'number') setRoundSel(v.round)
+        if (typeof v.query === 'string') setQuery(v.query)
+      }
+    } catch {}
+    setRestored(true)
+  }, [stateKey])
+  useEffect(() => {
+    if (!stateKey || !restored) return
+    try {
+      sessionStorage.setItem(stateKey, JSON.stringify({ scopeKey, bracket: bracket_, mode, round: roundSel, query }))
+    } catch {}
+  }, [stateKey, restored, scopeKey, bracket_, mode, roundSel, query])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {meUid && myBracket === bracket_ && <MyStatusCard bMatches={bMatches} rounds={rounds} meUid={meUid} totalPlayers={totalPlayers} onOpen={openMatch} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {isAdmin && (
-          <div style={{ position: 'relative' }}>
+        {canSearch && (
+          <div className="gl-bk-search" style={{ position: 'relative' }}>
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -128,11 +183,14 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
               style={searchInput}
             />
             {query !== '' && (
-              <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن جستجو" style={searchClear}>×</button>
+              <>
+                <span className="gl-num" style={{ ...searchCount, color: hits && hits.size ? C.info : C.live }}>{hits ? hits.size : 0}</span>
+                <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن جستجو" style={searchClear}>×</button>
+              </>
             )}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="gl-bk-modes" style={{ display: 'flex', gap: 6 }}>
           {(['rounds', 'tree', 'radial'] as const).map(v => (
             <button key={v} onClick={() => setMode(v)} style={segBtn(mode === v)}>
               {v === 'rounds' ? 'مرحله‌ای' : v === 'tree' ? 'درختی' : 'دایره‌ای'}
@@ -181,21 +239,13 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
         })()}
       </div>
 
-      {searching
-        ? (searchResults.length === 0
-            ? <Empty text="چیزی پیدا نشد" />
-            : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {searchResults.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} onOpen={openMatch} restPick={isAdmin} />)}
-              </div>
-            ))
-        : mode === 'rounds'
-        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={openMatch} restPick={isAdmin} />
+      {mode === 'rounds'
+        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={openMatch} restPick={isAdmin} round={round} onRound={setRoundSel} hits={hits} focusId={firstHit?.id} />
         : mode === 'tree'
-        ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={openMatch} restPick={isAdmin} />
+        ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={openMatch} restPick={isAdmin} hits={hits} focusId={firstHit?.id} />
         : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
 
-      {(mode !== 'radial' || searching) && (
+      {mode !== 'radial' && (
         <MatchSheet
           match={sel}
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
@@ -290,14 +340,21 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
 }
 
 // ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ─────────
-function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, onOpen, restPick }: {
+function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, onOpen, restPick, round, onRound, hits, focusId }: {
   bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number
   meUid?: string; myPathOnly: boolean; myPath: Set<string>; onOpen: (m: MatchDTO, side?: 1 | 2) => void
   restPick?: boolean
+  round: number; onRound: (r: number) => void
+  hits?: Set<string> | null; focusId?: string
 }) {
-  const [sel, setSel] = useState<number>(rounds[0] ?? 1)
-  useEffect(() => { if (!rounds.includes(sel)) setSel(rounds[0] ?? 1) }, [rounds, sel])
+  const sel = round
   const playersInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
+  // bring the first hit into view once the tab holding it is open
+  const focusRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focusId) return
+    focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [focusId, sel])
 
   // "مسیر من" → a vertical timeline of only my matches, in order
   if (myPathOnly && meUid) {
@@ -341,16 +398,21 @@ function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath,
     <div>
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
         {rounds.map(r => (
-          <button key={r} onClick={() => setSel(r)} style={{ ...chip(r === sel), whiteSpace: 'nowrap' }}>
+          <button key={r} onClick={() => onRound(r)} style={{ ...chip(r === sel), whiteSpace: 'nowrap' }}>
             {roundLabel(playersInRound(r))}
+            {hits && bMatches.some(m => m.round === r && hits.has(m.id)) && <span style={hitDot} />}
           </button>
         ))}
       </div>
       {list.length === 0
         ? <Empty text="هنوز بازی‌ای اینجا نیست" />
         : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {list.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} onOpen={onOpen} restPick={restPick} />)}
+          <div className="gl-bk-cards">
+            {list.map(m => (
+              <div key={m.id} ref={m.id === focusId ? focusRef : undefined}>
+                <MatchCardRow m={m} meUid={meUid} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} />
+              </div>
+            ))}
           </div>
         )}
     </div>
@@ -361,13 +423,13 @@ function Empty({ text }: { text: string }) {
   return <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '20px 0' }}>{text}</div>
 }
 
-function MatchCardRow({ m, meUid, onOpen, restPick }: { m: MatchDTO; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean }) {
+function MatchCardRow({ m, meUid, onOpen, restPick, hit }: { m: MatchDTO; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean }) {
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
   const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
   const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
 
   return (
-    <div style={{ background: C.sf1, border: `1px solid ${mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: mine ? `0 0 0 1px ${C.accent}55` : 'none' }}>
+    <div style={{ background: C.sf1, border: `1px solid ${hit ? C.info : mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: hit ? `0 0 0 2px ${C.info}55` : mine ? `0 0 0 1px ${C.accent}55` : 'none' }}>
       <div onClick={() => onOpen(m)} style={{ cursor: 'pointer' }}>
         <PlayerLine p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} onRest={restPick && m.p1?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 1) } : undefined} />
         <div style={{ height: 1, background: C.line }} />
@@ -409,9 +471,10 @@ function StatusPill({ status }: { status: MatchDTO['status'] | 'cancelled' }) {
 }
 
 // ─────────────────────────── TREE VIEW (native scroll, button zoom) ───────────
-function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick }: {
+function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick, hits, focusId }: {
   bMatches: MatchDTO[]; rounds: number[]; meUid?: string; winPath: Set<string>; onOpen: (m: MatchDTO, side?: 1 | 2) => void
   restPick?: boolean
+  hits?: Set<string> | null; focusId?: string
 }) {
   const firstRound = rounds[0] ?? 1
   const totalPlayers = bMatches.filter(m => m.round === firstRound).length * 2
@@ -468,6 +531,23 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick }: {
     el.scrollTo({ left: p.x * scale - el.clientWidth / 2 + CARD_W / 2, top: p.y * scale - el.clientHeight / 2, behavior: 'smooth' })
   }
 
+  // Search stays inside the tree: centre the first hit instead of swapping the
+  // admin out to the flat list. scale is read through a ref so zooming later
+  // doesn't yank the view back onto the hit.
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+  useEffect(() => {
+    const el = scrollRef.current
+    const p = focusId ? pos[focusId] : null
+    if (!el || !p) return
+    const k = scaleRef.current
+    el.scrollTo({
+      left: Math.max(0, p.x * k - el.clientWidth / 2 + CARD_W / 2),
+      top: Math.max(0, p.y * k - el.clientHeight / 2),
+      behavior: 'smooth',
+    })
+  }, [focusId, pos])
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
@@ -478,8 +558,9 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick }: {
       </div>
       <div
         ref={scrollRef}
+        className="gl-bk-canvas"
         style={{
-          width: '100%', height: 'min(72vh, 560px)', overflow: 'auto',
+          width: '100%', overflow: 'auto',
           background: C.ink, border: `1px solid ${C.line}`, borderRadius: 14,
           WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',
           // the RTL page would otherwise open this scroller pinned to the far
@@ -491,7 +572,7 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick }: {
           <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0', position: 'relative' }}>
             <RoundHeaders rounds={rounds} playersInRound={playersInRound} />
             <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} winPath={winPath} />
-            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} restPick={restPick} />
+            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} restPick={restPick} hits={hits} />
           </div>
         </div>
       </div>
@@ -557,7 +638,7 @@ const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, ca
   )
 })
 
-const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean }) {
+const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick, hits }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hits?: Set<string> | null }) {
   return (
     <>
       {bMatches.map(m => {
@@ -565,7 +646,7 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick }: { 
         const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
         return (
           <div key={m.id} style={{ position: 'absolute', left: p.x, top: p.y - CARD_H / 2, width: CARD_W }}>
-            <TreeCard m={m} meUid={meUid} mine={mine} onOpen={onOpen} restPick={restPick} />
+            <TreeCard m={m} meUid={meUid} mine={mine} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} />
           </div>
         )
       })}
@@ -573,13 +654,13 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick }: { 
   )
 })
 
-const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen, restPick }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean }) {
+const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen, restPick, hit }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean }) {
   const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
   const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
   return (
     <div
       onClick={() => onOpen(m)}
-      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
+      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${hit ? C.info : m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: hit ? `0 0 0 2px ${C.info}66, 0 0 12px ${C.info}55` : mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
     >
       {m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.live, background: C.liveSoft, textAlign: 'center', padding: '2px 0' }}>لغو شده</div>}
       {m.n != null && !m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.tmut, textAlign: 'center', padding: '2px 0' }}>بازی {m.n}</div>}
@@ -616,10 +697,18 @@ const zoomBtn: React.CSSProperties = {
 }
 const searchInput: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', fontSize: 13, fontWeight: 600, color: C.thi,
-  background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 34px 10px 12px', outline: 'none',
+  background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, outline: 'none',
+  paddingBlock: 10, paddingInlineStart: 34, paddingInlineEnd: 34,
 }
 const searchClear: React.CSSProperties = {
   all: 'unset', cursor: 'pointer', position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)',
   width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
   color: C.tmut, fontSize: 16, lineHeight: 1,
+}
+const searchCount: React.CSSProperties = {
+  position: 'absolute', insetInlineEnd: 11, top: '50%', transform: 'translateY(-50%)',
+  fontSize: 11.5, fontWeight: 800, pointerEvents: 'none',
+}
+const hitDot: React.CSSProperties = {
+  display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: C.info, marginInlineStart: 5, verticalAlign: 'middle',
 }

@@ -107,16 +107,21 @@ export default function MatchSheet({
     <>
     <div
       onClick={onClose}
+      // Admin only: on a ≥900px screen this becomes a centred dialog instead of
+      // a full-width sheet glued to the bottom of a 1920px monitor. Mobile (any
+      // role) and every non-admin keep the bottom sheet exactly as-is.
+      className={isAdmin ? 'gl-bk-sheet gl-bk-sheet-wide' : 'gl-bk-sheet'}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end',
+        position: 'fixed', inset: 0, zIndex: 1000, display: 'flex',
         background: 'rgba(8,6,4,.62)', backdropFilter: 'blur(2px)', animation: 'glbs-fade .16s ease-out',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="gl-bk-panel"
         style={{
-          width: '100%', background: C.sf1, borderTop: `1px solid ${C.line2}`,
-          borderRadius: '18px 18px 0 0', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))',
+          width: '100%', background: C.sf1,
+          padding: '10px 16px calc(20px + env(safe-area-inset-bottom))',
           animation: 'glbs-up .2s cubic-bezier(.16,1,.3,1)', maxHeight: '82vh', overflowY: 'auto',
         }}
       >

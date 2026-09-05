@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, playerName, hasPermission } from '@/lib/store'
+import { getEvent, matchesForComp, getUserById, getEventConfig, getTeam, currentTeamMembers, teamForUser, playerName, hasPermission, whenReady } from '@/lib/store'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { leftoverPlayers, matchNumberMap, isDrawPublished } from '@/lib/bracket'
 import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
@@ -12,6 +12,11 @@ import BracketView, { type MatchDTO, type Player } from './BracketView'
 export const dynamic = 'force-dynamic'
 
 export default async function BracketPage({ params }: { params: { id: string } }) {
+  // Same hydration race as the admin shell: a request that arrives before
+  // startHydration() finishes would find no event and answer 404 for a page
+  // that plainly exists. router.refresh() after recording a result is a fresh
+  // request, so it can land in that window.
+  await whenReady()
   const c = getEvent(params.id)
   if (!c) return notFound()
 

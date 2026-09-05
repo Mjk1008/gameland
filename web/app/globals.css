@@ -79,7 +79,46 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
    .gl-wide-admin-inner. */
 @media (min-width: 900px) {
   .gl-wide-admin { width: 100vw; margin: 0 calc(50% - 50vw); }
-  .gl-wide-admin-inner { max-width: 1240px; margin: 0 auto; }
+  /* 16px of breathing room at 900–1272px, where 1240 + gutters exceeds the
+     viewport and the content would otherwise touch both screen edges. */
+  .gl-wide-admin-inner { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+}
+
+/* Bracket / result-entry page. The base rules are the mobile look, byte for
+   byte what the inline styles used to say; only the .gl-wide-admin block below
+   changes anything, and only for an admin on a ≥900px screen. */
+.gl-bk-cards { display: flex; flex-direction: column; gap: 8px; }
+.gl-bk-canvas { height: min(72vh, 560px); }
+@media (min-width: 900px) {
+  /* A full-width search field or mode switch at 1240px is a control stretched
+     over a metre of nothing — cap them at a hand-sized width instead. */
+  .gl-wide-admin .gl-bk-search,
+  .gl-wide-admin .gl-bk-modes { max-width: 420px; }
+  /* The real win from the extra width: match cards tile instead of stacking in
+     a single 1240px-wide column with the name pinned to one edge and the score
+     to the other. */
+  .gl-wide-admin .gl-bk-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    align-content: start;
+  }
+  /* «بزرگ و کامل» — a 16-player tree is ~658px tall, so the 560px cap cut it
+     off on every desktop. Give it the room a big screen actually has. */
+  .gl-wide-admin .gl-bk-canvas { height: min(78vh, 760px); }
+}
+
+/* Match sheet. Base = the bottom sheet everyone has always had; it is portalled
+   to <body>, so it can't be reached by a .gl-wide-admin descendant selector and
+   carries its own admin-only class instead. */
+.gl-bk-sheet { align-items: flex-end; }
+.gl-bk-panel { border-top: 1px solid var(--line2); border-radius: 18px 18px 0 0; }
+@media (min-width: 900px) {
+  .gl-bk-sheet-wide { align-items: center; justify-content: center; }
+  .gl-bk-sheet-wide .gl-bk-panel {
+    max-width: 560px;
+    border: 1px solid var(--line2);
+    border-radius: 18px;
+  }
 }
 
 @keyframes glTick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
