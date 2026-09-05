@@ -89,10 +89,15 @@ export default async function BracketPage({ params }: { params: { id: string } }
         })
       : []
     return (
-      <div className="animate-fade-up">
-        <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
-        <div style={{ padding: '14px 16px 28px' }}>
-          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} canRecord={canRecord} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} todayHubEnabled={isTodayHubEnabled()} />
+      // Admin, desktop only: break out of the 480px mobile shell so there's
+      // real room to navigate result entry on a big screen (docs — see
+      // .gl-wide-admin in globals.css). No effect on mobile or non-admins.
+      <div className={isAdmin ? 'animate-fade-up gl-wide-admin' : 'animate-fade-up'}>
+        <div className={isAdmin ? 'gl-wide-admin-inner' : undefined}>
+          <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
+          <div style={{ padding: '14px 16px 28px' }}>
+            <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} canRecord={canRecord} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} todayHubEnabled={isTodayHubEnabled()} />
+          </div>
         </div>
       </div>
     )
@@ -100,11 +105,13 @@ export default async function BracketPage({ params }: { params: { id: string } }
 
   // Not drawn yet — simple preview.
   return (
-    <div className="animate-fade-up">
-      <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
-      <div style={{ padding: '14px 16px 28px' }}>
-        <div style={{ fontSize: 12.5, color: C.tbody, padding: '12px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
-          هنوز قرعه‌کشی نشده.
+    <div className={isAdmin ? 'animate-fade-up gl-wide-admin' : 'animate-fade-up'}>
+      <div className={isAdmin ? 'gl-wide-admin-inner' : undefined}>
+        <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
+        <div style={{ padding: '14px 16px 28px' }}>
+          <div style={{ fontSize: 12.5, color: C.tbody, padding: '12px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+            هنوز قرعه‌کشی نشده.
+          </div>
         </div>
       </div>
     </div>
