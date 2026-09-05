@@ -80,6 +80,10 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   const [myPathOnly, setMyPathOnly] = useState(false)
   const [sel, setSel] = useState<MatchDTO | null>(null)
   const [restSide, setRestSide] = useState<1 | 2 | null>(null)
+  // Admin-only: search players/tags or a match number within the currently
+  // selected scope+bracket — bypasses round tabs, since a name or number
+  // could sit in any round.
+  const [query, setQuery] = useState('')
 
   function openMatch(m: MatchDTO, side?: 1 | 2) {
     setSel(m)
@@ -88,6 +92,20 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
 
   const bMatches = useMemo(() => scopeMatches.filter(m => m.bracket === bracket_), [scopeMatches, bracket_])
   const rounds = useMemo(() => Array.from(new Set(bMatches.map(m => m.round))).sort((a, b) => a - b), [bMatches])
+
+  const searching = isAdmin && query.trim() !== ''
+  const searchResults = useMemo(() => {
+    if (!searching) return []
+    const q = query.trim().toLowerCase()
+    const qDigits = q.replace(/[^\d]/g, '')
+    return bMatches
+      .filter(m => {
+        const numHit = qDigits !== '' && m.n != null && String(m.n).includes(qDigits)
+        const hay = [m.p1?.name, m.p1?.tag, m.p2?.name, m.p2?.tag].filter(Boolean).join(' ').toLowerCase()
+        return numHit || hay.includes(q)
+      })
+      .sort((a, b) => a.round - b.round || a.slot - b.slot)
+  }, [searching, query, bMatches])
   const maxRound = rounds[rounds.length - 1] ?? 1
   const r1count = bMatches.filter(m => m.round === (rounds[0] ?? 1)).length
   const totalPlayers = r1count * 2
@@ -109,6 +127,19 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
       {meUid && myBracket === bracket_ && <MyStatusCard bMatches={bMatches} rounds={rounds} meUid={meUid} totalPlayers={totalPlayers} onOpen={openMatch} />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {isAdmin && (
+          <div style={{ position: 'relative' }}>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="جستجوی بازیکن یا شماره بازی…"
+              style={searchInput}
+            />
+            {query !== '' && (
+              <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن جستجو" style={searchClear}>×</button>
+            )}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 6 }}>
           {(['rounds', 'tree', 'radial'] as const).map(v => (
             <button key={v} onClick={() => setMode(v)} style={segBtn(mode === v)}>
@@ -158,13 +189,21 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
         })()}
       </div>
 
-      {mode === 'rounds'
+      {searching
+        ? (searchResults.length === 0
+            ? <Empty text="چیزی پیدا نشد" />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {searchResults.map(m => <MatchCardRow key={m.id} m={m} meUid={meUid} onOpen={openMatch} restPick={isAdmin} />)}
+              </div>
+            ))
+        : mode === 'rounds'
         ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={openMatch} restPick={isAdmin} />
         : mode === 'tree'
         ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={openMatch} restPick={isAdmin} />
         : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
 
-      {mode !== 'radial' && (
+      {(mode !== 'radial' || searching) && (
         <MatchSheet
           match={sel}
           roundName={sel ? roundName(seatsInRound(sel.round)) : undefined}
@@ -583,4 +622,13 @@ const chip = (on: boolean): React.CSSProperties => ({
 const zoomBtn: React.CSSProperties = {
   all: 'unset', cursor: 'pointer', width: 38, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   borderRadius: 9, fontSize: 18, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line}`,
+}
+const searchInput: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', fontSize: 13, fontWeight: 600, color: C.thi,
+  background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 34px 10px 12px', outline: 'none',
+}
+const searchClear: React.CSSProperties = {
+  all: 'unset', cursor: 'pointer', position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)',
+  width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+  color: C.tmut, fontSize: 16, lineHeight: 1,
 }
