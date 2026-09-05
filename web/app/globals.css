@@ -64,6 +64,18 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-up { animation: fadeUp .3s ease both; }
 
+/* Admin-only, desktop-only breakout from the 480px mobile-first shell
+   (app/layout.tsx's <main>) — for pages an admin actually navigates on a big
+   screen (e.g. the bracket/result-entry page), not a site-wide change.
+   `left: 50%; margin-left: -50vw` centers on the viewport regardless of the
+   480px ancestor; html/body already clip overflow-x (above), so this can't
+   introduce a horizontal scrollbar. Re-center real content inside at a
+   readable width with .gl-wide-admin-inner. */
+@media (min-width: 900px) {
+  .gl-wide-admin { width: 100vw; position: relative; left: 50%; margin-left: -50vw; }
+  .gl-wide-admin-inner { max-width: 1240px; margin: 0 auto; }
+}
+
 @keyframes glTick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
 /* Home kickoff — days-first scorebug, one slab with the wordmark */
