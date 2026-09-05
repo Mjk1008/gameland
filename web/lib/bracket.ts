@@ -1052,6 +1052,21 @@ export function setBracketQualify(compId: string, groupKey: string, bracket: num
   setEventConfig(compId, { qualify })
 }
 
+/**
+ * True once *this* player's own prelim group (city/province, per the event's
+ * groupMode) already has a drawn bracket — so a new registration or top-up of
+ * theirs lands in the leftover pool (بازماندگان) instead of that tree, no
+ * matter where they're from. Complements isTehranPrelimHome (lib/iran-geo.ts),
+ * which only covers the *permanent* case (provinces with no in-person prelim
+ * at all) — this one covers the *timing* case: a home group that used to have
+ * room and has since been drawn (e.g. after the event goes live).
+ */
+export function prelimGroupAlreadyDrawn(compId: string, userId: string): boolean {
+  const mode: GroupMode = getEventConfig(compId).groupMode ?? 'city'
+  const gk = groupKeyOf(userId, mode)
+  return matchesForComp(compId).some(m => m.stage === 'prelim' && m.groupKey === gk)
+}
+
 export function publishKeyOf(groupKey: string): string {
   return groupKey || 'final'
 }

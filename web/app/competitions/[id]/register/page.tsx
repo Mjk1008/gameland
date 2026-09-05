@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
 import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
-import { bracketModeOf } from '@/lib/bracket'
+import { bracketModeOf, prelimGroupAlreadyDrawn } from '@/lib/bracket'
 import { isTehranPrelimHome } from '@/lib/iran-geo'
 import { C } from '@/components/ui'
 import Link from 'next/link'
@@ -74,6 +74,11 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   }
 
   const price = ticketPriceFor(c.id)
-  const leftoverNote = bracketModeOf(c.id) === 'prelims' && !isTehranPrelimHome(u.province, u.city)
+  // Not just "not a home-prelim province" (permanent) — also "my own group's
+  // bracket is already drawn" (timing: e.g. registering after the event went
+  // live), otherwise a Tehran/Alborz player registering post-draw sees no
+  // warning even though their new سهم is heading straight to leftovers too.
+  const leftoverNote = bracketModeOf(c.id) === 'prelims'
+    && (!isTehranPrelimHome(u.province, u.city) || prelimGroupAlreadyDrawn(c.id, uid))
   return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} />
 }

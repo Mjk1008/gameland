@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, roadmapStages } from '@/lib/mock-data'
 import { getUserById, getRegistration, getEvent, remainingTickets, matchesForComp, getTeam, settledAttempts, unpaidAttempts } from '@/lib/store'
-import { isDrawPublished, bracketModeOf } from '@/lib/bracket'
+import { isDrawPublished, bracketModeOf, prelimGroupAlreadyDrawn } from '@/lib/bracket'
 import { isTehranPrelimHome } from '@/lib/iran-geo'
 import { C, DISP, Num, StatusChip, BackHeader, Button, DISC_DOT } from '@/components/ui'
 import RegManage from './reg-manage'
@@ -31,7 +31,8 @@ export default async function MyRoadmapPage({ params }: { params: { id: string }
   const seated = matchesForComp(params.id).some(m =>
     (m.p1UserId === uid || m.p2UserId === uid) && isDrawPublished(params.id, m.groupKey),
   )
-  const leftoverNote = bracketModeOf(params.id) === 'prelims' && !isTehranPrelimHome(u.province, u.city) && !seated
+  const leftoverNote = bracketModeOf(params.id) === 'prelims' && !seated
+    && (!isTehranPrelimHome(u.province, u.city) || prelimGroupAlreadyDrawn(params.id, uid))
   const myTeam = r.teamId ? getTeam(r.teamId) : undefined
   const isTeamPartner = !!myTeam && myTeam.captainId !== uid
   const canTopUp = !isTeamPartner ? remainingTickets(uid, params.id) : 0
