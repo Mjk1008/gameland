@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, isSuperAdmin } from '@/lib/store'
+import { getUserById, isSuperAdmin, whenReady } from '@/lib/store'
 import { pendingCodeRequests } from '@/lib/promoter'
 import { C, DISP } from '@/components/ui'
 
@@ -10,6 +10,13 @@ export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
+  // getUserById reads the in-memory store, which is empty until startHydration()
+  // has pulled the users back out of Postgres. Without this gate a request that
+  // lands during the first seconds after a restart finds no user and bounces a
+  // signed-in admin to /login — the same race whenReady() already guards on the
+  // auth/signup/register paths. router.refresh() after recording a result is a
+  // fresh request, so it can hit exactly that window mid-session.
+  await whenReady()
   const uid = (session as any)?.uid
   const role = (session as any)?.role
   const u = uid ? getUserById(uid) : null
