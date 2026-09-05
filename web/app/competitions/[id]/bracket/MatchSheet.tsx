@@ -175,6 +175,7 @@ export default function MatchSheet({
             p2={p2 ? { uid: p2.uid, name: p2.name, placeholder: !!p2.slotKind } : null}
             cancelled={cancelled} status={status} busy={busy}
             restricted={!isAdmin}
+            canReopen={isAdmin}
             onWin={uid => {
               if (status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
               post({ matchId: match.id, winnerUserId: uid, correct: status === 'done' })
@@ -182,6 +183,10 @@ export default function MatchSheet({
             onCancelMatch={() => {
               if (!confirm('این مسابقه لغو می‌شه. مطمئنی؟')) return
               post({ matchId: match.id, cancel: true })
+            }}
+            onReopen={() => {
+              if (!confirm('این مسابقه به حالت انجام‌نشده برمی‌گرده و نتیجه/لغوش پاک می‌شه. مطمئنی؟')) return
+              post({ matchId: match.id, reopen: true })
             }}
             onAnnounce={announce}
             winnerUid={winnerUid}
