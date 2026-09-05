@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { C } from '@/components/ui'
 import type { PrelimVenue } from '@/lib/store'
+import { MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import PrelimVenuePanel from './prelim-venue-panel'
 import PrelimBatchPanel, { type BatchPlayer } from './prelim-batch-panel'
 
@@ -147,7 +148,7 @@ export default function TournamentPanel(p: Props) {
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="تعداد براکت">
-                <Stepper value={nBrackets} disabled={busy != null} onChange={n => { setNBrackets(Math.max(1, Math.min(16, n))); setSizeTouched(false) }} />
+                <Stepper value={nBrackets} disabled={busy != null} max={16} onChange={n => { setNBrackets(Math.max(1, Math.min(16, n))); setSizeTouched(false) }} />
               </Field>
               <Field label="ظرفیت هر براکت">
                 <select value={size} onChange={e => { setBracketSize(Number(e.target.value)); setSizeTouched(true) }} style={sel}>
@@ -227,7 +228,7 @@ export default function TournamentPanel(p: Props) {
                         <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
                           {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
                         </span>
-                        <Stepper value={b.qualify} disabled={busy != null} onChange={n => setQualify(b, n)} />
+                        <Stepper value={b.qualify} disabled={busy != null} max={MAX_BRACKET_QUALIFY} onChange={n => setQualify(b, n)} />
                       </div>
                       <div style={{ marginTop: 8 }}>
                         <ScheduleEditor init={schedOf(b.groupKey, b.bracket)} disabled={busy != null} onSave={v => saveSchedule(b.groupKey, b.bracket, v)} />
@@ -288,12 +289,12 @@ function ScheduleEditor({ init, onSave, disabled }: { init: { date?: string; tim
 const schInp = (w: number): React.CSSProperties => ({ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 8, padding: '7px 9px', color: C.thi, fontSize: 12.5, outline: 'none', width: w || undefined, boxSizing: 'border-box' })
 const sel: React.CSSProperties = { width: '100%', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px', color: C.thi, fontSize: 13, outline: 'none' }
 
-function Stepper({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled?: boolean }) {
+function Stepper({ value, onChange, disabled, max }: { value: number; onChange: (n: number) => void; disabled?: boolean; max: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <button type="button" disabled={disabled || value <= 0} onClick={() => onChange(value - 1)} style={stepBtn}>−</button>
       <span className="gl-num" style={{ minWidth: 24, textAlign: 'center', fontWeight: 800, fontSize: 15, color: C.thi }}>{value}</span>
-      <button type="button" disabled={disabled || value >= 2} onClick={() => onChange(value + 1)} style={stepBtn}>+</button>
+      <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} style={stepBtn}>+</button>
     </div>
   )
 }

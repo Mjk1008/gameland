@@ -2,9 +2,9 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, isSuperAdmin } from '@/lib/store'
-import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap } from '@/lib/bracket'
-import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex } from '@/lib/bracket-slots'
+import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY } from '@/lib/bracket'
+import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { drawProvinceOf, resolveProvince } from '@/lib/iran-geo'
@@ -29,8 +29,11 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   const parent = c.competitionId ? getCompetition(c.competitionId) : undefined
 
   const session = await getServerSession(authOptions)
-  const sessionUid = (session as any)?.uid
-  const canReopenMatches = isSuperAdmin(sessionUid ? getUserById(sessionUid) : undefined)
+  const sessionRole = (session as any)?.role
+  // Every staff admin can reopen a played/cancelled match, same as cancelling
+  // one — not restricted to the super admin. (This page itself is already
+  // staff-only, per app/admin/layout.tsx.)
+  const canReopenMatches = sessionRole === 'admin' || sessionRole === 'organizer'
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length
@@ -62,7 +65,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
       const r1 = ms.filter(m => m.round === Math.min(...ms.map(x => x.round)))
       const players = r1.reduce((s, m) => s + (isRealPlayer(seatOf(m, 1)) ? 1 : 0) + (isRealPlayer(seatOf(m, 2)) ? 1 : 0), 0)
       const done = ms.filter(m => m.status === 'done').length
-      brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: Math.min(2, cfg.qualify[qualifyKey(gk, b)] ?? 2), complete: ms.every(m => m.status === 'done'), published: isDrawPublished(c.id, gk) })
+      brackets.push({ groupKey: gk, groupLabel: label, bracket: b, players, done, total: ms.length, qualify: Math.min(MAX_BRACKET_QUALIFY, cfg.qualify[qualifyKey(gk, b)] ?? DEFAULT_QUALIFY), complete: ms.every(m => m.status === 'done'), published: isDrawPublished(c.id, gk) })
     }
   }
   // ── run-panel: playable + recorded matches (solo events only) ──

@@ -4,6 +4,15 @@
 export const CANCELLED_PREFIX = '__gl_cancelled:'
 export const REST_PREFIX = '__gl_rest:'
 
+// Ceiling on "how many qualify to the final" the admin can set for one prelim
+// bracket. Purely a data-entry guard — rankBracket()/pickBracketQualifiers()
+// in lib/bracket.ts rank and pick from the whole bracket regardless, so this
+// only needs raising if an event genuinely wants more. Kept here (a pure,
+// dependency-free module) so the API clamp in lib/bracket.ts, the admin
+// page's display, and the client-side stepper in tournament-panel.tsx all
+// read the same number instead of drifting apart.
+export const MAX_BRACKET_QUALIFY = 8
+
 export function cancelledSlotKey(sourceMatchId: string): string {
   return CANCELLED_PREFIX + sourceMatchId
 }

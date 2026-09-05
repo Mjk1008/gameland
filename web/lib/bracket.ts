@@ -23,7 +23,7 @@ import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './disci
 import { MAX_SEEDS_TO_FINAL } from './competition-engine'
 import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 import {
-  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restSlotKey,
+  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restSlotKey, MAX_BRACKET_QUALIFY,
 } from './bracket-slots'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
@@ -1048,7 +1048,7 @@ export function setFinalSeeding(compId: string, orderedUserIds: string[]) {
 
 export function setBracketQualify(compId: string, groupKey: string, bracket: number, count: number) {
   const cfg = getEventConfig(compId)
-  const qualify = { ...cfg.qualify, [qualifyKey(groupKey, bracket)]: Math.max(0, Math.min(2, Math.floor(count))) }
+  const qualify = { ...cfg.qualify, [qualifyKey(groupKey, bracket)]: Math.max(0, Math.min(MAX_BRACKET_QUALIFY, Math.floor(count))) }
   setEventConfig(compId, { qualify })
 }
 
