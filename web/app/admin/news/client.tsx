@@ -3,7 +3,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
 
-interface Item { id: string; title: string; body: string; tags: string[]; active: boolean; cover: string }
+type Placement = 'home' | 'today' | 'both'
+interface Item { id: string; title: string; body: string; tags: string[]; active: boolean; cover: string; placement: Placement }
+
+const PLACEMENT_LABEL: Record<Placement, string> = { home: 'خانه', today: 'امروز', both: 'هر دو' }
 
 // Compress the picked cover to a light 16:9-ish JPEG before upload.
 function compress(file: File): Promise<string> {
@@ -42,6 +45,7 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
   const router = useRouter()
   const [raw, setRaw] = useState('')
   const [image, setImage] = useState('')
+  const [placement, setPlacement] = useState<Placement>('home')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const parsed = parseNews(raw)
@@ -58,8 +62,8 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
     if (!image) return setErr('کاور رو آپلود کن')
     setBusy(true)
     try {
-      await api({ action: 'create', title: parsed.title, body: parsed.body, tags: parsed.tags, imageData: image })
-      setRaw(''); setImage('')
+      await api({ action: 'create', title: parsed.title, body: parsed.body, tags: parsed.tags, imageData: image, placement })
+      setRaw(''); setImage(''); setPlacement('home')
       router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
@@ -81,6 +85,11 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
         <textarea value={raw} onChange={e => setRaw(e.target.value.slice(0, 4200))} rows={8}
           placeholder={'کلِ خبر رو همین‌جا پیست کن:\n\nخطِ اول → تیتر\nبقیه → متنِ خبر\nهرجا #تگ بزنی → تگ می‌شه\n\nمثال:\nقرعه‌کشی FC26 پنجشنبه انجام می‌شه\nهمهٔ ثبت‌نامی‌ها ساعت ۲۱ نتیجه رو تو اپ می‌بینن...\n#FC26 #قرعه‌کشی'}
           style={{ ...inp, resize: 'vertical', lineHeight: 2 }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11.5, color: C.tmut }}>محلِ نمایش:</span>
+          <PlacementPicker value={placement} onChange={setPlacement} />
+        </div>
 
         {/* live parse preview — the admin sees exactly what will publish */}
         {raw.trim() && (
@@ -107,7 +116,10 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
             <div style={{ padding: '11px 13px' }}>
               <div style={{ fontSize: 13.5, fontWeight: 800, color: C.thi }}>{n.title}</div>
               {n.tags.length > 0 && <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 4 }}>{n.tags.join(' · ')}</div>}
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <div style={{ marginTop: 10 }}>
+                <PlacementPicker value={n.placement} onChange={async p => { await api({ action: 'edit', id: n.id, placement: p }).catch(e => alert(e.message)); router.refresh() }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button onClick={async () => { await api({ action: 'edit', id: n.id, active: !n.active }).catch(e => alert(e.message)); router.refresh() }}
                   style={miniBtn}>{n.active ? 'مخفی کن' : 'نمایش بده'}</button>
                 <button onClick={async () => { if (confirm('این خبر حذف شه؟')) { await api({ action: 'delete', id: n.id }).catch(e => alert(e.message)); router.refresh() } }}
@@ -117,6 +129,20 @@ export default function NewsAdminClient({ initial }: { initial: Item[] }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function PlacementPicker({ value, onChange }: { value: Placement; onChange: (p: Placement) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {(['home', 'today', 'both'] as Placement[]).map(p => (
+        <button key={p} type="button" onClick={() => onChange(p)}
+          style={{ all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, padding: '6px 12px', borderRadius: 8,
+            background: value === p ? C.accent : C.sf2, color: value === p ? C.ink : C.tbody, border: `1px solid ${value === p ? C.accent : C.line}` }}>
+          {PLACEMENT_LABEL[p]}
+        </button>
+      ))}
     </div>
   )
 }
