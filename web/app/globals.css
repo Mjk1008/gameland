@@ -67,12 +67,18 @@ a, button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-act
 /* Admin-only, desktop-only breakout from the 480px mobile-first shell
    (app/layout.tsx's <main>) — for pages an admin actually navigates on a big
    screen (e.g. the bracket/result-entry page), not a site-wide change.
-   `left: 50%; margin-left: -50vw` centers on the viewport regardless of the
-   480px ancestor; html/body already clip overflow-x (above), so this can't
-   introduce a horizontal scrollbar. Re-center real content inside at a
-   readable width with .gl-wide-admin-inner. */
+   NOTE: `left: 50%` on a `position: relative` box resolves against its OWN
+   containing block (here, the 480px <main>) — not the viewport — so that
+   approach shoves everything ~(V-480)/2 px off to one side on a wide screen.
+   `margin: 0 calc(50% - 50vw)` sidesteps that: the 50% here also resolves
+   against the 480px containing block, but combined with 50vw in one calc()
+   it correctly cancels out main's own centering offset, landing this box's
+   edges exactly at the viewport edges regardless of container width. Verify
+   on a real wide screen (not just this comment's math) before trusting a
+   change here again. Re-center real content inside at a readable width with
+   .gl-wide-admin-inner. */
 @media (min-width: 900px) {
-  .gl-wide-admin { width: 100vw; position: relative; left: 50%; margin-left: -50vw; }
+  .gl-wide-admin { width: 100vw; margin: 0 calc(50% - 50vw); }
   .gl-wide-admin-inner { max-width: 1240px; margin: 0 auto; }
 }
 
