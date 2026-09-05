@@ -1,21 +1,18 @@
 'use client'
 import { useState } from 'react'
 import { C, DISP } from '@/components/ui'
+import { usePolling } from '@/components/use-polling'
 import type { AdminTodaySnapshot } from '@/lib/today-snapshot'
 import StationGrid from './station-grid'
 import QueueTabs from './queue-tabs'
 import GroupAnnounceForm from './group-announce-form'
 
 export default function TodayAdminClient({ initial }: { initial: AdminTodaySnapshot }) {
-  const [data, setData] = useState(initial)
+  // Tighter interval than the player page — an admin running the floor needs
+  // the freshest possible view of the queue/stations.
+  const { data: polled, refresh } = usePolling<AdminTodaySnapshot>('/api/admin/today', { activeMs: 5000, initial })
+  const data = polled ?? initial
   const [busy, setBusy] = useState(false)
-
-  async function refresh() {
-    try {
-      const res = await fetch('/api/admin/today')
-      if (res.ok) setData(await res.json())
-    } catch {}
-  }
 
   async function call(matchId: string) {
     const station = prompt('شماره‌ی ایستگاه؟')?.trim()

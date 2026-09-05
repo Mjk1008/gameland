@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePolling } from '@/components/use-polling'
 import type { TodaySnapshot } from '@/lib/today-snapshot'
 import type { NewsSlide } from '../news-slider'
 import HeroCard from './hero-card'
@@ -13,16 +14,13 @@ import MatchDetailSheet from './match-detail-sheet'
 
 export default function TodayClient({ initial, news }: { initial: TodaySnapshot; news: NewsSlide[] }) {
   const router = useRouter()
-  const [snapshot, setSnapshot] = useState(initial)
+  // 8-10s live-feel polling with a hidden-tab backoff (per docs/35 §3),
+  // beating the app's normal 30s notif-count cadence since this page is
+  // meant to feel live.
+  const { data, refresh } = usePolling<TodaySnapshot>('/api/today', { activeMs: 8000, initial })
+  const snapshot = data ?? initial
   const [openMatchId, setOpenMatchId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-
-  async function refresh() {
-    try {
-      const res = await fetch('/api/today')
-      if (res.ok) setSnapshot(await res.json())
-    } catch {}
-  }
 
   async function onAction(matchId: string, action: 'here' | 'ready' | 'ref') {
     setBusy(true)
