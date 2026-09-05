@@ -6,6 +6,7 @@ import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { leftoverPlayers, matchNumberMap, isDrawPublished } from '@/lib/bracket'
 import { isCancelledSlot, isRestSlot, restIndex } from '@/lib/bracket-slots'
 import { prelimVenueForGroupKey } from '@/lib/prelim-venue'
+import { isTodayHubEnabled } from '@/lib/today-hub-enabled'
 import { C, BackHeader } from '@/components/ui'
 import BracketView, { type MatchDTO, type Player } from './BracketView'
 
@@ -88,7 +89,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       <div className="animate-fade-up">
         <BackHeader title={`براکت — ${c.title}`} href={`/competitions/${c.id}`} />
         <div style={{ padding: '14px 16px 28px' }}>
-          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} />
+          <BracketView matches={dto} meUid={meUid} isAdmin={isAdmin} compId={c.id} venueLabels={venueLabels} schedules={cfg.bracketSchedule} leftovers={leftovers} todayHubEnabled={isTodayHubEnabled()} />
         </div>
       </div>
     )
