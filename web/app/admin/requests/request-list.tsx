@@ -77,13 +77,13 @@ export default function RequestList({ rows }: { rows: Row[] }) {
     if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'تغییر نشد') }
   }
 
-  async function decide(action: 'approve' | 'reject') {
+  async function decide(action: 'approve' | 'reject' | 'reject-topup') {
     if (!sel) return
     setBusy(true)
     try {
       const res = await fetch('/api/admin/reg-approve', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regId: sel.regId, action, reason: action === 'reject' ? (reason.trim() || undefined) : undefined }),
+        body: JSON.stringify({ regId: sel.regId, action, reason: action !== 'approve' ? (reason.trim() || undefined) : undefined }),
       })
       if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'انجام نشد، دوباره امتحان کن'); return }
       closeSheet()
@@ -242,16 +242,26 @@ export default function RequestList({ rows }: { rows: Row[] }) {
               <div style={{ marginTop: 12, fontSize: 11.5, fontWeight: 700, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: '9px 12px' }}>⚠ فیشی آپلود نشده — از راه‌های دیگه چک کن</div>
             )}
 
-            {/* decision zone */}
-            {!rejecting ? (
+            {/* decision zone. A row with settled سهم already on it (top-up
+                under review) can never take a full reject — that would wipe
+                paid history — so its reject path only discards the new,
+                unsettled سهم and leaves the row approved. */}
+            {(() => {
+              const isTopUp = !!sel.paidAttempts && sel.paidAttempts > 0 && sel.paidAttempts < sel.attempts
+              return !rejecting ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 9, marginTop: 16 }}>
                 <button disabled={busy} onClick={() => setRejecting(true)}
-                  style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: C.liveSoft, color: C.live, border: `1px solid ${C.live}55`, fontWeight: 700, fontSize: 13.5 }}>رد…</button>
+                  style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: C.liveSoft, color: C.live, border: `1px solid ${C.live}55`, fontWeight: 700, fontSize: 13.5 }}>{isTopUp ? 'رد سهمِ جدید…' : 'رد…'}</button>
                 <button disabled={busy} onClick={() => decide('approve')}
                   style={{ all: 'unset', cursor: 'pointer', textAlign: 'center', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, background: C.accent, color: C.ink, fontWeight: 800, fontSize: 14, opacity: busy ? 0.6 : 1 }}>{busy ? '…' : `تاییدِ ${sel.name.split(' ')[0]} ✓`}</button>
               </div>
             ) : (
               <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10, borderTop: `1px solid ${C.line}`, paddingTop: 14 }}>
+                {isTopUp && (
+                  <div style={{ fontSize: 11, color: C.tmut }}>
+                    فقط <span className="gl-num">{sel.attempts - (sel.paidAttempts ?? 0)}</span> سهمِ جدید رد می‌شه؛ <span className="gl-num">{sel.paidAttempts}</span> سهمِ قبلاً تاییدشده دست‌نخورده می‌مونه.
+                  </div>
+                )}
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.thi }}>دلیل رد (برای گیمر اعلان می‌شه):</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {REJECT_REASONS.map(rr => {
@@ -262,10 +272,11 @@ export default function RequestList({ rows }: { rows: Row[] }) {
                 <input value={reason} onChange={e => setReason(e.target.value.slice(0, 240))} placeholder="یا دلیلِ دلخواه بنویس…" style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '11px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button disabled={busy} onClick={() => { setRejecting(false); setReason('') }} style={{ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 11, color: C.tbody, border: `1px solid ${C.line2}`, fontSize: 13, fontWeight: 700 }}>انصراف</button>
-                  <button disabled={busy} onClick={() => decide('reject')} style={{ all: 'unset', cursor: 'pointer', flex: 2, textAlign: 'center', minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 11, background: C.live, color: '#fff', fontWeight: 800, fontSize: 13.5, opacity: busy ? 0.6 : 1 }}>{busy ? '…' : 'ردِ قطعی و اطلاع‌رسانی'}</button>
+                  <button disabled={busy} onClick={() => decide(isTopUp ? 'reject-topup' : 'reject')} style={{ all: 'unset', cursor: 'pointer', flex: 2, textAlign: 'center', minHeight: 46, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 11, background: C.live, color: '#fff', fontWeight: 800, fontSize: 13.5, opacity: busy ? 0.6 : 1 }}>{busy ? '…' : isTopUp ? 'ردِ سهمِ جدید و اطلاع‌رسانی' : 'ردِ قطعی و اطلاع‌رسانی'}</button>
                 </div>
               </div>
-            )}
+              )
+            })()}
           </div>
         </div>,
         document.body

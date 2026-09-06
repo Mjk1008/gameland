@@ -966,6 +966,40 @@ export function settleRegistrationAttempts(regId: string): Registration {
   return r
 }
 
+// Admin rejects ONLY the unsettled top-up سهم sitting on an already-approved
+// row (e.g. a fake فیش for a re-purchase) — never the whole registration.
+// Unlike setRegistrationStatus('rejected', ...) this is safe even once the
+// player is already seated: createRegistration never lets a later top-up
+// touch an existing seat (extra سهم only ever land in the leftover pool), so
+// the settled portion is exactly what fed the draw — trimming attempts back
+// down to it can't corrupt any match. Legacy rows with paidAttempts == null
+// have no way to tell settled from unsettled, so settledAttempts() falls
+// back to "fully settled" for them and this becomes a safe no-op.
+export function rejectTopUp(regId: string): Registration {
+  const r = getRegistrationById(regId)
+  if (!r) throw new Error('REG_NOT_FOUND')
+  if (r.status !== 'approved') throw new Error('NOT_APPROVED')
+  const settled = settledAttempts(r)
+  if (r.attempts <= settled) throw new Error('NOTHING_TO_REJECT')
+  r.attempts = Math.max(1, settled)
+  if ((r.freeAttempts ?? 0) > r.attempts - (r.paidAttempts ?? 0)) {
+    r.freeAttempts = Math.max(0, r.attempts - (r.paidAttempts ?? 0))
+  }
+  r.receiptPayBatch = undefined
+  r.receiptAttemptsAt = undefined
+  r.promoterCodeId = undefined
+  r.discountPercent = undefined
+  r.lockedUnitPrice = undefined
+  persist.reg.update(r.id, {
+    attempts: r.attempts, freeAttempts: r.freeAttempts ?? null,
+    receiptPayBatch: null, receiptAttemptsAt: null,
+    promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
+  } as any)
+  bumpNationalRanking(r.userId)
+  syncTeamMirrorFrom(r)
+  return r
+}
+
 function disbandTeamIfCaptainRejected(r: Registration): void {
   if (!r.teamId) return
   const t = teams.get(r.teamId)
