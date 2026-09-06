@@ -94,6 +94,11 @@ export default function TournamentPanel(p: Props) {
     if (j) setMsg({ ok: true, text: `${label} · ${j.deleted} مسابقه پاک شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
   }
   const finalSize = p.finalSize ?? 128
+  async function resetDirect() {
+    if (!confirm('کل جدول این رشته پاک می‌شه (نتیجه‌های ثبت‌شده هم از بین می‌رن) تا بشه نوع جدول رو عوض کرد. مطمئنی؟')) return
+    const j = await post('/api/admin/reset-bracket', { compId: p.compId }, 'reset')
+    if (j) setMsg({ ok: true, text: `جدول پاک شد · ${j.deleted} بازی حذف شد — حالا می‌تونی نوع جدول رو از «ویرایش» عوض کنی` })
+  }
   async function assemble() {
     if (p.finalExists && !confirm('فینال از قبل چیده شده؛ نتیجه‌های ثبت‌شده پاک می‌شن و از نو چیده می‌شه. مطمئنی؟')) return
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
@@ -195,6 +200,9 @@ export default function TournamentPanel(p: Props) {
             <Link href={`/competitions/${p.compId}/bracket`} style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 12.5, color: C.accent, textDecoration: 'none', fontWeight: 700 }}>
               دیدن جدول و ثبت نتیجه‌ها →
             </Link>
+            <button type="button" disabled={busy != null} onClick={resetDirect} style={{ ...dangerBtn, marginTop: 12 }}>
+              {busy === 'reset' ? 'در حال پاک کردن…' : 'پاک کردن کامل جدول'}
+            </button>
           </>
         )}
       </Section>
@@ -320,6 +328,7 @@ function Stat({ label, value, c }: { label: string; value: number; c: string }) 
 const seg = (on: boolean): React.CSSProperties => ({ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, fontSize: 13, fontWeight: 700, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, border: `1px solid ${on ? C.accent : C.line}` })
 const stepBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, fontSize: 18, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}` }
 const clearBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}44`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
+const dangerBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 42, lineHeight: '42px', background: 'transparent', border: `1px solid ${C.live}`, color: C.live, fontWeight: 700, fontSize: 12.5, borderRadius: 11 }
 const pubBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
 function primaryBtn(secondary: boolean, disabled: boolean): React.CSSProperties {
   return { all: 'unset', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: secondary ? 'transparent' : C.accent, border: secondary ? `1px solid ${C.accent}` : 'none', color: secondary ? C.accent : '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: disabled ? 0.5 : 1 }
