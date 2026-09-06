@@ -1,18 +1,17 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { C, DISP, Button, GamerAvatar } from '@/components/ui'
+import { C, DISP, GamerAvatar } from '@/components/ui'
 import RulesAccordion from './rules-accordion'
 import type { MatchDetail } from '@/lib/today-snapshot'
 
 // Structural clone of competitions/[id]/bracket/MatchSheet.tsx's portal /
-// backdrop / slide-up pattern, extended with avatars, a station cell, a
-// stepped check-in CTA, and the rules accordion — per docs/36 Frame 3.
-export default function MatchDetailSheet({ matchId, onClose, onAction, busy }: {
+// backdrop / slide-up pattern, extended with avatars, a station cell, and
+// the rules accordion. Read-only — spectating a match (yours or a
+// followee's); no check-in CTA (docs/37 §10.1, removed entirely).
+export default function MatchDetailSheet({ matchId, onClose }: {
   matchId: string
   onClose: () => void
-  onAction: (matchId: string, action: 'here' | 'ready' | 'ref') => void
-  busy: boolean
 }) {
   const [mounted, setMounted] = useState(false)
   const [detail, setDetail] = useState<MatchDetail | null>(null)
@@ -32,10 +31,6 @@ export default function MatchDetailSheet({ matchId, onClose, onAction, busy }: {
   }, [onClose])
 
   if (!mounted) return null
-
-  const meHere = detail?.mySide === 'p1' ? detail.desk.p1Here : detail?.mySide === 'p2' ? detail.desk.p2Here : false
-  const meReady = detail?.mySide === 'p1' ? detail.desk.p1Ready : detail?.mySide === 'p2' ? detail.desk.p2Ready : false
-  const refPending = !!detail && !!detail.desk.refRequestedAt && !detail.desk.refHandledAt
 
   return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'flex-end', background: 'rgba(8,6,4,.62)', backdropFilter: 'blur(2px)', animation: 'tdbs-fade .16s ease-out' }}>
@@ -73,21 +68,6 @@ export default function MatchDetailSheet({ matchId, onClose, onAction, busy }: {
 
             {detail.venueAddress && (
               <div style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12, fontSize: 11.5, color: C.tbody, lineHeight: '18px' }}>{detail.venueAddress}</div>
-            )}
-
-            {detail.mySide && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {meReady ? (
-                  <div style={{ textAlign: 'center', fontSize: 12.5, color: C.tmut, padding: '10px 0' }}>آماده‌ای — منتظرِ شروع</div>
-                ) : (
-                  <Button kind="primary" disabled={busy} onClick={() => onAction(matchId, meHere ? 'ready' : 'here')}>
-                    {meHere ? 'آماده‌ام — پله‌ی ۲' : 'حاضرم — پله‌ی ۱'}
-                  </Button>
-                )}
-                <button disabled={busy || refPending} onClick={() => onAction(matchId, 'ref')} style={{ all: 'unset', boxSizing: 'border-box', textAlign: 'center', padding: 8, fontSize: 12.5, fontWeight: 600, color: refPending ? C.gold : C.tmut, cursor: refPending ? 'default' : 'pointer', alignSelf: 'center' }}>
-                  {refPending ? 'درخواستِ داور ارسال شد' : 'درخواستِ داور'}
-                </button>
-              </div>
             )}
 
             <RulesAccordion disc={detail.disc} />

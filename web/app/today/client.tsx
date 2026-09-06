@@ -1,49 +1,67 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { usePolling } from '@/components/use-polling'
+import { Button } from '@/components/ui'
 import type { TodaySnapshot } from '@/lib/today-snapshot'
-import type { NewsSlide } from '../news-slider'
+import StoryBar from './story-bar'
+import StoryViewer from './story-viewer'
 import HeroCard from './hero-card'
-import AdminAnnouncementBanner from './admin-announcement-banner'
-import TodayNewsRail from './today-news-rail'
-import LiveFeed from './live-feed'
-import ProvincePulseStrip from './province-pulse'
+import AnnouncementBoard from './announcement-board'
+import LiveSection from './live-section'
 import FollowingList from './following-list'
 import MatchDetailSheet from './match-detail-sheet'
 
-export default function TodayClient({ initial, news }: { initial: TodaySnapshot; news: NewsSlide[] }) {
-  const router = useRouter()
+export default function TodayClient({ initial }: { initial: TodaySnapshot }) {
   // 8-10s live-feel polling with a hidden-tab backoff (per docs/35 §3),
   // beating the app's normal 30s notif-count cadence since this page is
   // meant to feel live.
-  const { data, refresh } = usePolling<TodaySnapshot>('/api/today', { activeMs: 8000, initial })
+  const { data } = usePolling<TodaySnapshot>('/api/today', { activeMs: 8000, initial })
   const snapshot = data ?? initial
   const [openMatchId, setOpenMatchId] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
 
-  async function onAction(matchId: string, action: 'here' | 'ready' | 'ref') {
-    setBusy(true)
-    try {
-      const res = await fetch('/api/today/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId, action }) })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(j.error || 'ثبت نشد')
-      await refresh()
-      router.refresh()
-    } catch (e: any) { alert(e.message) } finally { setBusy(false) }
+  // The story viewer snapshots the list at open time (docs/37 §4.1) — a
+  // background poll updating `snapshot.stories` mid-view must not shift the
+  // index under the user, so we freeze our own copy here.
+  const [viewerStories, setViewerStories] = useState<TodaySnapshot['stories'] | null>(null)
+  const [viewerStart, setViewerStart] = useState(0)
+
+  function openStoryAt(i: number) {
+    setViewerStories(snapshot.stories)
+    setViewerStart(i)
   }
+  function closeViewer() { setViewerStories(null) }
+  async function reportSeen(ids: string[]) {
+    try { await fetch('/api/today/stories/view', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }) } catch {}
+  }
+
+  const hero = snapshot.hero
+  const inCompetition = hero.kind !== 'none'
+  const heroCompId = hero.kind !== 'none' ? hero.compId : undefined
 
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <HeroCard hero={snapshot.hero} onOpenMatch={setOpenMatchId} onAction={onAction} busy={busy} />
-      <AdminAnnouncementBanner announcement={snapshot.announcement} />
-      <TodayNewsRail items={news} />
-      <LiveFeed feed={snapshot.feed} />
-      <ProvincePulseStrip items={snapshot.provincePulse} />
+      <StoryBar stories={snapshot.stories} onOpen={openStoryAt} />
+
+      {inCompetition && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* No "next match" card once eliminated (nothing upcoming to
+              show), but «مسیرِ من» stays below regardless — the final
+              placement/path is still worth seeing (docs/37 §9.1 table). */}
+          {hero.kind !== 'none' && hero.kind !== 'eliminated' && <HeroCard hero={hero} />}
+          {heroCompId && <Button href={`/competitions/${heroCompId}/me`} kind="prestige">مسیرِ من ›</Button>}
+        </div>
+      )}
+
+      <AnnouncementBoard items={snapshot.announcements} />
+      <LiveSection liveEvents={snapshot.liveEvents} provincePulse={snapshot.provincePulse} feed={snapshot.feed} />
       <FollowingList rows={snapshot.following} onOpenMatch={setOpenMatchId} />
 
       {openMatchId && (
-        <MatchDetailSheet matchId={openMatchId} busy={busy} onAction={onAction} onClose={() => setOpenMatchId(null)} />
+        <MatchDetailSheet matchId={openMatchId} onClose={() => setOpenMatchId(null)} />
+      )}
+
+      {viewerStories && (
+        <StoryViewer stories={viewerStories} startIndex={viewerStart} onClose={closeViewer} onSeen={reportSeen} />
       )}
     </div>
   )

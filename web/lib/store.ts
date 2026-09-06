@@ -145,11 +145,15 @@ function ensureHydrated() {
     loadPromoterCodeRequest: (r: unknown) => { require('./promoter').hydratePromoterCodeRequest(r as any) },
     loadMatchDesk: (row: unknown) => { require('./match-desk').hydrateMatchDesk(row as any) },
     loadFollow:    (f: unknown) => { require('./match-desk').hydrateFollow(f as any) },
+    loadStory:     (s: unknown) => { require('./stories').hydrateStory(s as any) },
+    loadStoryView: (v: unknown) => { require('./stories').hydrateStoryView(v as any) },
+    loadAnnouncement: (a: unknown) => { require('./stories').hydrateAnnouncement(a as any) },
   }).then(() => {
     reconcileDefaultPromos()
     reconcileTeams()
     seedRankingIfEmpty()
     backfillLegacyReceiptTracking()
+    require('./stories').pruneOldStoryViews()
     // Heavy seeds must not block auth (whenReady).
     setImmediate(() => {
       reconcileDefaultEventCovers().catch(e => console.warn('[covers]', e))

@@ -406,3 +406,38 @@ export const follows = pgTable('app_follows', {
   pk: primaryKey({ columns: [t.followerId, t.followeeId] }),
   byFollowee: index('follows_followee_idx').on(t.followeeId),
 }))
+
+// ─── Today Stories («امروز» — استوریِ سبکِ اینستاگرام) ──────────────────────
+// Metadata is tiny (no bytes) → hydrated fully into RAM, same shape as
+// matchDesk above. Bytes live in their own blob table (storyMedia), served
+// on demand — never hydrated, per the app's blob rule (see CLAUDE.md §2).
+export const stories = pgTable('app_stories', {
+  id:        text('id').primaryKey(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdBy: text('created_by').notNull(),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+})
+
+export const storyMedia = pgTable('app_story_media', {
+  id:           text('id').primaryKey().references(() => stories.id, { onDelete: 'cascade' }),
+  dataUrl:      text('data_url').notNull(),
+  thumbDataUrl: text('thumb_data_url').notNull(),
+})
+
+export const storyViews = pgTable('app_story_views', {
+  storyId:  text('story_id').notNull().references(() => stories.id, { onDelete: 'cascade' }),
+  userId:   text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.storyId, t.userId] }),
+}))
+
+// ─── Today announcements — shared historical board (not per-user notifs) ───
+export const todayAnnouncements = pgTable('app_today_announcements', {
+  id:        text('id').primaryKey(),
+  text:      text('text').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text('created_by').notNull(),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+})

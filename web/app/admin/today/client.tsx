@@ -6,6 +6,8 @@ import type { AdminTodaySnapshot } from '@/lib/today-snapshot'
 import StationGrid from './station-grid'
 import QueueTabs from './queue-tabs'
 import GroupAnnounceForm from './group-announce-form'
+import StoryPanel from './story-panel'
+import AnnouncementPanel from './announcement-panel'
 
 export default function TodayAdminClient({ initial }: { initial: AdminTodaySnapshot }) {
   // Tighter interval than the player page — an admin running the floor needs
@@ -26,18 +28,7 @@ export default function TodayAdminClient({ initial }: { initial: AdminTodaySnaps
     } catch (e: any) { alert(e.message) } finally { setBusy(false) }
   }
 
-  async function resolveRef(matchId: string) {
-    setBusy(true)
-    try {
-      const res = await fetch('/api/admin/today', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resolve-ref', matchId }) })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(j.error || 'انجام نشد')
-      await refresh()
-    } catch (e: any) { alert(e.message) } finally { setBusy(false) }
-  }
-
   const lateCount = data.counts.late + data.counts.absent
-  const refCount = data.counts.ref
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -48,7 +39,6 @@ export default function TodayAdminClient({ initial }: { initial: AdminTodaySnaps
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {lateCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: C.live, background: C.liveSoft, borderRadius: 8, padding: '5px 9px' }}>{lateCount} دیرکرده</span>}
-          {refCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: C.gold, background: C.goldSoft, borderRadius: 8, padding: '5px 9px' }}>{refCount} داور</span>}
         </div>
       </div>
 
@@ -60,9 +50,11 @@ export default function TodayAdminClient({ initial }: { initial: AdminTodaySnaps
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span style={{ fontSize: 11, color: C.tmut, fontFamily: DISP, letterSpacing: '.12em', fontWeight: 700 }}>QUEUE · صف</span>
-          <QueueTabs data={data} busy={busy} onCall={call} onResolveRef={resolveRef} />
+          <QueueTabs data={data} busy={busy} onCall={call} />
         </div>
 
+        <StoryPanel />
+        <AnnouncementPanel />
         <GroupAnnounceForm />
       </div>
     </div>

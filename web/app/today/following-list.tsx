@@ -6,7 +6,6 @@ import type { FollowingRow, HeroState } from '@/lib/today-snapshot'
 function statusPill(hero: HeroState) {
   switch (hero.kind) {
     case 'playing': return { label: 'درحالِ بازی', color: C.live, bg: C.liveSoft, pulse: true }
-    case 'ready': return { label: 'آماده', color: C.gold, bg: C.goldSoft, pulse: false }
     case 'advanced': return { label: 'صعود کرد', color: C.gold, bg: C.goldSoft, pulse: false }
     case 'eliminated': return { label: 'حذف شد', color: C.tbody, bg: C.sf2, pulse: false }
     case 'waiting': return { label: 'منتظر', color: C.tmut, bg: C.sf2, pulse: false }

@@ -5,18 +5,17 @@ import type { AdminTodaySnapshot, QueueBucket } from '@/lib/today-snapshot'
 import QueueList from './queue-list'
 
 const LABEL: Record<QueueBucket, string> = {
-  waiting: 'منتظر', playing: 'درحالِ‌بازی', late: 'دیرکرده', absent: 'غایب', ref: 'درخواستِ‌داور',
+  waiting: 'منتظر', playing: 'درحالِ‌بازی', late: 'دیرکرده', absent: 'غایب',
 }
-const ORDER: QueueBucket[] = ['waiting', 'playing', 'late', 'absent', 'ref']
+const ORDER: QueueBucket[] = ['waiting', 'playing', 'late', 'absent']
 
-export default function QueueTabs({ data, busy, onCall, onResolveRef }: {
+export default function QueueTabs({ data, busy, onCall }: {
   data: AdminTodaySnapshot
   busy: boolean
   onCall: (matchId: string) => void
-  onResolveRef: (matchId: string) => void
 }) {
   const [tab, setTab] = useState<QueueBucket>('waiting')
-  const urgent = (b: QueueBucket) => b === 'late' || b === 'absent' || b === 'ref'
+  const urgent = (b: QueueBucket) => b === 'late' || b === 'absent'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -38,7 +37,7 @@ export default function QueueTabs({ data, busy, onCall, onResolveRef }: {
           )
         })}
       </div>
-      <QueueList bucket={tab} rows={data.queue[tab]} busy={busy} onCall={onCall} onResolveRef={onResolveRef} />
+      <QueueList bucket={tab} rows={data.queue[tab]} busy={busy} onCall={onCall} />
     </div>
   )
 }

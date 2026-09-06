@@ -1,9 +1,12 @@
 // Live Day Hub («امروز») — pure derivation over the existing in-memory store.
-// No new source of truth: reads app_matches (+ the new match_desk/follows
-// tables via lib/match-desk.ts) and derives everything on each request.
-// See docs/35-live-day-hub-plan.md and docs/36-live-day-hub-design-brief.md.
-import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, notifsForUser, type Match } from './store'
-import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS, type MatchDeskRow } from './match-desk'
+// No new source of truth: reads app_matches (+ match_desk/follows via
+// lib/match-desk.ts, stories/announcements via lib/stories.ts) and derives
+// everything on each request.
+// See docs/35-live-day-hub-plan.md, docs/36-live-day-hub-design-brief.md,
+// docs/37-today-stories-plan.md (stories + the §9 layout redesign).
+import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, type Match } from './store'
+import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS } from './match-desk'
+import { activeStories, hasSeenStory, activeAnnouncements } from './stories'
 import { queryUserRank } from './ranking-store'
 
 export function liveEventIds(): string[] {
@@ -17,10 +20,12 @@ export interface HeroOpponent {
   hasPhoto: boolean
 }
 
+// No 'ready' check-in step anymore (docs/37 §10.1 — player check-in removed
+// entirely). Any match with both sides known and not yet finished is just
+// 'playing' — informational only, no CTA.
 export type HeroState =
   | { kind: 'none' }
-  | { kind: 'waiting'; roundLabel: string }
-  | { kind: 'ready'; step: 1 | 2; matchId: string; compId: string; roundLabel: string; station?: string; opponent?: HeroOpponent }
+  | { kind: 'waiting'; compId: string; roundLabel: string }
   | { kind: 'playing'; matchId: string; compId: string; roundLabel: string; station?: string; opponent?: HeroOpponent; score?: string }
   | { kind: 'advanced'; matchId: string; compId: string; score?: string }
   | { kind: 'eliminated'; matchId: string; compId: string; score?: string; opponent?: HeroOpponent }
@@ -55,10 +60,6 @@ function roundLabel(m: Match, all: Match[]): string {
   }
 }
 
-function deskPlayingReady(desk: MatchDeskRow | undefined): boolean {
-  return !!desk && desk.p1Ready && desk.p2Ready
-}
-
 export function deriveHeroState(userId: string, liveIds: string[]): HeroState {
   const all = allMatches()
   const mine = matchesForUser(userId).filter(m => liveIds.includes(m.compId) && !m.cancelled)
@@ -67,14 +68,9 @@ export function deriveHeroState(userId: string, liveIds: string[]): HeroState {
   const active = mine.find(m => m.status === 'ready')
   if (active) {
     const side = mySide(active, userId)
-    const desk = getDesk(active.id)
+    const desk = getDesk(active.id)   // station only — no check-in/ready dependency
     const opponent = side ? opponentOf(active, side) : undefined
-    if (deskPlayingReady(desk)) {
-      return { kind: 'playing', matchId: active.id, compId: active.compId, roundLabel: roundLabel(active, all), station: desk?.station, opponent, score: active.score }
-    }
-    const meHere = side === 'p1' ? desk?.p1Here : desk?.p2Here
-    const step: 1 | 2 = meHere ? 2 : 1
-    return { kind: 'ready', step, matchId: active.id, compId: active.compId, roundLabel: roundLabel(active, all), station: desk?.station, opponent }
+    return { kind: 'playing', matchId: active.id, compId: active.compId, roundLabel: roundLabel(active, all), station: desk?.station, opponent, score: active.score }
   }
 
   const done = mine.filter(m => m.status === 'done')
@@ -87,13 +83,15 @@ export function deriveHeroState(userId: string, liveIds: string[]): HeroState {
   }
 
   const pending = mine.find(m => m.status === 'pending')
-  if (pending) return { kind: 'waiting', roundLabel: roundLabel(pending, all) }
+  if (pending) return { kind: 'waiting', compId: pending.compId, roundLabel: roundLabel(pending, all) }
 
   return { kind: 'none' }
 }
 
 export interface FeedItem {
   matchId: string
+  compId: string
+  province?: string
   winnerName: string
   loserName: string
   score?: string
@@ -113,6 +111,8 @@ function feedFor(liveIds: string[]): FeedItem[] {
       const loser = loserId ? getUserById(loserId) : undefined
       return {
         matchId: m.id,
+        compId: m.compId,
+        province: m.groupKey.startsWith('province:') ? m.groupKey.slice('province:'.length) : undefined,
         winnerName: winner?.name ?? '—',
         loserName: loser?.name ?? '—',
         score: m.score,
@@ -122,25 +122,38 @@ function feedFor(liveIds: string[]): FeedItem[] {
 }
 
 export interface ProvincePulse {
+  compId: string
   province: string
   done: number
   total: number
 }
 
 function provincePulseFor(liveIds: string[]): ProvincePulse[] {
-  const byProvince = new Map<string, { done: number; total: number }>()
+  const byKey = new Map<string, ProvincePulse>()
   for (const m of allMatches()) {
     if (!liveIds.includes(m.compId) || m.cancelled) continue
     if (!m.groupKey.startsWith('province:')) continue
     const province = m.groupKey.slice('province:'.length)
-    const row = byProvince.get(province) ?? { done: 0, total: 0 }
+    const key = m.compId + '|' + province
+    const row = byKey.get(key) ?? { compId: m.compId, province, done: 0, total: 0 }
     row.total++
     if (m.status === 'done') row.done++
-    byProvince.set(province, row)
+    byKey.set(key, row)
   }
-  return [...byProvince.entries()]
-    .map(([province, v]) => ({ province, ...v }))
-    .sort((a, b) => b.total - a.total)
+  return [...byKey.values()].sort((a, b) => b.total - a.total)
+}
+
+export interface LiveEventBrief {
+  compId: string
+  title: string
+  disc: string
+}
+
+function liveEventBriefs(liveIds: string[]): LiveEventBrief[] {
+  return liveIds
+    .map(id => getEvent(id))
+    .filter((e): e is NonNullable<typeof e> => !!e)
+    .map(e => ({ compId: e.id, title: e.title, disc: e.disc }))
 }
 
 export interface FollowingRow {
@@ -158,26 +171,35 @@ function followingFor(userId: string, liveIds: string[]): FollowingRow[] {
     .map(u => ({ uid: u.id, name: u.name, tag: u.tag, hasPhoto: hasAvatar(u.id), hero: deriveHeroState(u.id, liveIds) }))
 }
 
-export interface AnnouncementBanner {
-  title: string
-  body: string
-  at: number
+export interface StoryItem {
+  id: string
+  createdAt: number
+  seen: boolean
 }
 
-const ANNOUNCEMENT_WINDOW_MS = 3 * 3600_000   // an admin announcement is "of today" for 3h
+function storiesFor(userId: string): StoryItem[] {
+  return activeStories().map(s => ({ id: s.id, createdAt: s.createdAt, seen: hasSeenStory(s.id, userId) }))
+}
 
-function latestAnnouncement(userId: string): AnnouncementBanner | undefined {
-  const n = notifsForUser(userId).find(x => x.type === 'announcement' && Date.now() - x.createdAt < ANNOUNCEMENT_WINDOW_MS)
-  return n ? { title: n.title, body: n.body, at: n.createdAt } : undefined
+export interface AnnouncementItem {
+  id: string
+  text: string
+  createdAt: number
+}
+
+function announcementsFor(): AnnouncementItem[] {
+  return activeAnnouncements().map(a => ({ id: a.id, text: a.text, createdAt: a.createdAt }))
 }
 
 export interface TodaySnapshot {
   live: boolean
   hero: HeroState
+  stories: StoryItem[]
+  announcements: AnnouncementItem[]
+  liveEvents: LiveEventBrief[]
   feed: FeedItem[]
   provincePulse: ProvincePulse[]
   following: FollowingRow[]
-  announcement?: AnnouncementBanner
 }
 
 export interface MatchDetailPlayer {
@@ -198,7 +220,6 @@ export interface MatchDetail {
   mySide?: 'p1' | 'p2'
   p1?: MatchDetailPlayer
   p2?: MatchDetailPlayer
-  desk: { p1Here: boolean; p2Here: boolean; p1Ready: boolean; p2Ready: boolean; refRequestedAt?: number; refHandledAt?: number }
 }
 
 export const VENUE_ADDRESS_SETTING_KEY = 'TODAY_HUB_VENUE_ADDRESS'
@@ -227,11 +248,6 @@ export async function matchDetailFor(userId: string, matchId: string): Promise<M
     roundLabel: roundLabel(m, allMatches()), station: desk?.station,
     venueAddress: getSetting(VENUE_ADDRESS_SETTING_KEY) || undefined,
     mySide: mySide(m, userId), p1, p2,
-    desk: {
-      p1Here: desk?.p1Here ?? false, p2Here: desk?.p2Here ?? false,
-      p1Ready: desk?.p1Ready ?? false, p2Ready: desk?.p2Ready ?? false,
-      refRequestedAt: desk?.refRequestedAt, refHandledAt: desk?.refHandledAt,
-    },
   }
 }
 
@@ -240,14 +256,20 @@ export function buildTodaySnapshot(userId: string): TodaySnapshot {
   return {
     live: liveIds.length > 0,
     hero: deriveHeroState(userId, liveIds),
+    stories: storiesFor(userId),
+    announcements: announcementsFor(),
+    liveEvents: liveEventBriefs(liveIds),
     feed: feedFor(liveIds),
     provincePulse: provincePulseFor(liveIds),
     following: followingFor(userId, liveIds),
-    announcement: latestAnnouncement(userId),
   }
 }
 
 // ─── Admin ops board («تختهٔ روز») ──────────────────────────────────────────
+// Simplified per docs/37 §10.1 — no player check-in signal exists anymore
+// (p1Ready/p2Ready never get set), so staging is purely time-since-called:
+// waiting (no station yet) → playing (just called) → late → absent. The
+// old 'ref' bucket is gone (ref-request was a player-only action).
 
 export interface QueueRow {
   matchId: string
@@ -255,10 +277,9 @@ export interface QueueRow {
   p2Name: string
   station?: string
   sinceMs: number         // how long this match has been in its current bucket
-  refRequestedAt?: number
 }
 
-export type QueueBucket = 'waiting' | 'playing' | 'late' | 'absent' | 'ref'
+export type QueueBucket = 'waiting' | 'playing' | 'late' | 'absent'
 
 export interface StationCard {
   station: string
@@ -283,7 +304,7 @@ export function buildAdminToday(): AdminTodaySnapshot {
   const active = allMatches().filter(m => liveIds.includes(m.compId) && m.status === 'ready' && !m.cancelled)
   const now = Date.now()
 
-  const queue: Record<QueueBucket, QueueRow[]> = { waiting: [], playing: [], late: [], absent: [], ref: [] }
+  const queue: Record<QueueBucket, QueueRow[]> = { waiting: [], playing: [], late: [], absent: [] }
 
   for (const m of active) {
     const desk = getDesk(m.id)
@@ -291,15 +312,11 @@ export function buildAdminToday(): AdminTodaySnapshot {
       matchId: m.id, p1Name: nameOf(m.p1UserId), p2Name: nameOf(m.p2UserId),
       station: desk?.station, sinceMs: now - (desk?.calledAt ?? m.createdAt),
     }
-    if (desk?.refRequestedAt && !desk.refHandledAt) {
-      queue.ref.push({ ...row, refRequestedAt: desk.refRequestedAt })
-    }
     if (!desk?.station) {
       queue.waiting.push(row)
     } else {
       const waited = now - (desk.calledAt ?? now)
-      if (desk.p1Ready && desk.p2Ready) queue.playing.push(row)
-      else if (waited >= ABSENT_MS) queue.absent.push(row)
+      if (waited >= ABSENT_MS) queue.absent.push(row)
       else if (waited >= LATE_MS) queue.late.push(row)
       else queue.playing.push(row)
     }
@@ -313,7 +330,7 @@ export function buildAdminToday(): AdminTodaySnapshot {
       const waited = now - (d.calledAt ?? now)
       return {
         station: d.station!,
-        status: (waited >= LATE_MS && !(d.p1Ready && d.p2Ready)) ? 'late' : 'playing',
+        status: waited >= LATE_MS ? 'late' : 'playing',
         current: `${nameOf(m.p1UserId)} — ${nameOf(m.p2UserId)}`,
       } as StationCard
     })
@@ -321,7 +338,7 @@ export function buildAdminToday(): AdminTodaySnapshot {
 
   const counts: Record<QueueBucket, number> = {
     waiting: queue.waiting.length, playing: queue.playing.length,
-    late: queue.late.length, absent: queue.absent.length, ref: queue.ref.length,
+    late: queue.late.length, absent: queue.absent.length,
   }
 
   return { stations, queue, counts }

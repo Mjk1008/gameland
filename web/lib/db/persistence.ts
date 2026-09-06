@@ -52,6 +52,9 @@ export function startHydration(loaders: {
   loadPromoterCodeRequest?: (r: any) => void
   loadMatchDesk?: (d: any) => void
   loadFollow?: (f: any) => void
+  loadStory?: (s: any) => void
+  loadStoryView?: (v: any) => void
+  loadAnnouncement?: (a: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   // `next build` imports every route module to collect page data / prerender.
@@ -222,6 +225,20 @@ export function startHydration(loaders: {
           created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
           PRIMARY KEY (follower_id, followee_id))`,
         `CREATE INDEX IF NOT EXISTS follows_followee_idx ON app_follows (followee_id)`,
+        `CREATE TABLE IF NOT EXISTS app_stories (
+          id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          expires_at TIMESTAMPTZ NOT NULL, created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
+        `CREATE TABLE IF NOT EXISTS app_story_media (
+          id TEXT PRIMARY KEY REFERENCES app_stories(id) ON DELETE CASCADE,
+          data_url TEXT NOT NULL, thumb_data_url TEXT NOT NULL)`,
+        `CREATE TABLE IF NOT EXISTS app_story_views (
+          story_id TEXT NOT NULL REFERENCES app_stories(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          PRIMARY KEY (story_id, user_id))`,
+        `CREATE TABLE IF NOT EXISTS app_today_announcements (
+          id TEXT PRIMARY KEY, text TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
       try {
         await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
@@ -487,6 +504,27 @@ export function startHydration(loaders: {
         const fl = await d.select().from(schema.follows)
         for (const row of fl) loaders.loadFollow?.({ followerId: row.followerId, followeeId: row.followeeId })
       } catch (e) { console.error('[db] load follows:', e) }
+
+      try {
+        const st = await d.select().from(schema.stories)
+        for (const row of st) loaders.loadStory?.({
+          id: row.id, createdAt: ms(row.createdAt), expiresAt: ms(row.expiresAt),
+          createdBy: row.createdBy, removedAt: row.removedAt ? ms(row.removedAt) : undefined,
+        })
+      } catch (e) { console.error('[db] load stories:', e) }
+
+      try {
+        const sv = await d.select().from(schema.storyViews)
+        for (const row of sv) loaders.loadStoryView?.({ storyId: row.storyId, userId: row.userId })
+      } catch (e) { console.error('[db] load story views:', e) }
+
+      try {
+        const an = await d.select().from(schema.todayAnnouncements)
+        for (const row of an) loaders.loadAnnouncement?.({
+          id: row.id, text: row.text, createdAt: ms(row.createdAt),
+          createdBy: row.createdBy, removedAt: row.removedAt ? ms(row.removedAt) : undefined,
+        })
+      } catch (e) { console.error('[db] load today announcements:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -975,6 +1013,62 @@ export const persist = {
     delete(followerId: string, followeeId: string) {
       const d = db(); if (!d) return
       fire(d.delete(schema.follows).where(and(eq(schema.follows.followerId, followerId), eq(schema.follows.followeeId, followeeId))))
+    },
+  },
+  // ─── Today Stories («امروز») ────────────────────────────────────────────
+  story: {
+    insert(row: { id: string; createdAt: number; expiresAt: number; createdBy: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.stories).values({
+        id: row.id, createdAt: new Date(row.createdAt), expiresAt: new Date(row.expiresAt), createdBy: row.createdBy,
+      }))
+    },
+    remove(id: string, removedAt: number) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.stories).set({ removedAt: new Date(removedAt) }).where(eq(schema.stories.id, id)))
+    },
+  },
+  storyMedia: {
+    // Awaitable — the row must exist before the story is considered "created"
+    // (see app/api/admin/stories/route.ts: one request makes both rows).
+    async insertAsync(id: string, dataUrl: string, thumbDataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.storyMedia).values({ id, dataUrl, thumbDataUrl })
+    },
+    async read(id: string): Promise<{ dataUrl: string; thumbDataUrl: string } | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.storyMedia.dataUrl, thumbDataUrl: schema.storyMedia.thumbDataUrl })
+        .from(schema.storyMedia).where(eq(schema.storyMedia.id, id)).limit(1)
+      return rows[0] ?? null
+    },
+    // Hard-delete on admin removal — an early-pulled story is usually wrong;
+    // don't leave its bytes fetchable by direct URL (metadata row stays, for
+    // the view-count audit trail — see lib/stories.ts removeStory()).
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.storyMedia).where(eq(schema.storyMedia.id, id)))
+    },
+  },
+  storyView: {
+    insert(storyId: string, userId: string) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.storyViews).values({ storyId, userId }).onConflictDoNothing())
+    },
+    deleteForStory(storyId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.storyViews).where(eq(schema.storyViews.storyId, storyId)))
+    },
+  },
+  todayAnnouncement: {
+    insert(row: { id: string; text: string; createdAt: number; createdBy: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.todayAnnouncements).values({
+        id: row.id, text: row.text, createdAt: new Date(row.createdAt), createdBy: row.createdBy,
+      }))
+    },
+    remove(id: string, removedAt: number) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.todayAnnouncements).set({ removedAt: new Date(removedAt) }).where(eq(schema.todayAnnouncements.id, id)))
     },
   },
   promo: {
