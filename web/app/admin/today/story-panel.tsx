@@ -52,10 +52,13 @@ export default function StoryPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
-      <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>استوری</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>استوری</span>
+        <span className="gl-num" style={{ fontSize: 11, color: C.tmut }}>{rows.length} / ۱۵ در ۲۴ ساعت</span>
+      </div>
 
       <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
-      <Button disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'در حالِ پردازش…' : '+ استوریِ جدید'}</Button>
+      <Button disabled={busy || rows.length >= 15} onClick={() => fileRef.current?.click()}>{busy ? 'در حالِ پردازش…' : '+ استوریِ جدید'}</Button>
       {err && <div style={{ fontSize: 11.5, color: C.live }}>{err}</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

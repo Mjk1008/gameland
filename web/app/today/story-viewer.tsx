@@ -146,7 +146,14 @@ export default function StoryViewer({ stories, startIndex, onClose, onSeen }: {
   function onPointerMove(e: React.PointerEvent) {
     const p = pointerRef.current
     const dx = e.clientX - p.x0, dy = e.clientY - p.y0
-    if (!p.dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) p.dragging = true
+    // Only a vertical, downward-dominant move is a drag-to-dismiss — the only
+    // drag gesture this viewer has. A real thumb tap on a touchscreen almost
+    // always drifts a few px sideways; flagging that as "dragging" here used
+    // to swallow the tap entirely (onPointerUp's drag branch never calls
+    // goTo), so back/next silently no-op'd on real devices even though a
+    // zero-jitter synthetic click always worked. Requiring |dy| to dominate
+    // |dx| lets horizontal jitter resolve as the tap it was meant to be.
+    if (!p.dragging && dy > DRAG_THRESHOLD_PX && dy > Math.abs(dx)) p.dragging = true
     if (p.dragging && dy > 0) setDragY(dy)
   }
   function onPointerUp(e: React.PointerEvent) {

@@ -4,7 +4,7 @@
 // everything on each request.
 // See docs/35-live-day-hub-plan.md, docs/36-live-day-hub-design-brief.md,
 // docs/37-today-stories-plan.md (stories + the §9 layout redesign).
-import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, type Match } from './store'
+import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, getCompetition, hasCompetitionCover, type Match } from './store'
 import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS } from './match-desk'
 import { activeStories, hasSeenStory, activeAnnouncements } from './stories'
 import { queryUserRank } from './ranking-store'
@@ -91,7 +91,10 @@ export function deriveHeroState(userId: string, liveIds: string[]): HeroState {
 export interface FeedItem {
   matchId: string
   compId: string
+  compTitle: string
+  hasCover: boolean
   province?: string
+  bracketLabel: string   // e.g. "یک‌چهارم نهایی · براکتِ تهران #2" or just "فینال"
   winnerName: string
   loserName: string
   score?: string
@@ -101,7 +104,8 @@ export interface FeedItem {
 const FEED_LIMIT = 30
 
 function feedFor(liveIds: string[]): FeedItem[] {
-  return allMatches()
+  const all = allMatches()
+  return all
     .filter(m => liveIds.includes(m.compId) && m.status === 'done' && !m.cancelled && m.completedAt && m.winnerUserId)
     .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
     .slice(0, FEED_LIMIT)
@@ -109,10 +113,17 @@ function feedFor(liveIds: string[]): FeedItem[] {
       const loserId = m.winnerUserId === m.p1UserId ? m.p2UserId : m.p1UserId
       const winner = getUserById(m.winnerUserId!)
       const loser = loserId ? getUserById(loserId) : undefined
+      const event = getEvent(m.compId)
+      const comp = event?.competitionId ? getCompetition(event.competitionId) : undefined
+      const province = m.groupKey.startsWith('province:') ? m.groupKey.slice('province:'.length) : undefined
+      const bracketLabel = province ? `${roundLabel(m, all)} · براکتِ ${province} #${m.bracket + 1}` : roundLabel(m, all)
       return {
         matchId: m.id,
         compId: m.compId,
-        province: m.groupKey.startsWith('province:') ? m.groupKey.slice('province:'.length) : undefined,
+        compTitle: comp?.title ?? event?.title ?? '—',
+        hasCover: comp ? hasCompetitionCover(comp.id) : false,
+        province,
+        bracketLabel,
         winnerName: winner?.name ?? '—',
         loserName: loser?.name ?? '—',
         score: m.score,

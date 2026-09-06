@@ -4,7 +4,7 @@
 // shape: store.ts delegates hydration here via a lazy require() to avoid a
 // load cycle. See docs/37-today-stories-plan.md for the full spec.
 import { persist } from './db/persistence'
-export { STORY_WINDOW_MS, STORY_IMAGE_DURATION_MS, MAX_STORY_IMAGE_CHARS } from './stories-shared'
+export { STORY_WINDOW_MS, STORY_IMAGE_DURATION_MS, MAX_STORY_IMAGE_CHARS, MAX_ACTIVE_STORIES } from './stories-shared'
 import { STORY_WINDOW_MS } from './stories-shared'
 
 export interface Story {

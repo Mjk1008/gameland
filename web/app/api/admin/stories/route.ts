@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { activeStories, storyViewCount, createStory, MAX_STORY_IMAGE_CHARS } from '@/lib/stories'
+import { activeStories, storyViewCount, createStory, MAX_STORY_IMAGE_CHARS, MAX_ACTIVE_STORIES } from '@/lib/stories'
 import { persist } from '@/lib/db/persistence'
 
 // Only role==='admin' — deliberately narrower than the admin||organizer
@@ -28,6 +28,12 @@ export async function POST(req: Request) {
   if (!guard(session as any)) return NextResponse.json({ error: 'فقط ادمین' }, { status: 403 })
   const uid = (session as any)?.uid as string | undefined
   if (!uid) return NextResponse.json({ error: 'فقط ادمین' }, { status: 403 })
+
+  // Active window IS 24h (STORY_WINDOW_MS), so "currently active" already
+  // means "created in the last 24h" — one count covers both.
+  if (activeStories().length >= MAX_ACTIVE_STORIES) {
+    return NextResponse.json({ error: `توی ۲۴ ساعت حداکثر ${MAX_ACTIVE_STORIES} استوری می‌شه گذاشت` }, { status: 400 })
+  }
 
   const b = await req.json().catch(() => ({}))
   const imageData = b.imageData
