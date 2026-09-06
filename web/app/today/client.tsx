@@ -46,8 +46,11 @@ export default function TodayClient({ initial }: { initial: TodaySnapshot }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* No "next match" card once eliminated (nothing upcoming to
               show), but «مسیرِ من» stays below regardless — the final
-              placement/path is still worth seeing (docs/37 §9.1 table). */}
-          {hero.kind !== 'none' && hero.kind !== 'eliminated' && <HeroCard hero={hero} />}
+              placement/path is still worth seeing (docs/37 §9.1 table).
+              `hero.kind` is already narrowed to exclude 'none' here via
+              TS's aliased-condition narrowing on `inCompetition` — an
+              explicit `!== 'none'` check would be a no-overlap error. */}
+          {hero.kind !== 'eliminated' && <HeroCard hero={hero} />}
           {heroCompId && <Button href={`/competitions/${heroCompId}/me`} kind="prestige">مسیرِ من ›</Button>}
         </div>
       )}
