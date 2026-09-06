@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, getRegistrationById, setRegistrationStatus, settleRegistrationAttempts, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
+import { getUserById, getRegistrationById, setRegistrationStatus, settleRegistrationAttempts, rejectTopUp, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
 import { isRealPlayer } from '@/lib/bracket-slots'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
@@ -14,14 +14,38 @@ export async function POST(req: Request) {
   if (role !== 'admin' && role !== 'organizer') return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const { regId, action, reason } = await req.json().catch(() => ({}))
-  if (!regId || (action !== 'approve' && action !== 'reject')) {
+  if (!regId || (action !== 'approve' && action !== 'reject' && action !== 'reject-topup')) {
     return NextResponse.json({ error: 'پارامتر نامعتبر' }, { status: 400 })
   }
   const r = getRegistrationById(regId)
   if (!r) return NextResponse.json({ error: 'ثبت‌نام پیدا نشد' }, { status: 404 })
 
-  // After the draw, approve still works (leftover pool). Reject is blocked
-  // only if this account already has a real seat in a tree.
+  // Reject a top-up on an already-approved row: only the unsettled سهم are
+  // discarded, the row stays 'approved' and any existing seat is untouched
+  // (see rejectTopUp's comment) — so this is allowed even when the player is
+  // already seated, unlike a full reject below.
+  if (action === 'reject-topup') {
+    const rsn = (reason ?? '').toString().trim().slice(0, 240)
+    try {
+      rejectTopUp(regId)
+    } catch (e: any) {
+      const msg = e.message === 'NOTHING_TO_REJECT' ? 'سهمِ تسویه‌نشده‌ای برای رد کردن نیست'
+        : e.message === 'NOT_APPROVED' ? 'این ثبت‌نام تاییدشده نیست' : 'انجام نشد'
+      return NextResponse.json({ error: msg }, { status: 400 })
+    }
+    const c = getEvent(r.compId)
+    pushNotif(r.userId, 'registration', 'سهمِ جدید رد شد',
+      `فیشِ سهمِ جدید برای «${c?.title ?? 'مسابقه'}» تایید نشد.${rsn ? ` دلیل: ${rsn}` : ''} سهم‌های قبلی‌ات دست‌نخورده موند.`)
+    trackServer({
+      userId: r.userId, name: 'reg_topup_rejected', path: '/admin/requests',
+      props: trackUserProps(getUserById(r.userId), { compId: r.compId }),
+    })
+    return NextResponse.json({ ok: true, status: 'approved', attempts: r.attempts })
+  }
+
+  // After the draw, approve still works (leftover pool). A full reject is
+  // blocked if this account already has a real seat in a tree — use
+  // reject-topup above instead when there's settled money on the row.
   if (action === 'reject') {
     const seated = matchesForComp(r.compId).some(m =>
       (isRealPlayer(m.p1UserId) && m.p1UserId === r.userId) ||
