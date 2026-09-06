@@ -50,6 +50,11 @@ export function startHydration(loaders: {
   loadPromoterCode?: (c: any) => void
   loadPromoterEarning?: (e: any) => void
   loadPromoterCodeRequest?: (r: any) => void
+  loadMatchDesk?: (d: any) => void
+  loadFollow?: (f: any) => void
+  loadStory?: (s: any) => void
+  loadStoryView?: (v: any) => void
+  loadAnnouncement?: (a: any) => void
 }): Promise<void> {
   if (hydrated || hydrating) return hydrating ?? Promise.resolve()
   // `next build` imports every route module to collect page data / prerender.
@@ -203,6 +208,37 @@ export function startHydration(loaders: {
         `CREATE INDEX IF NOT EXISTS users_ranking_idx ON app_users (ranking_points DESC, ranking_events DESC)`,
         `CREATE INDEX IF NOT EXISTS registrations_user_idx ON app_registrations (user_id)`,
         `CREATE INDEX IF NOT EXISTS placements_user_idx ON app_placements (user_id)`,
+        // Live Day Hub («امروز») — see docs/35-live-day-hub-plan.md.
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`,
+        `ALTER TABLE app_news ADD COLUMN IF NOT EXISTS placement TEXT NOT NULL DEFAULT 'home'`,
+        `CREATE TABLE IF NOT EXISTS app_match_desk (
+          match_id TEXT PRIMARY KEY REFERENCES app_matches(id) ON DELETE CASCADE,
+          station TEXT,
+          p1_here BOOLEAN NOT NULL DEFAULT false, p2_here BOOLEAN NOT NULL DEFAULT false,
+          p1_ready BOOLEAN NOT NULL DEFAULT false, p2_ready BOOLEAN NOT NULL DEFAULT false,
+          called_at TIMESTAMPTZ,
+          ref_requested_by TEXT, ref_requested_at TIMESTAMPTZ, ref_handled_at TIMESTAMPTZ,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+        `CREATE TABLE IF NOT EXISTS app_follows (
+          follower_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          followee_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          PRIMARY KEY (follower_id, followee_id))`,
+        `CREATE INDEX IF NOT EXISTS follows_followee_idx ON app_follows (followee_id)`,
+        `CREATE TABLE IF NOT EXISTS app_stories (
+          id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          expires_at TIMESTAMPTZ NOT NULL, created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
+        `CREATE TABLE IF NOT EXISTS app_story_media (
+          id TEXT PRIMARY KEY REFERENCES app_stories(id) ON DELETE CASCADE,
+          data_url TEXT NOT NULL, thumb_data_url TEXT NOT NULL)`,
+        `CREATE TABLE IF NOT EXISTS app_story_views (
+          story_id TEXT NOT NULL REFERENCES app_stories(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          PRIMARY KEY (story_id, user_id))`,
+        `CREATE TABLE IF NOT EXISTS app_today_announcements (
+          id TEXT PRIMARY KEY, text TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
       try {
         await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
@@ -320,6 +356,7 @@ export function startHydration(loaders: {
         score: m.score ?? undefined,
         cancelled: !!(m as any).cancelled,
         status: m.status as any, createdAt: ms(m.createdAt),
+        completedAt: (m as any).completedAt ? ms((m as any).completedAt) : undefined,
       })
 
       try {
@@ -336,6 +373,7 @@ export function startHydration(loaders: {
           id: n.id, imageData: n.imageData, title: n.title, body: n.body,
           tags: n.tags ? n.tags.split(',').filter(Boolean) : [],
           sort: n.sort, active: n.active, createdAt: ms(n.createdAt),
+          placement: ((n as any).placement as any) ?? 'home',
         })
       } catch (e) { console.error('[db] load news:', e) }
 
@@ -449,6 +487,44 @@ export function startHydration(loaders: {
           reviewedAt: row.reviewed_at, approvedCodeId: row.approved_code_id, createdAt: row.created_at,
         })
       } catch (e) { console.error('[db] load promoter code requests:', e) }
+
+      try {
+        const md = await d.select().from(schema.matchDesk)
+        for (const row of md) loaders.loadMatchDesk?.({
+          matchId: row.matchId, station: row.station ?? undefined,
+          p1Here: row.p1Here, p2Here: row.p2Here, p1Ready: row.p1Ready, p2Ready: row.p2Ready,
+          calledAt: row.calledAt ? ms(row.calledAt) : undefined,
+          refRequestedBy: row.refRequestedBy ?? undefined,
+          refRequestedAt: row.refRequestedAt ? ms(row.refRequestedAt) : undefined,
+          refHandledAt: row.refHandledAt ? ms(row.refHandledAt) : undefined,
+        })
+      } catch (e) { console.error('[db] load match desks:', e) }
+
+      try {
+        const fl = await d.select().from(schema.follows)
+        for (const row of fl) loaders.loadFollow?.({ followerId: row.followerId, followeeId: row.followeeId })
+      } catch (e) { console.error('[db] load follows:', e) }
+
+      try {
+        const st = await d.select().from(schema.stories)
+        for (const row of st) loaders.loadStory?.({
+          id: row.id, createdAt: ms(row.createdAt), expiresAt: ms(row.expiresAt),
+          createdBy: row.createdBy, removedAt: row.removedAt ? ms(row.removedAt) : undefined,
+        })
+      } catch (e) { console.error('[db] load stories:', e) }
+
+      try {
+        const sv = await d.select().from(schema.storyViews)
+        for (const row of sv) loaders.loadStoryView?.({ storyId: row.storyId, userId: row.userId })
+      } catch (e) { console.error('[db] load story views:', e) }
+
+      try {
+        const an = await d.select().from(schema.todayAnnouncements)
+        for (const row of an) loaders.loadAnnouncement?.({
+          id: row.id, text: row.text, createdAt: ms(row.createdAt),
+          createdBy: row.createdBy, removedAt: row.removedAt ? ms(row.removedAt) : undefined,
+        })
+      } catch (e) { console.error('[db] load today announcements:', e) }
 
       console.log('[db] hydrated:', us.length, 'users,', ev.length, 'events,', rg.length, 'regs,', pls.length, 'placements,', ns.length, 'notifs,', mt.length, 'matches')
     } catch (err) {
@@ -788,7 +864,7 @@ export const persist = {
     },
   },
   match: {
-    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean }) {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean; completedAt?: number }) {
       const d = db(); if (!d) return
       // Ordered per match id — see fireOrdered's comment. Bracket resolution
       // (a fresh draw immediately resolving its own byes, or a played match
@@ -801,12 +877,13 @@ export const persist = {
         p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId,
         p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId,
         score: m.score, status: m.status as any, cancelled: m.cancelled ?? false,
+        completedAt: m.completedAt ? new Date(m.completedAt) : undefined,
       }).onConflictDoUpdate({
         target: schema.matches.id,
         // Every mutable field must appear here, even ones this call didn't
         // change — a key missing from `set` (not merely undefined-valued)
         // would silently drop it on re-save (docs/27 §1.4 risk #5).
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false },
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined },
       }))
     },
     // Awaited by callers (generatePrelims) — a subsequent buildTree() creates
@@ -898,15 +975,100 @@ export const persist = {
     },
   },
   news: {
-    insert(n: { id: string; imageData: string; title: string; body: string; tags: string[]; sort: number; active: boolean }) {
+    insert(n: { id: string; imageData: string; title: string; body: string; tags: string[]; sort: number; active: boolean; placement?: string }) {
       const d = db(); if (!d) return
       fire(d.insert(schema.news).values({
-        id: n.id, imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active,
-      }).onConflictDoUpdate({ target: schema.news.id, set: { imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active } }))
+        id: n.id, imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active, placement: n.placement ?? 'home',
+      }).onConflictDoUpdate({ target: schema.news.id, set: { imageData: n.imageData, title: n.title, body: n.body, tags: n.tags.join(','), sort: n.sort, active: n.active, placement: n.placement ?? 'home' } }))
     },
     delete(id: string) {
       const d = db(); if (!d) return
       fire(d.delete(schema.news).where(eq(schema.news.id, id)))
+    },
+  },
+  // ─── Live Day Hub («امروز») ──────────────────────────────────────────────
+  matchDesk: {
+    upsert(row: { matchId: string; station?: string; p1Here: boolean; p2Here: boolean; p1Ready: boolean; p2Ready: boolean; calledAt?: number; refRequestedBy?: string; refRequestedAt?: number; refHandledAt?: number }) {
+      const d = db(); if (!d) return
+      const values = {
+        matchId: row.matchId, station: row.station,
+        p1Here: row.p1Here, p2Here: row.p2Here, p1Ready: row.p1Ready, p2Ready: row.p2Ready,
+        calledAt: row.calledAt ? new Date(row.calledAt) : undefined,
+        refRequestedBy: row.refRequestedBy, refRequestedAt: row.refRequestedAt ? new Date(row.refRequestedAt) : undefined,
+        refHandledAt: row.refHandledAt ? new Date(row.refHandledAt) : undefined,
+        updatedAt: new Date(),
+      }
+      // Ordered per match id — the same check-in/call sequence can issue two
+      // writes to this row within one tick (e.g. a check-in immediately
+      // followed by a call); see fireOrdered's comment on `match.insert`.
+      fireOrdered('desk:' + row.matchId, () => d.insert(schema.matchDesk).values(values)
+        .onConflictDoUpdate({ target: schema.matchDesk.matchId, set: values }))
+    },
+  },
+  follow: {
+    insert(followerId: string, followeeId: string) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.follows).values({ followerId, followeeId }).onConflictDoNothing())
+    },
+    delete(followerId: string, followeeId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.follows).where(and(eq(schema.follows.followerId, followerId), eq(schema.follows.followeeId, followeeId))))
+    },
+  },
+  // ─── Today Stories («امروز») ────────────────────────────────────────────
+  story: {
+    insert(row: { id: string; createdAt: number; expiresAt: number; createdBy: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.stories).values({
+        id: row.id, createdAt: new Date(row.createdAt), expiresAt: new Date(row.expiresAt), createdBy: row.createdBy,
+      }))
+    },
+    remove(id: string, removedAt: number) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.stories).set({ removedAt: new Date(removedAt) }).where(eq(schema.stories.id, id)))
+    },
+  },
+  storyMedia: {
+    // Awaitable — the row must exist before the story is considered "created"
+    // (see app/api/admin/stories/route.ts: one request makes both rows).
+    async insertAsync(id: string, dataUrl: string, thumbDataUrl: string) {
+      const d = db(); if (!d) return
+      await d.insert(schema.storyMedia).values({ id, dataUrl, thumbDataUrl })
+    },
+    async read(id: string): Promise<{ dataUrl: string; thumbDataUrl: string } | null> {
+      const d = db(); if (!d) return null
+      const rows = await d.select({ dataUrl: schema.storyMedia.dataUrl, thumbDataUrl: schema.storyMedia.thumbDataUrl })
+        .from(schema.storyMedia).where(eq(schema.storyMedia.id, id)).limit(1)
+      return rows[0] ?? null
+    },
+    // Hard-delete on admin removal — an early-pulled story is usually wrong;
+    // don't leave its bytes fetchable by direct URL (metadata row stays, for
+    // the view-count audit trail — see lib/stories.ts removeStory()).
+    delete(id: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.storyMedia).where(eq(schema.storyMedia.id, id)))
+    },
+  },
+  storyView: {
+    insert(storyId: string, userId: string) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.storyViews).values({ storyId, userId }).onConflictDoNothing())
+    },
+    deleteForStory(storyId: string) {
+      const d = db(); if (!d) return
+      fire(d.delete(schema.storyViews).where(eq(schema.storyViews.storyId, storyId)))
+    },
+  },
+  todayAnnouncement: {
+    insert(row: { id: string; text: string; createdAt: number; createdBy: string }) {
+      const d = db(); if (!d) return
+      fire(d.insert(schema.todayAnnouncements).values({
+        id: row.id, text: row.text, createdAt: new Date(row.createdAt), createdBy: row.createdBy,
+      }))
+    },
+    remove(id: string, removedAt: number) {
+      const d = db(); if (!d) return
+      fire(d.update(schema.todayAnnouncements).set({ removedAt: new Date(removedAt) }).where(eq(schema.todayAnnouncements.id, id)))
     },
   },
   promo: {

@@ -31,7 +31,7 @@ export default function AssistantFab() {
         <span className="glai-ring" aria-hidden />
         <span className="glai-body">
           <span className="glai-orb" aria-hidden>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1A1508" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1A1508" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l1.6 4.2L18 9l-4.4 1.8L12 15l-1.6-4.2L6 9l4.4-1.8z" />
               <path d="M19 15l.7 1.8L21.5 18l-1.8.7L19 20.5l-.7-1.8L16.5 18l1.8-.7z" />
             </svg>
@@ -45,7 +45,7 @@ export default function AssistantFab() {
       <style jsx global>{`
         .glai-wrap {
           position: fixed;
-          bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+          bottom: calc(96px + env(safe-area-inset-bottom, 0px));
           inset-inline-start: 14px;
           z-index: 45;
           display: block;
@@ -64,21 +64,21 @@ export default function AssistantFab() {
         }
         .glai-body {
           position: relative;
-          display: flex; align-items: center; gap: 9px;
+          display: flex; align-items: center; gap: 7px;
           background: rgba(18, 15, 11, .86);
           backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
           border-radius: 999px;
-          padding: 8px 15px 8px 17px;
+          padding: 6px 12px 6px 14px;
         }
         .glai-orb {
-          width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
+          width: 24px; height: 24px; border-radius: 999px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           background: linear-gradient(135deg, #FFE9A8, #F5C84B 55%, #E8B429);
           box-shadow: 0 0 14px rgba(245, 200, 75, .5);
         }
         .glai-txt { display: flex; flex-direction: column; gap: 1px; }
-        .glai-title { font-size: 12px; font-weight: 800; color: #F5C84B; line-height: 1.5; }
-        .glai-sub { font-size: 9px; color: rgba(242, 237, 228, .55); line-height: 1.4; }
+        .glai-title { font-size: 10.5px; font-weight: 800; color: #F5C84B; line-height: 1.4; }
+        .glai-sub { font-size: 8px; color: rgba(242, 237, 228, .55); line-height: 1.35; }
         @keyframes glaiSpin { to { transform: rotate(360deg) } }
         @keyframes glaiBreathe {
           0%, 100% { filter: drop-shadow(0 6px 18px rgba(245, 200, 75, .18)); transform: translateY(0) }

@@ -14,7 +14,7 @@ export default function ContentHubPage() {
   // previews go through /api/promo/[id] — passing raw base64 made this page's payload several MB
   const promos = allPromos().map(p => ({ ...p, imageData: p.imageData.startsWith('data:') ? `/api/promo/${p.id}` : p.imageData }))
   const news = allNews().map(n => ({
-    id: n.id, title: n.title, body: n.body, tags: n.tags, active: n.active,
+    id: n.id, title: n.title, body: n.body, tags: n.tags, active: n.active, placement: n.placement,
     cover: n.imageData.startsWith('data:') ? `/api/news-image/${n.id}` : n.imageData,
   }))
 

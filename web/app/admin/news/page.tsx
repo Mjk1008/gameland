@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // Admin news manager — items feed the home news slider + detail modal.
 export default function NewsAdmin() {
   const items = allNews().map(n => ({
-    id: n.id, title: n.title, body: n.body, tags: n.tags, active: n.active,
+    id: n.id, title: n.title, body: n.body, tags: n.tags, active: n.active, placement: n.placement,
     cover: n.imageData.startsWith('data:') ? `/api/news-image/${n.id}` : n.imageData,
   }))
   return (

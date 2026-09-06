@@ -138,6 +138,8 @@ ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS stage     TEXT NOT NULL DEFAULT
 ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS group_key TEXT NOT NULL DEFAULT '';
 ALTER TABLE app_events  ADD COLUMN IF NOT EXISTS config    TEXT;   -- JSON EventConfig
 CREATE INDEX IF NOT EXISTS match_comp_idx ON app_matches (comp_id, stage, group_key, bracket, round, slot);
+-- Live Day Hub — stamped once when status first becomes 'done' (store.ts).
+ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
 -- ─── Placements (final results → feeds ranking) ──────────────
 CREATE TABLE IF NOT EXISTS app_placements (

@@ -194,6 +194,9 @@ export const matches = pgTable('app_matches', {
   status:      matchStatusEnum('status').notNull().default('pending'),
   cancelled:   boolean('cancelled').notNull().default(false),
   createdAt:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Live Day Hub — stamped once, the first time status becomes 'done'
+  // (store.ts saveMatch/pushMatch). Drives the /today live feed ordering.
+  completedAt: timestamp('completed_at', { withTimezone: true }),
 }, (t) => ({
   byComp: index('match_comp_idx').on(t.compId, t.bracket, t.round, t.slot),
 }))
@@ -317,6 +320,10 @@ export const news = pgTable('app_news', {
   sort:      integer('sort').notNull().default(0),
   active:    boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Live Day Hub — 'home' (default, existing behavior) | 'today' | 'both'.
+  // Lets admins reuse this same admin/news flow for the /today news rail
+  // instead of a bespoke upload system.
+  placement: text('placement').notNull().default('home'),
 })
 
 export const promos = pgTable('app_promos', {
@@ -373,4 +380,64 @@ export const playMatches = pgTable('app_play_matches', {
   winnerUserId:         text('winner_user_id'),
   confirmedAt:          timestamp('confirmed_at', { withTimezone: true }),
   createdAt:            timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─── Live Day Hub («امروز») — per-match check-in/operational state ──────────
+export const matchDesk = pgTable('app_match_desk', {
+  matchId:        text('match_id').primaryKey().references(() => matches.id, { onDelete: 'cascade' }),
+  station:        text('station'),
+  p1Here:         boolean('p1_here').notNull().default(false),
+  p2Here:         boolean('p2_here').notNull().default(false),
+  p1Ready:        boolean('p1_ready').notNull().default(false),
+  p2Ready:        boolean('p2_ready').notNull().default(false),
+  calledAt:       timestamp('called_at', { withTimezone: true }),
+  refRequestedBy: text('ref_requested_by'),
+  refRequestedAt: timestamp('ref_requested_at', { withTimezone: true }),
+  refHandledAt:   timestamp('ref_handled_at', { withTimezone: true }),
+  updatedAt:      timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─── Live Day Hub — follow graph (player follows player) ────────────────────
+export const follows = pgTable('app_follows', {
+  followerId: text('follower_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  followeeId: text('followee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt:  timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.followerId, t.followeeId] }),
+  byFollowee: index('follows_followee_idx').on(t.followeeId),
+}))
+
+// ─── Today Stories («امروز» — استوریِ سبکِ اینستاگرام) ──────────────────────
+// Metadata is tiny (no bytes) → hydrated fully into RAM, same shape as
+// matchDesk above. Bytes live in their own blob table (storyMedia), served
+// on demand — never hydrated, per the app's blob rule (see CLAUDE.md §2).
+export const stories = pgTable('app_stories', {
+  id:        text('id').primaryKey(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdBy: text('created_by').notNull(),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+})
+
+export const storyMedia = pgTable('app_story_media', {
+  id:           text('id').primaryKey().references(() => stories.id, { onDelete: 'cascade' }),
+  dataUrl:      text('data_url').notNull(),
+  thumbDataUrl: text('thumb_data_url').notNull(),
+})
+
+export const storyViews = pgTable('app_story_views', {
+  storyId:  text('story_id').notNull().references(() => stories.id, { onDelete: 'cascade' }),
+  userId:   text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  viewedAt: timestamp('viewed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.storyId, t.userId] }),
+}))
+
+// ─── Today announcements — shared historical board (not per-user notifs) ───
+export const todayAnnouncements = pgTable('app_today_announcements', {
+  id:        text('id').primaryKey(),
+  text:      text('text').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text('created_by').notNull(),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
 })
