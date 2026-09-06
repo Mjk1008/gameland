@@ -45,7 +45,7 @@ export default function AssistantFab() {
       <style jsx global>{`
         .glai-wrap {
           position: fixed;
-          bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+          bottom: calc(84px + env(safe-area-inset-bottom, 0px));
           inset-inline-start: 14px;
           z-index: 45;
           display: block;

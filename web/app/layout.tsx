@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ background: '#14110D', minHeight: '100vh' }}>
         <Providers>
           <NavProgress />
-          <main style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 88, minHeight: '100vh' }}>
+          <main style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)', minHeight: '100vh' }}>
             {children}
           </main>
           <BottomNav />
