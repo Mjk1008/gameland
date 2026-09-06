@@ -73,6 +73,7 @@ const STATUS: Record<string, { c: string; s: string; label: string }> = {
   live: { c: C.live, s: C.liveSoft, label: 'زنده' },
   soon: { c: C.gold, s: C.goldSoft, label: 'به‌زودی' },
   done: { c: C.info, s: C.infoSoft, label: 'پایان‌یافته' },
+  cancelled: { c: C.tmut, s: C.line2, label: 'لغو شده' },
 }
 
 // ── numeral (broadcast, tabular, LTR) ──

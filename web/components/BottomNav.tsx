@@ -2,24 +2,28 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { C } from '@/components/ui'
+import { useEffect, useRef, useState } from 'react'
 import { isArenaEnabled } from '@/lib/arena-enabled'
 import { isTodayHubEnabled } from '@/lib/today-hub-enabled'
 
+const ACCENT = '#A855F7', MUT = '#A89A88', INK = '#14110D', GOLD = '#F5A623'
+
 const icons = {
-  home: <path d="M3 10.5 12 3l9 7.5M5 9.5V20h14V9.5" />,
-  cup: <><path d="M6 9h12v3a6 6 0 0 1-12 0z" /><path d="M9 18h6M10 21h4" /><path d="M6 9H4a2 2 0 0 1 0-4h2M18 9h2a2 2 0 0 0 0-4h-2" /></>,
-  rank: <><path d="M4 20h16" /><rect x="5" y="11" width="4" height="8" rx="1" /><rect x="10" y="6" width="4" height="13" rx="1" /><rect x="15" y="14" width="4" height="5" rx="1" /></>,
-  users: <><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></>,
+  home: <><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" /></>,
+  cup: <><path d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4Z" /><path d="M7 5H4v1a3 3 0 0 0 3 3M17 5h3v1a3 3 0 0 1-3 3" /><path d="M12 12v3M9 20h6M10 20v-2h4v2" /></>,
+  rank: <><rect x="4" y="13" width="4" height="7" rx="1" /><rect x="10" y="8" width="4" height="12" rx="1" /><rect x="16" y="15" width="4" height="5" rx="1" /></>,
   gift: <><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" /></>,
-  arena: <><circle cx="8" cy="10" r="2.5" /><circle cx="16" cy="10" r="2.5" /><path d="M5 19a7 7 0 0 1 14 0" /><path d="M12 3v3M9.5 5.5h5" /></>,
+  arena: <><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>,
   today: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
-  me: <><circle cx="12" cy="9" r="3.5" /><path d="M5 21a7 7 0 0 1 14 0" /></>,
+  me: <><circle cx="12" cy="8" r="3.2" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></>,
   login: <><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="M10 17l-5-5 5-5" /><path d="M5 12h12" /></>,
 }
-function Icon({ d }: { d: React.ReactNode }) {
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+function Icon({ d, style }: { d: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{ transition: 'transform .16s cubic-bezier(.2,.8,.2,1.5)', ...style }}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+    </div>
+  )
 }
 
 const ARENA_ON = isArenaEnabled()
@@ -38,19 +42,9 @@ const TABS = [
     : ARENA_ON ? [] : [{ href: '/invite', label: 'دعوت', icon: icons.gift }]),
 ]
 
-// Dark-theme translation of components/ui.tsx's `glass` token, tuned for a
-// nav that floats over arbitrary (sometimes bright) scrolling content rather
-// than a card over fixed imagery — higher alpha + saturate() so it stays
-// legible and doesn't look washed out. Deliberately NOT the shared `glass`
-// export: that one is tuned for cards over imagery, not a floating bar.
-const glassNav: React.CSSProperties = {
-  background: 'linear-gradient(160deg, rgba(58,50,39,.66), rgba(24,20,15,.80))',
-  backdropFilter: 'blur(20px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(140%)',
-  border: '1px solid rgba(246,239,228,.12)',
-  boxShadow: '0 12px 34px -12px rgba(0,0,0,.78), 0 2px 10px -4px rgba(0,0,0,.55), inset 0 1px 0 rgba(246,239,228,.08)',
-}
-
+// Floating glass pill with a liquid highlight that slides + squishes to the
+// active tab (measured off the real DOM, so it tracks whatever width/order
+// the tabs render with — no hardcoded positions).
 export default function BottomNav() {
   const path = usePathname()
 
@@ -80,109 +74,97 @@ export default function BottomNav() {
     return () => { cancelled = true; clearInterval(id) }
   }, [status, path])
 
+  const hidden = path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/welcome') || path?.startsWith('/admin') || path?.startsWith('/assistant')
+
   const active = (href: string) => (href === '/' ? path === '/' : path?.startsWith(href))
   const activeIndex = tabs.findIndex(t => active(t.href))
 
-  // ─── sliding active-tab indicator — one shared node, measured against the
-  // real DOM so it works for any tab count (4-6, toggled by feature flags)
-  // and is correct under RTL by construction (physical left + translateX,
-  // never mirrored by `direction` — see docs note in the PR). ────────────
-  const pillRef = useRef<HTMLDivElement>(null)
-  const tabRefs = useRef<(HTMLAnchorElement | null)[]>([])
-  const [ind, setInd] = useState<{ x: number; w: number } | null>(null)
-  const [skipTransition, setSkipTransition] = useState(true)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ left: 0, width: 0 })
+  const [squish, setSquish] = useState(0)
+  const prevIndex = useRef(activeIndex)
 
-  const measure = useCallback(() => {
-    const pill = pillRef.current
-    const el = activeIndex >= 0 ? tabRefs.current[activeIndex] : null
-    if (!pill || !el) { setInd(null); return }
-    const p = pill.getBoundingClientRect()
-    const r = el.getBoundingClientRect()
-    const INSET = 4   // indicator sits 4px in from each edge of the tab
-    setInd({ x: r.left - p.left + INSET, w: Math.max(0, r.width - INSET * 2) })
+  function measure(i: number) {
+    if (i < 0) return
+    const el = barRef.current?.querySelectorAll('a')[i] as HTMLElement | undefined
+    if (!el) return
+    const next = { left: el.offsetLeft, width: el.offsetWidth }
+    setPos(p => (p.left === next.left && p.width === next.width) ? p : next)
+  }
+
+  useEffect(() => { measure(activeIndex) }, [activeIndex, tabs.length])
+  useEffect(() => {
+    const onResize = () => measure(activeIndex)
+    window.addEventListener('resize', onResize)
+    const t = setTimeout(() => measure(activeIndex), 400)   // fonts settling late
+    return () => { window.removeEventListener('resize', onResize); clearTimeout(t) }
   }, [activeIndex])
 
+  // liquid squish toward whichever direction the active tab moved
   useEffect(() => {
-    measure()
-    const ro = new ResizeObserver(measure)
-    if (pillRef.current) ro.observe(pillRef.current)
-    return () => ro.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measure, tabs.length, status])
+    const prev = prevIndex.current
+    prevIndex.current = activeIndex
+    if (prev === activeIndex || prev < 0 || activeIndex < 0) return
+    const dir = activeIndex > prev ? 1 : -1
+    setSquish(dir)
+    const t = setTimeout(() => setSquish(0), 150)
+    return () => clearTimeout(t)
+  }, [activeIndex])
 
-  // First placement lands instantly (no slide-in from the edge); every
-  // placement after that animates.
-  useEffect(() => {
-    if (!ind || !skipTransition) return
-    const id = requestAnimationFrame(() => setSkipTransition(false))
-    return () => cancelAnimationFrame(id)
-  }, [ind, skipTransition])
+  if (hidden) return null
 
-  if (path?.startsWith('/login') || path?.startsWith('/signup') || path?.startsWith('/welcome') || path?.startsWith('/admin') || path?.startsWith('/assistant')) return null
+  const scaleX = squish ? 1.3 : 1
+  const scaleY = squish ? 0.86 : 1
+  const skew = squish ? squish * -9 : 0
+  const showPill = activeIndex >= 0 && pos.width > 0
+  const pillShadow = squish
+    ? `inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 1px ${ACCENT}80, 0 0 26px ${ACCENT}cc`
+    : `inset 0 1px 0 rgba(255,255,255,.35), 0 0 14px ${ACCENT}80`
 
   return (
-    <nav style={{
-      position: 'fixed', bottom: 'calc(10px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0,
-      maxWidth: 480, margin: '0 auto', paddingInline: 12, boxSizing: 'border-box',
-      zIndex: 40, pointerEvents: 'none',
-    }}>
-      <div ref={pillRef} className="glnav-pill" style={{
-        pointerEvents: 'auto', position: 'relative', height: 62, borderRadius: 999,
-        display: 'flex', alignItems: 'stretch', paddingInline: 6, overflow: 'visible',
-        ...glassNav,
+    <nav style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40, maxWidth: 480, margin: '0 auto', pointerEvents: 'none' }}>
+      <div ref={barRef} style={{
+        pointerEvents: 'auto', position: 'relative', overflow: 'hidden',
+        margin: `0 16px calc(16px + env(safe-area-inset-bottom, 0px))`,
+        height: 60, borderRadius: 30, display: 'flex', alignItems: 'center', padding: '0 7px',
+        background: 'linear-gradient(180deg, rgba(64,55,44,.48), rgba(23,20,15,.66))',
+        backdropFilter: 'blur(30px) saturate(190%)', WebkitBackdropFilter: 'blur(30px) saturate(190%)',
+        border: '1px solid rgba(246,239,228,.09)',
+        boxShadow: 'inset 0 1px 0 rgba(246,239,228,.22), inset 0 -1px 0 rgba(0,0,0,.5), 0 18px 44px rgba(0,0,0,.6)',
       }}>
-        <span
-          aria-hidden
-          className={`glnav-ind${skipTransition ? ' is-init' : ''}`}
-          style={ind
-            ? { transform: `translateX(${ind.x}px)`, width: ind.w, opacity: 1 }
-            : { transform: 'translateX(0px)', width: 0, opacity: 0 }}
-        />
+        {showPill && (
+          <div style={{
+            position: 'absolute', left: 0, top: -30, width: 120, height: 120, borderRadius: '50%',
+            background: `radial-gradient(circle, ${ACCENT}4d 0%, rgba(0,0,0,0) 70%)`, pointerEvents: 'none',
+            transform: `translateX(${pos.left + pos.width / 2 - 60}px)`, transition: 'transform .26s cubic-bezier(.2,.85,.2,1.2)',
+          }} />
+        )}
+        {showPill && (
+          <div style={{
+            position: 'absolute', left: 0, top: 6, bottom: 6, width: pos.width, borderRadius: 24,
+            background: `linear-gradient(180deg, ${ACCENT}7a, ${ACCENT}1f)`, border: `1px solid ${ACCENT}b3`,
+            boxShadow: pillShadow, transform: `translateX(${pos.left}px) scale(${scaleX},${scaleY}) skewX(${skew}deg)`,
+            transition: 'transform .19s cubic-bezier(.2,.85,.2,1.35), width .19s cubic-bezier(.2,.85,.2,1.35), box-shadow .12s linear',
+          }} />
+        )}
         {tabs.map((t, i) => {
-          const on = active(t.href)
+          const on = i === activeIndex
           return (
-            <Link key={t.href} href={t.href} ref={el => { tabRefs.current[i] = el }} aria-current={on ? 'page' : undefined}
-              className="glnav-tab"
-              style={{
-                flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 4, position: 'relative', zIndex: 1,
-                textDecoration: 'none', color: on ? C.thi : C.tbody, transition: 'color .18s ease',
-              }}>
-              <span className="glnav-icon" style={{ position: 'relative', display: 'inline-flex' }}>
-                <Icon d={t.icon} />
-                {t.href === '/me' && notifCount > 0 && (
-                  <span dir="ltr" style={{
-                    position: 'absolute', top: -4, insetInlineEnd: -7, minWidth: 15, height: 15, padding: '0 4px',
-                    borderRadius: 999, background: C.gold, color: C.ink, fontSize: 8.5, fontWeight: 800, lineHeight: 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '1.5px solid rgba(24,20,15,.92)', boxSizing: 'content-box',
-                  }}>{notifCount > 9 ? '9+' : notifCount}</span>
-                )}
-              </span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: 'Vazirmatn, sans-serif', lineHeight: 1.35, whiteSpace: 'nowrap' }}>{t.label}</span>
+            <Link key={t.href} href={t.href} style={{
+              position: 'relative', zIndex: 1, flex: 1, height: '100%',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+              textDecoration: 'none', color: on ? '#FFFFFF' : MUT, fontWeight: on ? 600 : 400,
+              fontFamily: 'Vazirmatn, sans-serif',
+            }}>
+              <Icon d={t.icon} style={{ transform: on ? `translateY(-1px) scale(${squish && on ? 1.18 : 1.08})` : 'translateY(0) scale(1)' }} />
+              <span style={{ fontSize: 10.5, letterSpacing: '-.1px' }}>{t.label}</span>
+              {t.href === '/me' && notifCount > 0 && (
+                <span dir="ltr" style={{ position: 'absolute', top: 2, right: 'calc(50% - 22px)', minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999, background: GOLD, color: INK, fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifCount > 9 ? '9+' : notifCount}</span>
+              )}
             </Link>
           )
         })}
       </div>
-      <style jsx global>{`
-        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-          .glnav-pill { background: rgba(24,20,15,.96); }
-        }
-        .glnav-ind {
-          position: absolute; left: 0; top: 6; height: calc(100% - 12px);
-          border-radius: 18px; background: linear-gradient(180deg, rgba(168,85,247,.30), rgba(168,85,247,.16));
-          border: 1px solid rgba(168,85,247,.36); box-shadow: 0 0 20px -6px rgba(168,85,247,.55), inset 0 1px 0 rgba(246,239,228,.06);
-          z-index: 0; pointer-events: none; will-change: transform, width;
-          transition: transform 340ms cubic-bezier(.32,.72,0,1), width 340ms cubic-bezier(.32,.72,0,1), opacity 180ms ease;
-        }
-        .glnav-ind.is-init { transition: none; }
-        .glnav-icon { transition: transform .12s ease; }
-        .glnav-tab:active .glnav-icon { transform: scale(.92); }
-        @media (prefers-reduced-motion: reduce) {
-          .glnav-ind { transition: opacity 120ms ease; }
-          .glnav-icon, .glnav-tab { transition: none; }
-        }
-      `}</style>
     </nav>
   )
 }

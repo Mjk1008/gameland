@@ -29,6 +29,10 @@ export async function POST(req: Request) {
 
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+  // Cancelled is a super-admin-only state (see /api/admin/event-cancel) — a
+  // regular admin/organizer can't toggle it back through the normal lifecycle
+  // control, only reactivate it via /api/admin/event-reactivate.
+  if (c.status === 'cancelled') return NextResponse.json({ error: 'این مسابقه لغو شده — فقط ادمین اصلی می‌تونه فعالش کنه' }, { status: 403 })
 
   updateEventStatus(compId, status as any, LABEL[status])
 

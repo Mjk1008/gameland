@@ -9,13 +9,13 @@ import JalaliRangePicker from '@/components/JalaliRangePicker'
 export type EventInit = {
   id: string; title: string; season: string; disc: keyof typeof DISC
   prize: number; teams: number; format: string; date: string; finalSize: number
-  tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done'
+  tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done' | 'cancelled'
   teamSize: 1 | 2; ticketPrice?: number; ticketOriginal?: number
   bracketMode: 'prelims' | 'direct'
   formatLocked: boolean
   bracketLocked: boolean
 }
-const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته' }
+const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته', cancelled: 'لغوشده' }
 
 export default function EditEventForm({ init }: { init: EventInit }) {
   const router = useRouter()
@@ -28,7 +28,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   const [date, setDate] = useState(init.date)
   const [finalSize, setFinalSize] = useState(init.finalSize || 128)
   const [tier, setTier] = useState<'S' | 'A' | 'B' | 'C'>(init.tier)
-  const [status, setStatus] = useState<'open' | 'soon' | 'live' | 'done'>(init.status)
+  const [status, setStatus] = useState<'open' | 'soon' | 'live' | 'done' | 'cancelled'>(init.status)
   const [teamSize, setTeamSize] = useState<1 | 2>(init.teamSize)
   const [bracketMode, setBracketMode] = useState<'prelims' | 'direct'>(init.bracketMode)
   const [ticketPrice, setTicketPrice] = useState(init.ticketPrice != null ? String(init.ticketPrice) : '')

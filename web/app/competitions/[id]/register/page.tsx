@@ -65,10 +65,12 @@ export default async function RegisterPage({ params }: { params: { id: string } 
     )
   }
 
-  if (c.status === 'done') {
+  if (c.status === 'done' || c.status === 'cancelled') {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: 14, color: '#94a3b8' }}>این مسابقه تموم شده — دیگه نمی‌شه ثبت‌نام کرد</div>
+        <div style={{ fontSize: 14, color: '#94a3b8' }}>
+          {c.status === 'cancelled' ? 'این مسابقه لغو شده — دیگه نمی‌شه ثبت‌نام کرد' : 'این مسابقه تموم شده — دیگه نمی‌شه ثبت‌نام کرد'}
+        </div>
       </div>
     )
   }

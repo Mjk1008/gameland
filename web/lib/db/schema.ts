@@ -29,7 +29,7 @@ export const eventCovers = pgTable('app_event_covers', {
 
 // ─── Enums (must match init.sql) ─────────────────────────────
 export const eventTierEnum   = pgEnum('event_tier',   ['S', 'A', 'B', 'C'])
-export const eventStatusEnum = pgEnum('event_status', ['soon', 'open', 'live', 'done'])
+export const eventStatusEnum = pgEnum('event_status', ['soon', 'open', 'live', 'done', 'cancelled'])
 export const userRoleEnum    = pgEnum('user_role',    ['gamer', 'organizer', 'admin'])
 export const matchStatusEnum = pgEnum('match_status', ['pending', 'ready', 'done'])
 export const notifTypeEnum   = pgEnum('notif_type',   ['registration', 'draw', 'match_ready', 'result', 'advance', 'announcement'])

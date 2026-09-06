@@ -687,7 +687,7 @@ export interface Event {
   prize: number
   teams: number
   maxPlayers?: number
-  status: 'live' | 'open' | 'soon' | 'done'
+  status: 'live' | 'open' | 'soon' | 'done' | 'cancelled'
   statusLabel: string
   format: string
   date: string
@@ -773,19 +773,35 @@ export function updateEvent(id: string, patch: Partial<Event>): Event {
   return e
 }
 
-// Admin delete of a competition + everything under it (registrations, matches,
-// placements, config). DB delete of the event row cascades the child rows.
+// Hard delete of an EMPTY event (no registrations, no bracket) — for a draft
+// made by mistake before anyone signed up. DB delete of the event row
+// cascades app_registrations/app_matches/app_placements, so this refuses the
+// moment either exists: an event with real data must go through
+// cancelEvent() instead, which keeps every row (2026-09 incident — an
+// admin misclick hard-deleted a live discipline's 357 registrations with no
+// way back). This is the only gate; enforce it here, not just at the route,
+// so no future caller can bypass it by mistake.
 export function deleteEvent(id: string) {
   if (!events.has(id)) throw new Error('EVENT_NOT_FOUND')
+  const hasRegs = Array.from(regs.values()).some(r => r.compId === id)
+  const hasMatches = matches.some(m => m.compId === id)
+  if (hasRegs || hasMatches) throw new Error('EVENT_HAS_DATA')
   removeEventCover(id)
   events.delete(id)
   eventConfigs.delete(id)
-  for (const [k, r] of regs) if (r.compId === id) { deindexReg(r); regs.delete(k) }
-  for (let i = matches.length - 1; i >= 0; i--) if (matches[i].compId === id) matches.splice(i, 1)
-  for (let i = placements.length - 1; i >= 0; i--) if (placements[i].compId === id) placements.splice(i, 1)
   for (const [tid, t] of teams) if (t.compId === id) teams.delete(tid)
-  for (let i = teamMembers.length - 1; i >= 0; i--) if (!teams.has(teamMembers[i].teamId)) teamMembers.splice(i, 1)
   persist.event.delete?.(id)
+}
+
+// Soft "delete": hide the event from discovery/registration and notify
+// whoever already signed up, WITHOUT touching a single row — registrations,
+// matches, placements, receipts all stay exactly as they are, so it can be
+// reversed by setting the status back (see updateEventStatus). This is the
+// only way to retire an event that already has data.
+export function cancelEvent(id: string): Event {
+  if (!events.has(id)) throw new Error('EVENT_NOT_FOUND')
+  updateEventStatus(id, 'cancelled', 'لغو شد')
+  return events.get(id)!
 }
 
 export function allEvents(): Event[] {

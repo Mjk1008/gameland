@@ -61,7 +61,14 @@ export async function PATCH(req: Request) {
 
   const b = await req.json().catch(() => ({}))
   const id = (b.id ?? '').toString()
-  if (!id || !getEvent(id)) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+  const existing = id ? getEvent(id) : undefined
+  if (!existing) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+  // Cancelled is a super-admin-only state (see /api/admin/event-cancel) — this
+  // general edit route can't be used to touch status while it's cancelled,
+  // only /api/admin/event-reactivate can bring it back.
+  if (existing.status === 'cancelled' && b.status != null) {
+    return NextResponse.json({ error: 'این مسابقه لغو شده — فقط ادمین اصلی می‌تونه فعالش کنه' }, { status: 403 })
+  }
 
   const patch: any = {}
   if (b.title != null) patch.title = String(b.title)

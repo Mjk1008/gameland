@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -34,6 +34,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   // one — not restricted to the super admin. (This page itself is already
   // staff-only, per app/admin/layout.tsx.)
   const canReopenMatches = sessionRole === 'admin' || sessionRole === 'organizer'
+  const canDangerZone = isSuperAdmin(getUserById((session as any)?.uid))
 
   const allRegs = registrationsForComp(c.id)
   const pendingCount = allRegs.filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length
@@ -265,7 +266,9 @@ export default async function AdminEventPage({ params }: { params: { id: string 
           <Link href={`/admin/events/${c.id}/edit`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, background: C.sf2, border: `1px solid ${C.line2}`, borderRadius: 12, color: C.thi, fontWeight: 700, fontSize: 13 }}>
             ویرایش عنوان، ظرفیت، تاریخ…
           </Link>
-          <StatusControl compId={c.id} status={c.status} />
+          {/* Cancelled is a super-admin-only state (see DeleteEventButton below) —
+              regular staff can't toggle it away via the normal lifecycle control. */}
+          {c.status !== 'cancelled' && <StatusControl compId={c.id} status={c.status} />}
           <PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} />
         </div>
       </CollapsibleCard>
@@ -276,9 +279,11 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         </div>
       </CollapsibleCard>
 
-      <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
-        <DeleteEventButton compId={c.id} title={c.title} />
-      </div>
+      {canDangerZone && (
+        <div style={{ marginTop: 6, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
+          <DeleteEventButton compId={c.id} title={c.title} status={c.status} hasData={allRegs.length > 0 || all.length > 0} />
+        </div>
+      )}
     </div>
   )
 }

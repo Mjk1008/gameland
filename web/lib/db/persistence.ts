@@ -87,6 +87,9 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_event_covers (event_id TEXT PRIMARY KEY, data_url TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS competition_id TEXT`,
         `ALTER TABLE app_events ADD COLUMN IF NOT EXISTS final_size INTEGER`,
+        // Soft-cancel status (see cancelEvent() in lib/store.ts) — added after
+        // an admin misclick hard-deleted a live discipline's registrations.
+        `ALTER TYPE event_status ADD VALUE IF NOT EXISTS 'cancelled'`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS bonus_points INTEGER`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS referred_by TEXT`,
         `ALTER TABLE app_users ADD COLUMN IF NOT EXISTS free_tickets INTEGER`,

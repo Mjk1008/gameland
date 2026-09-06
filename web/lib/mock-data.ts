@@ -66,7 +66,7 @@ export function avatarBg(color: string): string { return color + '22' }
 export interface Competition {
   id: string; title: string; season: string; disc: Disc
   prize: number; teams: number
-  status: 'live' | 'open' | 'soon' | 'done'
+  status: 'live' | 'open' | 'soon' | 'done' | 'cancelled'
   statusLabel: string; format: string; date: string
 }
 
