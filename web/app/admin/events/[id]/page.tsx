@@ -254,6 +254,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         batchPlayers={batchPlayers}
         emptySlotCount={emptySlots.length}
         teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
+        finalSize={c.finalSize ?? 128}
       />
 
       {!isTeamEvent && drawn && <RunPanel matches={runMatches} canReopen={canReopenMatches} />}

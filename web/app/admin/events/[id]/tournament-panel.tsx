@@ -26,6 +26,7 @@ type Props = {
   teamSize?: number
   provincePools?: ProvincePool[]
   directPublished?: boolean
+  finalSize?: number
 }
 
 const BRACKET_SIZES = [4, 8, 16, 32, 64, 128]
@@ -92,10 +93,11 @@ export default function TournamentPanel(p: Props) {
     const j = await post('/api/admin/clear-brackets', { compId: p.compId, groupKey: gk }, `clr${gk}`)
     if (j) setMsg({ ok: true, text: `${label} · ${j.deleted} مسابقه پاک شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
   }
+  const finalSize = p.finalSize ?? 128
   async function assemble() {
     if (p.finalExists && !confirm('فینال از قبل چیده شده؛ نتیجه‌های ثبت‌شده پاک می‌شن و از نو چیده می‌شه. مطمئنی؟')) return
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
-    if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ' (به ۱۲۸ محدود شد)' : ''}` })
+    if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ` (به ${finalSize} محدود شد)` : ''}` })
   }
   async function setQualify(b: BracketInfo, count: number) {
     await post('/api/admin/qualify', { compId: p.compId, groupKey: b.groupKey, bracket: b.bracket, count }, `q${b.groupKey}${b.bracket}`)
@@ -246,7 +248,7 @@ export default function TournamentPanel(p: Props) {
       )}
 
       {!direct && p.drawn && (
-        <Section title="۳ · فینال ۱۲۸ نفره">
+        <Section title={`۳ · فینال ${finalSize} نفره`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <Stat label="کوالیفای‌شده" value={p.qualifierCount} c={C.accent} />
             <Stat label="ظرفیت فینال فعلی" value={totalQualify} c={C.gold} />

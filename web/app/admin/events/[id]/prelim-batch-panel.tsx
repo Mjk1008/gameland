@@ -81,6 +81,17 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
     })
   }
 
+  function selectAllVisible() {
+    setPicked(prev => {
+      const n = new Set(prev)
+      for (const p of grouped.available) n.add(p.userId)
+      return n
+    })
+  }
+  function clearSelection() {
+    setPicked(new Set())
+  }
+
   const ready = scope === 'mixed' ? picked.size > 0 : !!place && picked.size > 0
   const pickedSeats = useMemo(() => {
     let s = 0
@@ -196,6 +207,13 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
             </div>
           )}
 
+          {grouped.available.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={selectAllVisible} style={miniBtn}>انتخاب همه ({grouped.available.length})</button>
+              {picked.size > 0 && <button type="button" onClick={clearSelection} style={miniBtnGhost}>پاک کردن انتخاب</button>}
+            </div>
+          )}
+
           <div style={{ maxHeight: 280, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: `1px solid ${C.line}`, borderRadius: 10, padding: 8 }}>
             {grouped.available.length === 0 && (
               <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: 12 }}>بازیکن باقی‌مانده‌ای نیست</div>
@@ -233,3 +251,5 @@ const segSmall = (on: boolean): React.CSSProperties => ({ ...seg(on), minHeight:
 function primaryBtn(disabled: boolean): React.CSSProperties {
   return { all: 'unset', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: C.accent, color: '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: disabled ? 0.5 : 1 }
 }
+const miniBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, padding: '7px 12px' }
+const miniBtnGhost: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: C.tmut, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 8, padding: '7px 12px' }
