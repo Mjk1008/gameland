@@ -67,6 +67,7 @@ export async function POST(req: Request) {
   // exist go to leftovers (بازماندگان), filled into rest slots by admin.
   if (c.status !== 'open' && c.status !== 'live') {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'
+      : c.status === 'cancelled' ? 'این مسابقه لغو شده'
       : 'ثبت‌نام این مسابقه هنوز باز نشده'
     return NextResponse.json({ error: why }, { status: 400 })
   }

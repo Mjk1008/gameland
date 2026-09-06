@@ -35,7 +35,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
   // clause = timing (home group's own bracket already drawn, e.g. post-live) —
   // either one means a new سهم here lands in بازماندگان, not a fresh tree.
   const leftoverNote = (leftoverProvince || (!!uid && bracketModeOf(params.id) === 'prelims' && prelimGroupAlreadyDrawn(params.id, uid)))
-    && c.status !== 'done' && !seatedHere
+    && c.status !== 'done' && c.status !== 'cancelled' && !seatedHere
   const visibleMatches = isAdmin ? allMatches : allMatches.filter(m => isDrawPublished(params.id, m.groupKey))
   const drawn = visibleMatches.length > 0
   const prelimMatches = visibleMatches.filter(m => m.stage === 'prelim')
@@ -79,6 +79,11 @@ export default async function CompetitionPage({ params }: { params: { id: string
             </div>
             <StatusChip status={c.status} />
           </div>
+          {c.status === 'cancelled' && (
+            <div style={{ background: C.liveSoft, border: `1px solid ${C.live}55`, borderRadius: 12, padding: '11px 14px', fontSize: 13, fontWeight: 700, color: C.live }}>
+              این مسابقه لغو شد
+            </div>
+          )}
           {c.date && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '12px 15px' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.tmut} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg>
@@ -107,7 +112,9 @@ export default async function CompetitionPage({ params }: { params: { id: string
             </div>
           )}
 
-          {c.status !== 'done' && (
+          {c.status === 'cancelled' ? (
+            reg && reg.status !== 'rejected' && <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
+          ) : c.status !== 'done' && (
             reg && reg.status !== 'rejected'
               ? <>
                   <Button href={`/competitions/${c.id}/me`} kind="prestige">مسیر من ({reg.attempts} بلیط) ›</Button>
@@ -122,6 +129,7 @@ export default async function CompetitionPage({ params }: { params: { id: string
               : <Button href={uid ? `/competitions/${c.id}/register` : `/login?callbackUrl=/competitions/${c.id}/register`}>
                   {!uid ? 'برای ثبت‌نام وارد شو' : reg?.status === 'rejected' ? 'درخواستِ مجدد (ثبت‌نامت رد شده بود)' : 'ثبت‌نام در این مسابقه'}
                 </Button>
+          )}
           )}
 
           {/* Bracket — always discoverable; the page itself explains the pre-draw state */}

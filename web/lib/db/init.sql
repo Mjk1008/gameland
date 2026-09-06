@@ -18,7 +18,7 @@ CREATE EXTENSION IF NOT EXISTS citext;      -- case-insensitive tag
 
 -- ─── Enums (idempotent) ──────────────────────────────────────
 DO $$ BEGIN CREATE TYPE event_tier   AS ENUM ('S','A','B','C');            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE event_status AS ENUM ('soon','open','live','done'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_status AS ENUM ('soon','open','live','done','cancelled'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE user_role    AS ENUM ('gamer','organizer','admin'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE match_status AS ENUM ('pending','ready','done');    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE notif_type   AS ENUM ('registration','draw','match_ready','result','advance','announcement'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
