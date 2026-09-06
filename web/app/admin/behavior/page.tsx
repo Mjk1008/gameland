@@ -1,5 +1,6 @@
-import { allUsers, allRegistrations, allEvents, getUserById, isTeamPartnerReg } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, isTeamPartnerReg, settledAttempts } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
+import { unitPriceForReg } from '@/lib/promoter'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
 import { BackHeader } from '@/components/ui'
@@ -18,7 +19,7 @@ function behaviorBusiness(regs: RegRec[], range: ReturnType<typeof parseBehavior
   )
   const pending = f.filter(r => r.status === 'pending').reduce((a, r) => a + r.tickets, 0)
   const approvedTickets = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.tickets, 0)
-  const revenue = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.tickets * r.price, 0)
+  const revenue = f.filter(r => r.status === 'approved').reduce((a, r) => a + r.revenue, 0)
   return { pending, approvedTickets, revenueM: Math.round(revenue / 1_000_000) }
 }
 
@@ -41,6 +42,7 @@ export default function BehaviorPage({ searchParams }: { searchParams: { bdays?:
       status: r.status,
       tickets: r.attempts,
       price: ticketPriceFor(r.compId).price,
+      revenue: settledAttempts(r) * unitPriceForReg(r),
       at: r.createdAt,
     }
   })
