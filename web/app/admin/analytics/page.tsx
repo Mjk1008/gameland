@@ -60,6 +60,9 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       // an approved row can carry an unpaid top-up) × the actual per-ticket
       // price the buyer paid (locked/discounted, not the event's list price).
       revenue: settledAttempts(r) * unitPriceForReg(r),
+      // 1v1 and 2v2 share the same `disc` (e.g. both are 'fc26') — teamSize is
+      // what actually tells them apart, same as the گیمرها tab's discSlotOptions.
+      teamSize: normalizeTeamSize(getEventConfig(r.compId).teamSize),
       at: r.createdAt,
     }
   })
@@ -145,7 +148,9 @@ export default function AnalyticsHubPage({ searchParams }: { searchParams: { bda
       <Suspense>
         <HubTabs tabs={[
           { key: 'behavior', label: 'بیلبورد', content: <BehaviorContent range={range} view={bview} city={bcity} disc={bdisc} cityOptions={cityOptions} discOptions={discOptions} business={business} /> },
-          { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} referral={referral} showHeader={false} /> },
+          // discSlotOptions (not the flat discOptions) — same 1v1/۲به۲-aware
+          // list as the گیمرها tab, since regs here also carries teamSize.
+          { key: 'business', label: 'کسب‌وکار', content: <AnalyticsClient regs={regs} gamers={gamers} discOptions={discSlotOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} referral={referral} showHeader={false} /> },
           { key: 'gamers', label: 'گیمرها', content: <GamersContent players={gamerList} discOptions={discSlotOptions} cityOptions={cityOptions} provinceOptions={provinceOptions} /> },
           { key: 'promoter', label: 'پروموتر', content: <PromoterAnalyticsContent snap={promoterSnap} /> },
           { key: 'ai', label: 'دستیار AI', content: <MonitorContent /> },

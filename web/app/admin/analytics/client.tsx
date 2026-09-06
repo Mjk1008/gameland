@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, DISP, BackHeader, DISC_DOT } from '@/components/ui'
 import { DISC } from '@/lib/mock-data'
 import type { Disc } from '@/lib/mock-data'
+import { disciplineDisplayName } from '@/lib/discipline-format'
 import { toman } from '@/lib/payment'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
@@ -12,7 +13,9 @@ export type RegStatus = 'pending' | 'approved' | 'rejected'
 // unit price — locked/discounted price, never the raw list price), used for
 // every money figure. The two diverge whenever a سهم is unpaid (top-up
 // awaiting admin approval) or bought with a promo/referral discount.
-export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; province: string; status: RegStatus; tickets: number; price: number; revenue: number; at: number }
+// `teamSize` — 1v1 and 2v2 share the same `disc` (e.g. both are 'fc26');
+// teamSize is what actually tells them apart, same as the گیمرها tab.
+export interface RegRec { uid: string; compId: string; comp: string; disc: Disc; city: string; province: string; status: RegStatus; tickets: number; price: number; revenue: number; teamSize: number; at: number }
 export interface UserRec { at: number; city: string; province: string; disc: Disc | null }
 
 // Status is the only categorical encoding — three reserved status colors, never
@@ -58,11 +61,14 @@ const selectStyle: React.CSSProperties = {
 }
 
 export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions, provinceOptions = [], referral, showHeader = true }: {
-  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: Disc; name: string }[]; cityOptions: string[]; provinceOptions?: string[]; referral?: ReferralSnap; showHeader?: boolean
+  // discOptions keys are the گیمرها-tab "slot" keys (`${disc}:${teamSize}`,
+  // e.g. "fc26:1" vs "fc26:2") — not a plain Disc — so 1v1/۲به۲ show as
+  // distinct filter chips instead of one merged discipline.
+  regs: RegRec[]; gamers: UserRec[]; discOptions: { key: string; name: string }[]; cityOptions: string[]; provinceOptions?: string[]; referral?: ReferralSnap; showHeader?: boolean
 }) {
   const [now] = useState(() => Date.now())
   const [time, setTime] = useState<(typeof TIMES)[number]['key']>('all')
-  const [disc, setDisc] = useState<Disc | 'all'>('all')
+  const [disc, setDisc] = useState<string>('all')
   const [geoScope, setGeoScope] = useState<GeoScope>('city')
   const [province, setProvince] = useState<string | 'all'>('all')
   const [city, setCity] = useState<string | 'all'>('all')
@@ -84,18 +90,22 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
 
   const fReg = useMemo(() => regs.filter(r =>
     r.at >= cutoff
-    && (disc === 'all' || r.disc === disc)
+    && (disc === 'all' || `${r.disc}:${r.teamSize}` === disc)
     && (province === 'all' || r.province === province)
     && (geoScope === 'province' || city === 'all' || r.city === city)
     && statusOn[r.status]
   ), [regs, cutoff, disc, province, city, geoScope, statusOn])
 
+  // A gamer's primaryDisc has no teamSize of its own (a person doesn't have a
+  // "1v1 vs 2v2" preference), so match it against just the base discipline
+  // half of the selected slot key.
+  const gamerDisc = disc === 'all' ? 'all' : disc.split(':')[0]
   const fGamers = useMemo(() => gamers.filter(g =>
     g.at >= cutoff
-    && (disc === 'all' || g.disc === disc)
+    && (gamerDisc === 'all' || g.disc === gamerDisc)
     && (province === 'all' || g.province === province)
     && (geoScope === 'province' || city === 'all' || g.city === city)
-  ), [gamers, cutoff, disc, province, city, geoScope])
+  ), [gamers, cutoff, gamerDisc, province, city, geoScope])
 
   // Headline metrics.
   const sum = (rs: RegRec[], st?: string) => rs.reduce((a, r) => a + (st ? (r.status === st ? r.tickets : 0) : r.tickets), 0)
@@ -122,7 +132,7 @@ export default function AnalyticsClient({ regs, gamers, discOptions, cityOptions
     return Array.from(m.values()).sort((a, b) => b.total - a.total)
   }
   const byComp = group(r => r.comp)
-  const byDisc = group(r => DISC[r.disc]?.name ?? r.disc, r => DISC_DOT[r.disc] ?? C.tmut)
+  const byDisc = group(r => disciplineDisplayName(DISC[r.disc]?.name ?? r.disc, r.teamSize), r => DISC_DOT[r.disc] ?? C.tmut)
   const cityGamers = useMemo(() => { const m = new Map<string, number>(); for (const g of fGamers) m.set(g.city, (m.get(g.city) ?? 0) + 1); return m }, [fGamers])
   const provinceGamers = useMemo(() => { const m = new Map<string, number>(); for (const g of fGamers) m.set(g.province, (m.get(g.province) ?? 0) + 1); return m }, [fGamers])
   const byCity = group(r => r.city).map(b => ({ ...b, sub: `${fa(cityGamers.get(b.label) ?? 0)} گیمر` }))

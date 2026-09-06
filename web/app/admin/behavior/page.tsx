@@ -1,4 +1,5 @@
-import { allUsers, allRegistrations, allEvents, getUserById, isTeamPartnerReg, settledAttempts } from '@/lib/store'
+import { allUsers, allRegistrations, allEvents, getUserById, getEventConfig, isTeamPartnerReg, settledAttempts } from '@/lib/store'
+import { normalizeTeamSize } from '@/lib/discipline-format'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { unitPriceForReg } from '@/lib/promoter'
 import { DISC } from '@/lib/mock-data'
@@ -43,6 +44,7 @@ export default function BehaviorPage({ searchParams }: { searchParams: { bdays?:
       tickets: r.attempts,
       price: ticketPriceFor(r.compId).price,
       revenue: settledAttempts(r) * unitPriceForReg(r),
+      teamSize: normalizeTeamSize(getEventConfig(r.compId).teamSize),
       at: r.createdAt,
     }
   })
