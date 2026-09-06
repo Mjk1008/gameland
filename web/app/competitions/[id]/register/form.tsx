@@ -1,9 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
-import { toman } from '@/lib/payment'
+import { PAYMENT, toman } from '@/lib/payment'
+import { fileToDataUrl } from '@/lib/receipt-image'
 
 interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean }
 
@@ -24,6 +25,26 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
   const [promoBusy, setPromoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  // Receipt (فیش) — required in the same request whenever something's owed,
+  // so a paid request never exists on the server without its فیش attached.
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [imageData, setImageData] = useState<string | null>(null)
+  const [imgBusy, setImgBusy] = useState(false)
+  const [imgErr, setImgErr] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  function copyCard() {
+    navigator.clipboard?.writeText(PAYMENT.card).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
+  }
+
+  async function onPickReceipt(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return
+    setImgErr(null); setImgBusy(true)
+    try { setImageData(await fileToDataUrl(f)) }
+    catch (e: any) { setImgErr(e.message) }
+    finally { setImgBusy(false); if (fileRef.current) fileRef.current.value = '' }
+  }
 
   useEffect(() => {
     if (!canSetRef) return
@@ -76,6 +97,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
   async function submit() {
     if (isTeamEvent && !reuseTeam && owned === 0 && !partnerTag.trim()) { setErr('تگِ هم‌تیمی رو وارد کن'); return }
+    if (needsReceipt && !imageData) { setErr('برای ثبت‌نامِ پرداختی باید رسیدِ پرداخت رو ضمیمه کنی'); return }
     let codeForSubmit = promoOk ? promoLabel : ''
     if (canUsePromo && promoCode.trim()) {
       if (!promoOk) {
@@ -94,16 +116,18 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           compId: comp.id, attempts, ref: ref.trim() || undefined,
           promoCode: canUsePromo && codeForSubmit ? codeForSubmit : undefined,
           ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: (reuseTeam?.partnerTag || partnerTag).trim() } : {}),
+          ...(imageData ? { imageData } : {}),
         }),
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت‌نام انجام نشد، دوباره امتحان کن')
-      router.push(`/competitions/${comp.id}/pay`); router.refresh()
+      router.push(`/competitions/${comp.id}/me`); router.refresh()
     } catch (e: any) { setErr(e.message) } finally { setBusy(false) }
   }
 
   const paidTickets = Math.max(0, attempts - Math.min(freeTickets, attempts))
   const payableTotal = paidTickets * promoUnitPrice
+  const needsReceipt = payableTotal > 0
   const promoPending = canUsePromo && !!promoCode.trim() && !promoOk && !promoErr
 
   return (
@@ -209,9 +233,45 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
           </span>
         </div>
 
+        {needsReceipt && (
+          <>
+            <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 16 }}>
+              <div style={{ fontSize: 11, color: C.tmut, marginBottom: 8 }}>شماره کارت</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span dir="ltr" style={{ flex: 1, minWidth: 0, fontFamily: DISP, fontWeight: 700, fontSize: 18, letterSpacing: '.04em', color: C.thi, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{PAYMENT.card.replace(/(\d{4})(?=\d)/g, '$1 ')}</span>
+                <button type="button" onClick={copyCard} style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, minHeight: 44, display: 'flex', alignItems: 'center', fontSize: 12.5, fontWeight: 700, color: copied ? C.win : C.accent, background: copied ? C.winSoft : C.accentSoft, border: `1px solid ${copied ? C.win : C.accent}55`, borderRadius: 9, padding: '0 14px' }}>
+                  {copied ? 'کپی شد ✓' : 'کپی'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, fontSize: 12, color: C.tbody }}>
+                <span>{PAYMENT.cardName}</span><span style={{ color: C.line2 }}>·</span><span>{PAYMENT.bank}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.thi, marginBottom: 10 }}>بارگذاری فیش پرداخت</div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={onPickReceipt} style={{ display: 'none' }} />
+              {imageData ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.winSoft, border: `1px solid ${C.win}66`, borderRadius: 12, padding: '13px 14px' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.win} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.win }}>فیش انتخاب شد</span>
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={imgBusy} style={{ all: 'unset', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.tbody }}>تعویض</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={imgBusy} style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 96, background: C.sf2, border: `1.5px dashed ${C.accent}88`, borderRadius: 14, color: C.accent }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4zM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+                  <span style={{ fontSize: 13.5, fontWeight: 800 }}>{imgBusy ? 'در حال پردازش…' : 'انتخاب عکسِ فیش'}</span>
+                  <span style={{ fontSize: 11, color: C.tmut }}>عکسِ رسیدِ کارت‌به‌کارت رو بذار</span>
+                </button>
+              )}
+              {imgErr && <div style={{ fontSize: 12, color: C.live, marginTop: 8 }}>{imgErr}</div>}
+            </div>
+          </>
+        )}
+
         {err && <div style={{ fontSize: 12, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}55`, padding: 10, borderRadius: 10 }}>{err}</div>}
 
-        <Button onClick={submit} disabled={busy || promoBusy || promoPending} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
+        <Button onClick={submit} disabled={busy || promoBusy || promoPending || imgBusy || (needsReceipt && !imageData)} style={{ height: 48, lineHeight: '48px', fontSize: 15 }}>
           {busy ? 'یه لحظه…' : promoBusy || promoPending ? 'در حال بررسی کد…' : isTeamEvent ? (owned > 0 ? `افزودنِ ${attempts} سهمِ تیم` : `ساختِ تیم و پرداخت (${attempts} سهم)`) : owned > 0 ? `خرید ${attempts} سهمِ بیشتر` : `ثبت‌نام و پرداخت (${attempts} سهم)`}
         </Button>
       </div>

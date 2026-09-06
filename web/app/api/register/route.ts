@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatch } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
-import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice } from '@/lib/promoter'
+import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice, buyerTicketPricing } from '@/lib/promoter'
+
+const MAX_RECEIPT_CHARS = 3_000_000   // ~2.2MB decoded — matches /api/register/receipt
 
 function fireTicketSelect(uid: string, u: NonNullable<ReturnType<typeof getUserById>>, c: NonNullable<ReturnType<typeof getEvent>>, attempts: number) {
   trackServer({
@@ -40,6 +42,11 @@ export async function POST(req: Request) {
   const ref = (body.ref ?? '').toString().trim()
   if (ref && !u.referredBy) setReferrerByTag(uid, ref)
 
+  const existingReg = getRegistration(uid, compId)
+  // A rejected row is reused with a fresh count (createRegistration) — treat
+  // it as a brand-new purchase, not a top-up, for both promo and pricing.
+  const isTopUp = !!existingReg && existingReg.status !== 'rejected' && existingReg.attempts > 0
+
   const promoRaw = (body.promoCode ?? '').toString().trim()
   let promo: ReturnType<typeof validatePromoCode> | undefined
   if (promoRaw) {
@@ -53,8 +60,6 @@ export async function POST(req: Request) {
     // one buyer burn a code's maxUses alone across repeated top-ups, since
     // attachPromoToRegistration only skips useCount on an EXACT repeat of
     // the same code already on the row.
-    const existing = getRegistration(uid, compId)
-    const isTopUp = !!existing && existing.status !== 'rejected' && existing.attempts > 0
     if (isTopUp) return NextResponse.json({ error: 'کد تخفیف فقط برای اولین خرید سهم اعمال می‌شه' }, { status: 400 })
   }
 
@@ -64,6 +69,32 @@ export async function POST(req: Request) {
     const why = c.status === 'done' ? 'این مسابقه پایان یافته'
       : 'ثبت‌نام این مسابقه هنوز باز نشده'
     return NextResponse.json({ error: why }, { status: 400 })
+  }
+
+  // A پرداختی request must carry its فیش in the same call — no phantom
+  // "pending" row that sits invisible to the admin queue (pendingRegistrations()
+  // already hides unpaid, receipt-less rows there) while the gamer sees
+  // "منتظر تایید". Compute what this call would actually owe BEFORE creating
+  // or mutating anything, mirroring regPayableAmount()'s pricing: top-up bills
+  // at the row's already-locked price, a fresh purchase at this promo's (or
+  // the plain) price. Fully-free (referral-covered) requests need no فیش.
+  const unitPriceForCheck = isTopUp
+    ? (existingReg!.lockedUnitPrice ?? buyerTicketPricing(compId, 0).unitPrice)
+    : buyerTicketPricing(compId, promo?.discountPercent ?? 0).unitPrice
+  const freeForCheck = Math.min(u.freeTickets ?? 0, attempts)
+  const paidForCheck = Math.max(0, attempts - freeForCheck)
+  const wouldOwe = paidForCheck * unitPriceForCheck > 0
+
+  const imageData: string = (body.imageData ?? '').toString()
+  const hasImage = imageData.length > 0
+  if (hasImage && !/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageData)) {
+    return NextResponse.json({ error: 'عکس معتبر نیست' }, { status: 400 })
+  }
+  if (hasImage && imageData.length > MAX_RECEIPT_CHARS) {
+    return NextResponse.json({ error: 'حجم عکس زیاده — یه عکس سبک‌تر بفرست' }, { status: 413 })
+  }
+  if (wouldOwe && !hasImage) {
+    return NextResponse.json({ error: 'برای ثبت‌نامِ پرداختی باید رسیدِ پرداخت رو ضمیمه کنی', code: 'RECEIPT_REQUIRED' }, { status: 400 })
   }
 
   const errorMap: Record<string, string> = {
@@ -81,19 +112,19 @@ export async function POST(req: Request) {
     const teamName = (body.teamName ?? '').toString().trim()
     const partnerTag = (body.partnerTag ?? '').toString().trim()
     const existingTeam = captainTeamFor(uid, compId)
-    const live = getRegistration(uid, compId)
-    if (!existingTeam && !partnerTag && !(live && live.status !== 'rejected')) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
+    if (!existingTeam && !partnerTag && !(existingReg && existingReg.status !== 'rejected')) return NextResponse.json({ error: 'تگِ هم‌تیمی رو وارد کن' }, { status: 400 })
     try {
       const { registration: r } = await createTeam(compId, uid, teamName, partnerTag, attempts)
       if (promo) await attachPromoToRegistration(r, promo)
       lockRegistrationUnitPrice(r)
       const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
+      if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); attachReceiptToBatch(r) }
       await persist.user.insertAsync(u)
       await persist.reg.insertAsync(r)
       const paid = attempts - free
       pushNotif(uid, 'registration', 'تیمت ثبت شد',
-        `${c.title} با ${attempts} بلیط ثبت شد.${paid > 0 ? ' پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.' : ''}`)
+        `${c.title} با ${attempts} بلیط ثبت شد.${paid > 0 ? ' فیش پیوست شد و منتظرِ تاییدِ ادمینه.' : ''}`)
       fireTicketSelect(uid, u, c, attempts)
       return NextResponse.json({ ok: true, registration: r, freeUsed: free })
     } catch (e: any) {
@@ -108,6 +139,7 @@ export async function POST(req: Request) {
     // referral-reward tickets cover part (or all) of this purchase automatically
     const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)
+    if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); attachReceiptToBatch(r) }
     // Durable + ordered: commit the user row first, then the registration, so a
     // surge can't lose the reg or hit the users FK. Notif stays fire-and-forget.
     await persist.user.insertAsync(u)
@@ -115,8 +147,8 @@ export async function POST(req: Request) {
     const paid = attempts - free
     pushNotif(uid, 'registration', 'ثبت‌نام ثبت شد',
       free > 0
-        ? `${c.title} با ${attempts} بلیط ثبت شد (${free} سهمِ رایگانِ دعوت + ${paid} پرداختی). ${paid > 0 ? 'برای بخشِ پرداختی فیش بفرست تا ادمین تایید کنه.' : 'نیازی به پرداخت نیست — منتظرِ تاییدِ ادمین بمون.'}`
-        : `${c.title} با ${attempts} بلیط ثبت شد. پس از واریز و ارسال رسید، ثبت‌نامت توسط ادمین تایید می‌شود.`)
+        ? `${c.title} با ${attempts} بلیط ثبت شد (${free} سهمِ رایگانِ دعوت + ${paid} پرداختی). ${paid > 0 ? 'فیشِ بخشِ پرداختی پیوست شد و منتظرِ تاییدِ ادمینه.' : 'نیازی به پرداخت نیست — منتظرِ تاییدِ ادمین بمون.'}`
+        : `${c.title} با ${attempts} بلیط ثبت شد. فیش پیوست شد و منتظرِ تاییدِ ادمینه.`)
     fireTicketSelect(uid, u, c, attempts)
     return NextResponse.json({ ok: true, registration: r, freeUsed: free })
   } catch (e: any) {

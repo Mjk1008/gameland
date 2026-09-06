@@ -6,7 +6,7 @@ import { DISC, prizeBreakdown } from '@/lib/mock-data'
 import { getRegistration, getEvent, placementsForComp, getUserById, matchesForComp, getEventConfig, remainingTickets, teamForUser, getCompetition } from '@/lib/store'
 import { prelimVenueForUser } from '@/lib/prelim-venue'
 import { rulesForDisc } from '@/lib/discipline-rules'
-import { isDrawPublished, bracketModeOf } from '@/lib/bracket'
+import { isDrawPublished, bracketModeOf, prelimGroupAlreadyDrawn } from '@/lib/bracket'
 import { isTehranPrelimHome } from '@/lib/iran-geo'
 import { C, DISP, Num, StatusChip, BackHeader, Button, GameBadge } from '@/components/ui'
 
@@ -31,7 +31,11 @@ export default async function CompetitionPage({ params }: { params: { id: string
 
   const allMatches = matchesForComp(params.id)
   const seatedHere = !!uid && allMatches.some(m => m.p1UserId === uid || m.p2UserId === uid)
-  const leftoverNote = leftoverProvince && c.status !== 'done' && !seatedHere
+  // leftoverProvince = permanent (no in-person prelim there at all); the second
+  // clause = timing (home group's own bracket already drawn, e.g. post-live) —
+  // either one means a new سهم here lands in بازماندگان, not a fresh tree.
+  const leftoverNote = (leftoverProvince || (!!uid && bracketModeOf(params.id) === 'prelims' && prelimGroupAlreadyDrawn(params.id, uid)))
+    && c.status !== 'done' && !seatedHere
   const visibleMatches = isAdmin ? allMatches : allMatches.filter(m => isDrawPublished(params.id, m.groupKey))
   const drawn = visibleMatches.length > 0
   const prelimMatches = visibleMatches.filter(m => m.stage === 'prelim')
