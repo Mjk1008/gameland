@@ -178,11 +178,7 @@ export default function GamersContent({ players, discOptions, cityOptions, provi
         <Mini label="انتظار" value={counts.pending} color={C.gold} />
         <Mini label="رد" value={counts.rejected} color={C.live} />
       </div>
-      {counts.tickets > 0 && (
-        <div style={{ fontSize: 11.5, color: C.tmut }}>
-          جمع سهمِ تاییدشده: <span className="gl-num" style={{ color: C.win, fontWeight: 800 }}>{faDigits(counts.tickets)}</span>
-        </div>
-      )}
+      <Mini label="سهمِ تاییدشده" value={counts.tickets} color={C.win} wide />
 
       {filtered.length === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>
@@ -236,7 +232,15 @@ export default function GamersContent({ players, discOptions, cityOptions, provi
   )
 }
 
-function Mini({ label, value, color }: { label: string; value: number; color: string }) {
+function Mini({ label, value, color, wide }: { label: string; value: number; color: string; wide?: boolean }) {
+  if (wide) {
+    return (
+      <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 12, color: C.tmut, fontWeight: 600 }}>{label}</span>
+        <span className="gl-num" style={{ fontFamily: DISP, fontSize: 18, fontWeight: 800, color }}>{faDigits(value)}</span>
+      </div>
+    )
+  }
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 6px', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
       <span className="gl-num" style={{ fontFamily: DISP, fontSize: 18, fontWeight: 800, color }}>{faDigits(value)}</span>
