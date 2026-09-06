@@ -93,6 +93,11 @@ export default function TournamentPanel(p: Props) {
     const j = await post('/api/admin/clear-brackets', { compId: p.compId, groupKey: gk }, `clr${gk}`)
     if (j) setMsg({ ok: true, text: `${label} · ${j.deleted} مسابقه پاک شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
   }
+  async function clearAllGroups() {
+    if (!confirm('همهٔ گروه‌های مقدماتی (همهٔ استان‌ها/شهرها/دسته‌های ترکیبی) پاک می‌شن — از اول باید قرعه‌کشی کنی. مطمئنی؟')) return
+    const j = await post('/api/admin/clear-brackets', { compId: p.compId, all: true }, 'clrall')
+    if (j) setMsg({ ok: true, text: `همهٔ گروه‌ها پاک شد · ${j.deleted} مسابقه حذف شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
+  }
   const finalSize = p.finalSize ?? 128
   async function resetDirect() {
     if (!confirm('کل جدول این رشته پاک می‌شه (نتیجه‌های ثبت‌شده هم از بین می‌رن) تا بشه نوع جدول رو عوض کرد. مطمئنی؟')) return
@@ -209,6 +214,11 @@ export default function TournamentPanel(p: Props) {
 
       {!direct && p.drawn && (
         <Section title="۲ · براکت‌ها و کوالیفای">
+          {groups.size > 1 && (
+            <button type="button" disabled={busy != null} onClick={clearAllGroups} style={{ ...dangerBtn, marginBottom: 12 }}>
+              {busy === 'clrall' ? 'در حال پاک کردن…' : `پاک کردن همهٔ گروه‌ها (${groups.size})`}
+            </button>
+          )}
           {(p.emptySlotCount ?? 0) > 0 && (
             <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 10 }}>
               {p.emptySlotCount} جای خالی · پایین صفحه «افزودن بازیکن به جدول»

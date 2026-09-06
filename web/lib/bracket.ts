@@ -666,6 +666,23 @@ export async function clearPrelimGroup(compId: string, groupKey: string): Promis
   return { deleted, finalCleared }
 }
 
+/** Wipe EVERY prelim group at once (all provinces/cities/mixed batches) — a
+ * clean-slate reset when the wrong draw shape was used and re-picking one
+ * group at a time would mean doing it a few dozen times. */
+export async function clearAllPrelimGroups(compId: string): Promise<{ deleted: number; finalCleared: boolean }> {
+  const deleted = matchesForComp(compId).filter(m => m.stage === 'prelim').length
+  if (deleted === 0) throw new Error('NOT_FOUND')
+  await clearMatchesByStage(compId, 'prelim')
+  let finalCleared = false
+  if (matchesForComp(compId).some(m => m.stage === 'final')) {
+    await clearMatchesByStage(compId, 'final')
+    syncFinalEntries(compId)
+    finalCleared = true
+  }
+  setEventConfig(compId, { qualify: {}, bracketSchedule: {}, publishedGroups: {} })
+  return { deleted, finalCleared }
+}
+
 // Resolved tournament shape for an event: explicit config, else discipline default.
 export function bracketModeOf(compId: string): BracketMode {
   const cfg = getEventConfig(compId)
