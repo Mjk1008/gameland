@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getMatch, getUserById, hasPermission } from '@/lib/store'
-import { setMatchWinner, correctMatchResult, cancelMatch, recordCancelledMatchResult, reopenMatch } from '@/lib/bracket'
+import { setMatchWinner, correctMatchResult, cancelMatch, recordCancelledMatchResult, reopenMatch, startMatchLive, stopMatchLive } from '@/lib/bracket'
 import { setTeamMatchWinner } from '@/lib/bracket-team'
 
 export async function POST(req: Request) {
@@ -16,19 +16,25 @@ export async function POST(req: Request) {
   const resultOnly = !staff && hasPermission(me, 'result_entry')
   if (!staff && !resultOnly) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
-  const { matchId, winnerUserId, score, correct, cancel, reopen } = await req.json().catch(() => ({}))
+  const { matchId, winnerUserId, score, correct, cancel, reopen, live } = await req.json().catch(() => ({}))
   if (!matchId) return NextResponse.json({ error: 'matchId الزامی' }, { status: 400 })
   if (cancel && !staff) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
   // Reverting a played/cancelled match to "not played" rewrites bracket
   // history after the fact — staff-only (admin/organizer), same as cancel;
   // not available to a scoped 'result_entry' grant.
   if (reopen && !staff) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
+  // Live-broadcast toggle — an operational call, staff-only.
+  if (live !== undefined && !staff) return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const existing = getMatch(matchId)
   if (!existing) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 400 })
   const isTeamMatch = existing.p1TeamId != null || existing.p2TeamId != null
 
   try {
+    if (live !== undefined) {
+      const m = live ? startMatchLive(matchId) : stopMatchLive(matchId)
+      return NextResponse.json({ ok: true, match: m })
+    }
     if (reopen) {
       if (isTeamMatch) return NextResponse.json({ error: 'بازگردانی برای تیم نیست' }, { status: 400 })
       const m = reopenMatch(matchId)

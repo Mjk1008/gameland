@@ -102,7 +102,7 @@ whenReady() gates auth/signup until hydration finishes.
 ### Tournament
 | File | Purpose |
 |---|---|
-| `bracket.ts` | Solo draw, prelims, final, advancement |
+| `bracket.ts` | Solo draw, prelims, final, advancement; `startMatchLive`/`stopMatchLive` for the admin "شروع" live-match toggle (`Match.liveStartedAt`, auto-clears on result) |
 | `bracket-team.ts` | 2v2 team bracket (isolated) |
 | `ranking.ts` | Placement points × tier multiplier |
 | `competition-engine.ts` | Qualification / roadmap helpers |

@@ -755,6 +755,28 @@ export function setMatchWinner(matchId: string, winnerUserId: string, score?: st
   return m
 }
 
+// ── admin "شروع" toggle — marks a match as currently being played, for the
+// green pulse + LIVE badge on the bracket page. Purely a broadcast flag: it
+// never touches winner/advance logic. saveMatch() (store.ts) auto-clears it
+// the moment a result lands on the match (win, cancel or correction), so a
+// forgotten Stop press can never leave a finished match looking live.
+export function startMatchLive(matchId: string): Match {
+  const m = getMatch(matchId)
+  if (!m) throw new Error('MATCH_NOT_FOUND')
+  if (m.status === 'done') throw new Error('MATCH_ALREADY_DONE')
+  m.liveStartedAt = Date.now()
+  saveMatch(m)
+  return m
+}
+
+export function stopMatchLive(matchId: string): Match {
+  const m = getMatch(matchId)
+  if (!m) throw new Error('MATCH_NOT_FOUND')
+  m.liveStartedAt = undefined
+  saveMatch(m)
+  return m
+}
+
 export function cancelMatch(matchId: string): Match {
   const m = getMatch(matchId)
   if (!m) throw new Error('MATCH_NOT_FOUND')

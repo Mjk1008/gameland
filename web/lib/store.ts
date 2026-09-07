@@ -1912,6 +1912,12 @@ export interface Match {
   // Live Day Hub — stamped once, the first time status becomes 'done'
   // (see saveMatch/pushMatch below). Drives the /today live feed ordering.
   completedAt?: number
+  // Admin "شروع" toggle on the bracket action sheet — marks this specific
+  // match as currently being played (green pulse + LIVE badge on every
+  // bracket diagram). Cleared automatically the moment a result lands on
+  // the match (see stampCompletedAt below); admin can also turn it off by
+  // hand. See lib/bracket.ts startMatchLive/stopMatchLive.
+  liveStartedAt?: number
 }
 
 // Per-event tournament config: grouping mode, per-bracket qualify counts, and
@@ -2016,8 +2022,12 @@ export async function clearMatchesForGroup(compId: string, stage: 'prelim' | 'fi
 // Live Day Hub — stamp completion time exactly once, the first time a match
 // is saved with status 'done'. This is the sole hook point for the /today
 // live feed; it never reads or changes any bracket/draw logic.
+// Also the sole hook point that clears the admin "in progress" live flag —
+// a result landing on the match (win, cancel, correction) always turns the
+// broadcast pulse off, whichever code path recorded it.
 function stampCompletedAt(m: Match) {
   if (m.status === 'done' && !m.completedAt) m.completedAt = Date.now()
+  if (m.status === 'done' && m.liveStartedAt) m.liveStartedAt = undefined
 }
 
 export function pushMatch(m: Match) {
