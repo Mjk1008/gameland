@@ -85,9 +85,12 @@ export default function MatchSheet({
   }
 
   if (!mounted || !match) return null
-  const { p1, p2, winnerUid, status, score, cancelled } = match
+  const { p1, p2, winnerUid, status, score, cancelled, liveStartedAt } = match
   const s1 = score?.split('-')[0]
   const s2 = score?.split('-')[1]
+  // Admin "شروع" toggle — both real players seated, not decided/cancelled yet.
+  const canGoLive = isAdmin && !cancelled && status !== 'done' && !!p1 && !p1.slotKind && !!p2 && !p2.slotKind
+  const isLive = canGoLive && !!liveStartedAt
   const fillSide: 1 | 2 | null = restFillable && isAdmin
     ? (restSide === 1 && p1?.slotKind === 'rest' ? 1 : restSide === 2 && p2?.slotKind === 'rest' ? 2 : p1?.slotKind === 'rest' ? 1 : p2?.slotKind === 'rest' ? 2 : null)
     : null
@@ -126,6 +129,23 @@ export default function MatchSheet({
         }}
       >
         <div style={{ width: 38, height: 4, borderRadius: 3, background: C.line2, margin: '0 auto 14px' }} />
+        {canGoLive && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => post({ matchId: match.id, live: !isLive })}
+            className={isLive ? 'gl-live-pulse' : undefined}
+            style={{
+              all: 'unset', boxSizing: 'border-box', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              width: '100%', minHeight: 42, borderRadius: 10, marginBottom: 12,
+              fontSize: 13, fontWeight: 800, color: isLive ? C.win : '#0B0A08',
+              background: isLive ? C.winSoft : C.win, border: `1px solid ${C.win}${isLive ? '66' : ''}`,
+            }}
+          >
+            {isLive && <span className="gl-live-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: C.win }} />}
+            {isLive ? 'پایان لایو' : 'شروع لایو'}
+          </button>
+        )}
         {(roundName || match.n != null) && (
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.tmut, textAlign: 'center', marginBottom: 12 }}>
             {match.n != null ? `بازی ${match.n}` : ''}{match.n != null && roundName ? ' · ' : ''}{roundName ?? ''}

@@ -14,6 +14,10 @@ export type MatchDTO = {
   p1: Player; p2: Player; winnerUid?: string; score?: string
   status: 'pending' | 'ready' | 'done'
   cancelled?: boolean
+  // Admin "شروع" toggle — set while this match is being played live. Always
+  // undefined once status is 'done' (store.ts clears it the moment a result
+  // lands). Rendered as a pulse + LIVE badge, admin viewport only.
+  liveStartedAt?: number
 }
 
 // Small ×N / #k badge — only for accounts holding more than one سهم.
@@ -248,10 +252,10 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
       </div>
 
       {mode === 'rounds'
-        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={openMatch} restPick={isAdmin} round={round} onRound={setRoundSel} hits={hits} focusId={firstHit?.id} />
+        ? <RoundsView bMatches={bMatches} rounds={rounds} totalPlayers={totalPlayers} meUid={meUid} myPathOnly={myPathOnly} myPath={myPath} onOpen={openMatch} restPick={isAdmin} round={round} onRound={setRoundSel} hits={hits} focusId={firstHit?.id} showLive={isAdmin} />
         : mode === 'tree'
-        ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={openMatch} restPick={isAdmin} hits={hits} focusId={firstHit?.id} />
-        : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} />}
+        ? <TreeView bMatches={bMatches} rounds={rounds} meUid={meUid} winPath={winPath} onOpen={openMatch} restPick={isAdmin} hits={hits} focusId={firstHit?.id} showLive={isAdmin} />
+        : <RadialBracket bMatches={bMatches} rounds={rounds} meUid={meUid} showLive={isAdmin} />}
 
       {mode !== 'radial' && (
         <MatchSheet
@@ -349,12 +353,13 @@ function MyStatusCard({ bMatches, rounds, meUid, totalPlayers, onOpen }: {
 }
 
 // ─────────────────────────── ROUNDS VIEW (mobile-first, never breaks) ─────────
-function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, onOpen, restPick, round, onRound, hits, focusId }: {
+function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath, onOpen, restPick, round, onRound, hits, focusId, showLive }: {
   bMatches: MatchDTO[]; rounds: number[]; totalPlayers: number
   meUid?: string; myPathOnly: boolean; myPath: Set<string>; onOpen: (m: MatchDTO, side?: 1 | 2) => void
   restPick?: boolean
   round: number; onRound: (r: number) => void
   hits?: Set<string> | null; focusId?: string
+  showLive?: boolean
 }) {
   const sel = round
   const playersInRound = (r: number) => totalPlayers / Math.pow(2, rounds.indexOf(r))
@@ -419,7 +424,7 @@ function RoundsView({ bMatches, rounds, totalPlayers, meUid, myPathOnly, myPath,
           <div className="gl-bk-cards">
             {list.map(m => (
               <div key={m.id} ref={m.id === focusId ? focusRef : undefined}>
-                <MatchCardRow m={m} meUid={meUid} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} />
+                <MatchCardRow m={m} meUid={meUid} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} live={!!showLive && !!m.liveStartedAt} />
               </div>
             ))}
           </div>
@@ -432,23 +437,40 @@ function Empty({ text }: { text: string }) {
   return <div style={{ fontSize: 12.5, color: C.tmut, textAlign: 'center', padding: '20px 0' }}>{text}</div>
 }
 
-function MatchCardRow({ m, meUid, onOpen, restPick, hit }: { m: MatchDTO; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean }) {
+function MatchCardRow({ m, meUid, onOpen, restPick, hit, live }: { m: MatchDTO; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean; live?: boolean }) {
   const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
   const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
   const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
 
   return (
-    <div style={{ background: C.sf1, border: `1px solid ${hit ? C.info : mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: hit ? `0 0 0 2px ${C.info}55` : mine ? `0 0 0 1px ${C.accent}55` : 'none' }}>
+    <div
+      className={live ? 'gl-live-pulse' : undefined}
+      style={{ background: C.sf1, border: `1px solid ${hit ? C.info : live ? C.win : mine ? C.accent : C.line}`, borderRadius: 12, overflow: 'hidden', boxShadow: live ? undefined : hit ? `0 0 0 2px ${C.info}55` : mine ? `0 0 0 1px ${C.accent}55` : 'none' }}
+    >
       <div onClick={() => onOpen(m)} style={{ cursor: 'pointer' }}>
         <PlayerLine p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} onRest={restPick && m.p1?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 1) } : undefined} />
         <div style={{ height: 1, background: C.line }} />
         <PlayerLine p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} onRest={restPick && m.p2?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 2) } : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 11px', background: C.ink }}>
           {m.n != null && <span className="gl-num" style={{ fontSize: 10.5, fontWeight: 800, color: C.tmut }}>بازی {m.n}</span>}
-          <StatusPill status={m.cancelled ? 'cancelled' : m.status} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginInlineStart: 'auto' }}>
+            {live && <LiveBadge />}
+            <StatusPill status={m.cancelled ? 'cancelled' : m.status} />
+          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+// Small pulsing green "LIVE" badge — admin bracket viewport only, shown while
+// an admin has this specific match marked in-progress (Match.liveStartedAt).
+function LiveBadge() {
+  return (
+    <span className="gl-num" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 800, color: C.win, background: C.winSoft, border: `1px solid ${C.win}66`, borderRadius: 5, padding: '2px 6px', letterSpacing: '.03em' }}>
+      <span className="gl-live-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: C.win }} />
+      LIVE
+    </span>
   )
 }
 
@@ -480,10 +502,11 @@ function StatusPill({ status }: { status: MatchDTO['status'] | 'cancelled' }) {
 }
 
 // ─────────────────────────── TREE VIEW (native scroll, button zoom) ───────────
-function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick, hits, focusId }: {
+function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick, hits, focusId, showLive }: {
   bMatches: MatchDTO[]; rounds: number[]; meUid?: string; winPath: Set<string>; onOpen: (m: MatchDTO, side?: 1 | 2) => void
   restPick?: boolean
   hits?: Set<string> | null; focusId?: string
+  showLive?: boolean
 }) {
   const firstRound = rounds[0] ?? 1
   const totalPlayers = bMatches.filter(m => m.round === firstRound).length * 2
@@ -581,7 +604,7 @@ function TreeView({ bMatches, rounds, meUid, winPath, onOpen, restPick, hits, fo
           <div style={{ width: canvasW, height: canvasH, transform: `scale(${scale})`, transformOrigin: '0 0', position: 'relative' }}>
             <RoundHeaders rounds={rounds} playersInRound={playersInRound} />
             <Connectors bMatches={bMatches} rounds={rounds} pos={pos} canvasW={canvasW} canvasH={canvasH} meUid={meUid} winPath={winPath} />
-            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} restPick={restPick} hits={hits} />
+            <Nodes bMatches={bMatches} pos={pos} meUid={meUid} onOpen={onOpen} restPick={restPick} hits={hits} showLive={showLive} />
           </div>
         </div>
       </div>
@@ -647,7 +670,7 @@ const Connectors = memo(function Connectors({ bMatches, rounds, pos, canvasW, ca
   )
 })
 
-const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick, hits }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hits?: Set<string> | null }) {
+const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick, hits, showLive }: { bMatches: MatchDTO[]; pos: Pos; meUid?: string; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hits?: Set<string> | null; showLive?: boolean }) {
   return (
     <>
       {bMatches.map(m => {
@@ -655,7 +678,7 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick, hits
         const mine = m.p1?.uid === meUid || m.p2?.uid === meUid
         return (
           <div key={m.id} style={{ position: 'absolute', left: p.x, top: p.y - CARD_H / 2, width: CARD_W }}>
-            <TreeCard m={m} meUid={meUid} mine={mine} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} />
+            <TreeCard m={m} meUid={meUid} mine={mine} onOpen={onOpen} restPick={restPick} hit={!!hits?.has(m.id)} live={!!showLive && !!m.liveStartedAt} />
           </div>
         )
       })}
@@ -663,16 +686,23 @@ const Nodes = memo(function Nodes({ bMatches, pos, meUid, onOpen, restPick, hits
   )
 })
 
-const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen, restPick, hit }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean }) {
+const TreeCard = memo(function TreeCard({ m, meUid, mine, onOpen, restPick, hit, live }: { m: MatchDTO; meUid?: string; mine: boolean; onOpen: (m: MatchDTO, side?: 1 | 2) => void; restPick?: boolean; hit?: boolean; live?: boolean }) {
   const doneP1 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p1?.uid
   const doneP2 = m.status === 'done' && !m.cancelled && m.winnerUid === m.p2?.uid
   return (
     <div
       onClick={() => onOpen(m)}
-      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${hit ? C.info : m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: hit ? `0 0 0 2px ${C.info}66, 0 0 12px ${C.info}55` : mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
+      className={live ? 'gl-live-pulse' : undefined}
+      style={{ cursor: 'pointer', background: C.sf1, border: `1.5px solid ${hit ? C.info : live ? C.win : m.cancelled ? C.live : mine ? C.accent : C.line}`, borderRadius: 9, overflow: 'hidden', fontSize: 11.5, boxShadow: live ? undefined : hit ? `0 0 0 2px ${C.info}66, 0 0 12px ${C.info}55` : mine ? `0 0 10px ${C.accent}44` : 'none', position: 'relative' }}
     >
       {m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.live, background: C.liveSoft, textAlign: 'center', padding: '2px 0' }}>لغو شده</div>}
-      {m.n != null && !m.cancelled && <div style={{ fontSize: 9, fontWeight: 800, color: C.tmut, textAlign: 'center', padding: '2px 0' }}>بازی {m.n}</div>}
+      {!m.cancelled && live && (
+        <div className="gl-num" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontSize: 9, fontWeight: 800, color: C.win, background: C.winSoft, padding: '2px 0' }}>
+          <span className="gl-live-dot" style={{ width: 5, height: 5, borderRadius: '50%', background: C.win }} />
+          LIVE{m.n != null ? ` · ${m.n}` : ''}
+        </div>
+      )}
+      {m.n != null && !m.cancelled && !live && <div style={{ fontSize: 9, fontWeight: 800, color: C.tmut, textAlign: 'center', padding: '2px 0' }}>بازی {m.n}</div>}
       <TreeSlot p={m.p1} win={doneP1} lose={m.status === 'done' && !m.cancelled && !doneP1} me={m.p1?.uid === meUid} score={m.score?.split('-')[0]} onRest={restPick && m.p1?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 1) } : undefined} />
       <div style={{ height: 1, background: C.line }} />
       <TreeSlot p={m.p2} win={doneP2} lose={m.status === 'done' && !m.cancelled && !doneP2} me={m.p2?.uid === meUid} score={m.score?.split('-')[1]} onRest={restPick && m.p2?.slotKind === 'rest' ? e => { e.stopPropagation(); onOpen(m, 2) } : undefined} />

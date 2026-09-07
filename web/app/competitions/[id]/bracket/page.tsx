@@ -86,6 +86,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
       p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1),
       p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
       winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status, cancelled: m.cancelled,
+      liveStartedAt: m.liveStartedAt,
     }))
     const leftovers = isAdmin && !isTeamEvent
       ? leftoverPlayers(c.id).map(x => {

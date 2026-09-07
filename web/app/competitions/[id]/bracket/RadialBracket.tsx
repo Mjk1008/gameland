@@ -27,12 +27,22 @@ type Geo = {
   links: { x1: number; y1: number; x2: number; y2: number; gold: boolean; me: boolean; done: boolean }[]
   rings: { r: number; label: string }[]
   champ: Player
+  // every match's node position (round 1 leaf midpoint through the final's
+  // centre) — used only to place the live-match pulse marker below.
+  matchPos: Record<string, { x: number; y: number }>
 }
 
-export default function RadialBracket({ bMatches, rounds, meUid }: {
-  bMatches: MatchDTO[]; rounds: number[]; meUid?: string
+export default function RadialBracket({ bMatches, rounds, meUid, showLive }: {
+  bMatches: MatchDTO[]; rounds: number[]; meUid?: string; showLive?: boolean
 }) {
   const geo = useMemo<Geo>(() => buildGeo(bMatches, rounds, meUid), [bMatches, rounds, meUid])
+  // Admin "شروع" toggle — small pulsing green marker at whichever match node
+  // is currently live. lib/store.ts Match.liveStartedAt auto-clears once a
+  // result lands, so this list drops the marker on its own.
+  const liveMarks = useMemo(() => {
+    if (!showLive) return []
+    return bMatches.filter(m => m.liveStartedAt).map(m => geo.matchPos[m.id]).filter((p): p is { x: number; y: number } => !!p)
+  }, [showLive, bMatches, geo])
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const gRef = useRef<SVGGElement>(null)
@@ -191,7 +201,7 @@ export default function RadialBracket({ bMatches, rounds, meUid }: {
       >
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="100%" height="100%" style={{ display: 'block' }}>
           <g ref={gRef}>
-            <RadialBody geo={geo} />
+            <RadialBody geo={geo} liveMarks={liveMarks} />
           </g>
         </svg>
       </div>
@@ -213,7 +223,7 @@ function seatsInRound(bMatches: MatchDTO[], rounds: number[], round: number): nu
 }
 
 // ── the heavy, static SVG body — never re-rendered by a gesture ───────────────
-const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
+const RadialBody = memo(function RadialBody({ geo, liveMarks }: { geo: Geo; liveMarks: { x: number; y: number }[] }) {
   const { cx, cy, outerR, nodes, links, rings, champ } = geo
   // ≤20 seats: every name fits. More: only the ones that matter (advanced or you),
   // the rest are dots — tap to read, or pinch in. Keeps the ring from turning to mush.
@@ -277,6 +287,18 @@ const RadialBody = memo(function RadialBody({ geo }: { geo: Geo }) {
           </g>
         )
       })}
+
+      {/* live-match pulse — admin "شروع" toggle (Match.liveStartedAt), SMIL so
+          it animates without a re-render on every pan/zoom frame */}
+      {liveMarks.map((p, i) => (
+        <g key={'live' + i} pointerEvents="none">
+          <circle cx={p.x} cy={p.y} r={10} fill="none" stroke={C.win} strokeWidth={2.5} opacity={0.85}>
+            <animate attributeName="r" values="8;20;8" dur="1.7s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.85;0;0.85" dur="1.7s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={p.x} cy={p.y} r={5} fill={C.win} />
+        </g>
+      ))}
     </>
   )
 })
@@ -352,7 +374,7 @@ function buildGeo(bMatches: MatchDTO[], rounds: number[], meUid?: string): Geo {
   const champ: Player = finalM && finalM.status === 'done'
     ? (finalM.winnerUid === finalM.p1?.uid ? finalM.p1 : finalM.p2) : null
 
-  return { cx, cy, outerR, nodes, links, rings, champ }
+  return { cx, cy, outerR, nodes, links, rings, champ, matchPos }
 }
 
 const ctrl: React.CSSProperties = {

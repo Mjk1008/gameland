@@ -197,6 +197,8 @@ export const matches = pgTable('app_matches', {
   // Live Day Hub — stamped once, the first time status becomes 'done'
   // (store.ts saveMatch/pushMatch). Drives the /today live feed ordering.
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Admin "شروع" toggle on the bracket action sheet — see lib/store.ts Match.liveStartedAt.
+  liveStartedAt: timestamp('live_started_at', { withTimezone: true }),
 }, (t) => ({
   byComp: index('match_comp_idx').on(t.compId, t.bracket, t.round, t.slot),
 }))

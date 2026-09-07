@@ -242,6 +242,8 @@ export function startHydration(loaders: {
         `CREATE TABLE IF NOT EXISTS app_today_announcements (
           id TEXT PRIMARY KEY, text TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
           created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
+        // Admin "شروع" toggle on the bracket sheet — see lib/store.ts Match.liveStartedAt.
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS live_started_at TIMESTAMPTZ`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
       try {
         await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
@@ -360,6 +362,7 @@ export function startHydration(loaders: {
         cancelled: !!(m as any).cancelled,
         status: m.status as any, createdAt: ms(m.createdAt),
         completedAt: (m as any).completedAt ? ms((m as any).completedAt) : undefined,
+        liveStartedAt: (m as any).liveStartedAt ? ms((m as any).liveStartedAt) : undefined,
       })
 
       try {
@@ -867,7 +870,7 @@ export const persist = {
     },
   },
   match: {
-    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean; completedAt?: number }) {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean; completedAt?: number; liveStartedAt?: number }) {
       const d = db(); if (!d) return
       // Ordered per match id — see fireOrdered's comment. Bracket resolution
       // (a fresh draw immediately resolving its own byes, or a played match
@@ -881,12 +884,13 @@ export const persist = {
         p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId,
         score: m.score, status: m.status as any, cancelled: m.cancelled ?? false,
         completedAt: m.completedAt ? new Date(m.completedAt) : undefined,
+        liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : undefined,
       }).onConflictDoUpdate({
         target: schema.matches.id,
         // Every mutable field must appear here, even ones this call didn't
         // change — a key missing from `set` (not merely undefined-valued)
         // would silently drop it on re-save (docs/27 §1.4 risk #5).
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined },
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined, liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : undefined },
       }))
     },
     // Awaited by callers (generatePrelims) — a subsequent buildTree() creates
