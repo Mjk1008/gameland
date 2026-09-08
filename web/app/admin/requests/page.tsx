@@ -11,6 +11,7 @@ export default function RequestsAdmin() {
     const review = regAdminReview(r)
     return {
       regId: r.id, attempts: r.attempts, freeAttempts: r.freeAttempts ?? 0, paidAttempts: r.paidAttempts ?? 0,
+      viaLeftover: r.viaLeftover === true,
       referrerTag: u?.referredBy ? getUserById(u.referredBy)?.tag : undefined,
       promoCode: review.codeLabel, discountPercent: review.discountPercent, totalOffPercent: review.totalOffPercent,
       promoterName: review.promoterName, promoterTag: review.promoterTag,

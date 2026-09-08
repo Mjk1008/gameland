@@ -247,6 +247,8 @@ export function startHydration(loaders: {
         // Admin "حذف" (undo a rest-fill) — see lib/store.ts Match.restFillP1/P2.
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS rest_fill_p1 BOOLEAN NOT NULL DEFAULT false`,
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS rest_fill_p2 BOOLEAN NOT NULL DEFAULT false`,
+        // بازماندگان (survivor) sign-up marker — see lib/store.ts Registration.viaLeftover.
+        `ALTER TABLE app_registrations ADD COLUMN IF NOT EXISTS via_leftover BOOLEAN NOT NULL DEFAULT false`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
       try {
         await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
@@ -323,6 +325,7 @@ export function startHydration(loaders: {
         payBatch: (r as any).payBatch ?? 1,
         receiptPayBatch: (r as any).receiptPayBatch ?? undefined,
         receiptAttemptsAt: (r as any).receiptAttemptsAt ?? undefined,
+        viaLeftover: (r as any).viaLeftover ?? false,
         createdAt: ms(r.createdAt),
       })
 
@@ -770,6 +773,7 @@ export const persist = {
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
         promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch,
+        viaLeftover: (r as any).viaLeftover ?? false,
       }).onConflictDoNothing())
     },
     // Awaitable + idempotent — used on the register path so a registration is
@@ -783,11 +787,12 @@ export const persist = {
       // batch number survive in Postgres and reappear on the next hydration.
       const receiptPayBatch = (r as any).receiptPayBatch ?? null
       const receiptAttemptsAt = (r as any).receiptAttemptsAt ?? null
+      const viaLeftover = (r as any).viaLeftover ?? false
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
-        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt } })
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt, viaLeftover,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt, viaLeftover } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return
@@ -806,6 +811,7 @@ export const persist = {
       if ((patch as any).payBatch !== undefined) set.payBatch = (patch as any).payBatch
       if ((patch as any).receiptPayBatch !== undefined) set.receiptPayBatch = (patch as any).receiptPayBatch
       if ((patch as any).receiptAttemptsAt !== undefined) set.receiptAttemptsAt = (patch as any).receiptAttemptsAt
+      if ((patch as any).viaLeftover !== undefined) set.viaLeftover = (patch as any).viaLeftover
       if (Object.keys(set).length === 0) return
       fire(d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id)))
     },
@@ -828,6 +834,7 @@ export const persist = {
       if ((patch as any).payBatch !== undefined) set.payBatch = (patch as any).payBatch
       if ((patch as any).receiptPayBatch !== undefined) set.receiptPayBatch = (patch as any).receiptPayBatch
       if ((patch as any).receiptAttemptsAt !== undefined) set.receiptAttemptsAt = (patch as any).receiptAttemptsAt
+      if ((patch as any).viaLeftover !== undefined) set.viaLeftover = (patch as any).viaLeftover
       if (Object.keys(set).length === 0) return
       await d.update(schema.registrations).set(set).where(eq(schema.registrations.id, id))
     },

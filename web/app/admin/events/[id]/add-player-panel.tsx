@@ -10,7 +10,7 @@ export type EmptySlot = {
   filledWith?: string
   state: 'not-started' | 'running' | 'done'
 }
-export type LeftoverOpt = { uid: string; name: string; tag: string; leftover: number; groupKey?: string }
+export type LeftoverOpt = { uid: string; name: string; tag: string; leftover: number; groupKey?: string; viaLeftover?: boolean }
 
 export default function AddPlayerPanel({ compId: _compId, slots, leftovers }: { compId: string; slots: EmptySlot[]; leftovers: LeftoverOpt[] }) {
   const router = useRouter()
@@ -87,8 +87,9 @@ export default function AddPlayerPanel({ compId: _compId, slots, leftovers }: { 
                   const prov = (u.groupKey || '').split(':')[1] || ''
                   return [u.name, u.tag, '@' + u.tag, prov].some(x => String(x).includes(needle))
                 }).map(u => (
-                  <button key={u.uid} type="button" disabled={busy} onClick={() => add(u)} style={rowBtn}>
+                  <button key={u.uid} type="button" disabled={busy} onClick={() => add(u)} style={{ ...rowBtn, border: u.viaLeftover ? `1px solid ${C.info}55` : rowBtn.border }}>
                     <span style={{ flex: 1, fontSize: 12.5, color: C.thi }}>{u.name}</span>
+                    {u.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px' }}>بازمانده</span>}
                     {leftoverFillOpen(target.groupKey) && u.groupKey && <span style={{ fontSize: 11, color: C.tmut }}>{u.groupKey.split(':')[1]}</span>}
                     <span dir="ltr" style={{ fontSize: 11, color: C.tmut }}>@{u.tag}</span>
                     <span className="gl-num" style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>×{u.leftover}</span>

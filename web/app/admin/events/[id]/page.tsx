@@ -41,6 +41,8 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   const pendingCount = allRegs.filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length
   const regs = drawEligibleRegistrations(c.id).filter(r => !isTeamPartnerReg(r))
   const totalAttempts = regs.reduce((s, r) => s + settledAttempts(r), 0)
+  // بازماندگان marker — used to color/badge survivor-origin سهم everywhere below.
+  const leftoverAccounts = new Set(allRegs.filter(r => r.viaLeftover).map(r => r.userId))
   const cfg = getEventConfig(c.id)
   const isTeamEvent = cfg.teamSize === 2
   const soloParticipants = regs.map(r => { const u = getUserById(r.userId); return { id: r.userId, name: u?.name || '?', tag: u?.tag || '?' } })
@@ -96,7 +98,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
       }
       if (isCancelledSlot(uid)) return { uid, name: 'لغو شده', attempts: 0 }
       const u = getUserById(uid)
-      return { uid, name: u ? playerName(u) : uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`) }
+      return { uid, name: u ? playerName(u) : uid, attempts: attemptsMap.get(uid) ?? 1, entry: entryMap.get(`${mId}:${side}`), viaLeftover: leftoverAccounts.has(uid) }
     }
     const nums = matchNumberMap(all)
     runMatches = all
@@ -148,7 +150,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   const leftoverOpts = !isTeamEvent && drawn
     ? leftoverPlayers(c.id).map(x => {
         const u = getUserById(x.userId)
-        return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover, groupKey: x.groupKey }
+        return { uid: x.userId, name: u ? playerName(u) : x.userId, tag: u?.tag || x.userId, leftover: x.leftover, groupKey: x.groupKey, viaLeftover: leftoverAccounts.has(x.userId) }
       })
     : []
 
@@ -170,6 +172,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
           attempts: settledAttempts(r),
           seated,
           assigned: seated >= settledAttempts(r),
+          viaLeftover: leftoverAccounts.has(r.userId),
         }
       })
     : []

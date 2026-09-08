@@ -1,8 +1,10 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, type Event } from '@/lib/store'
+import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, isLeftoverOpen, type Event } from '@/lib/store'
+import { DISC } from '@/lib/mock-data'
 import { C, EmptyState } from '@/components/ui'
 import { DisciplineCard, CompetitionCard } from './cards'
+import LeftoverEntryBox from './leftover-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +35,9 @@ export default async function CompetitionsPage() {
   }
 
   const total = comps.length + standalone.length
+  const leftoverEvents = events
+    .filter(e => isLeftoverOpen(e.id))
+    .map(e => ({ id: e.id, disc: e.disc, label: DISC[e.disc as keyof typeof DISC]?.name ?? e.disc }))
 
   return (
     <div className="animate-fade-up" style={{ padding: '16px 16px 28px' }}>
@@ -40,6 +45,8 @@ export default async function CompetitionsPage() {
         <span style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>مسابقات</span>
         <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{total}</span> رویداد</span>
       </div>
+
+      <LeftoverEntryBox events={leftoverEvents} />
 
       {total === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>

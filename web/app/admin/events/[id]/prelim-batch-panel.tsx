@@ -13,6 +13,7 @@ export type BatchPlayer = {
   attempts: number
   seated: number
   assigned: boolean
+  viaLeftover?: boolean
 }
 
 type Scope = 'local' | 'mixed'
@@ -221,13 +222,14 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
               <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: 12 }}>بازیکن باقی‌مانده‌ای نیست</div>
             )}
             {grouped.available.map(p => (
-              <label key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', background: C.ink, borderRadius: 8, cursor: 'pointer' }}>
+              <label key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', background: C.ink, border: p.viaLeftover ? `1px solid ${C.info}44` : '1px solid transparent', borderRadius: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={picked.has(p.userId)} onChange={() => toggle(p.userId)} />
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span dir="ltr" style={{ fontFamily: DISP, fontSize: 12.5, fontWeight: 700, color: C.thi }}>@{p.tag}</span>
                   <span style={{ fontSize: 11, color: C.tmut, marginInlineStart: 8 }}>
                     {p.name} · {p.province} · {p.city} · {p.attempts - p.seated > 0 && p.seated > 0 ? `${p.attempts - p.seated}/${p.attempts} سهم` : `${p.attempts} سهم`}
                   </span>
+                  {p.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px', marginInlineStart: 8 }}>بازمانده</span>}
                 </span>
               </label>
             ))}

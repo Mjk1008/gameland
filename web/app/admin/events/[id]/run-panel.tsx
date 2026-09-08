@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { C } from '@/components/ui'
 import { MatchOps, PlayerPeek, ANNOUNCE } from './match-ops'
 
-export type RunPlayer = { uid: string; name: string; attempts: number; entry?: number } | null
+export type RunPlayer = { uid: string; name: string; attempts: number; entry?: number; viaLeftover?: boolean } | null
 export type RunMatch = {
   id: string; groupKey: string; groupLabel: string; bracket: number; round: number; slot: number
   n?: number
@@ -142,8 +142,9 @@ export default function RunPanel({ matches, canReopen }: Props) {
 
 function NameRow({ p, win, onPeek }: { p: RunPlayer; win: boolean; onPeek: () => void }) {
   return (
-    <button type="button" disabled={!p} onClick={onPeek} style={{ all: 'unset', cursor: p ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: win ? C.goldSoft : C.sf2, border: `1px solid ${win ? C.gold + '55' : C.line}`, marginBottom: 7, width: '100%', boxSizing: 'border-box' }}>
+    <button type="button" disabled={!p} onClick={onPeek} style={{ all: 'unset', cursor: p ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: win ? C.goldSoft : C.sf2, border: `1px solid ${p?.viaLeftover ? C.info + '66' : win ? C.gold + '55' : C.line}`, marginBottom: 7, width: '100%', boxSizing: 'border-box' }}>
       <span style={{ flex: 1, fontSize: 15, fontWeight: win ? 800 : 700, color: p ? (win ? C.gold : C.thi) : C.tmut, textAlign: 'right' }}>{p?.name ?? '—'}</span>
+      {p?.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px' }}>بازمانده</span>}
     </button>
   )
 }

@@ -9,6 +9,7 @@ import { LEFTOVER_MAX_ATTEMPTS } from '@/lib/discipline-format'
 
 interface Row {
   regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number
+  viaLeftover?: boolean
   referrerTag?: string; promoCode?: string; discountPercent?: number; totalOffPercent?: number
   promoterName?: string; promoterTag?: string
   name: string; tag: string; phone: string; city: string; event: string; hasReceipt?: boolean
@@ -111,11 +112,12 @@ export default function RequestList({ rows }: { rows: Row[] }) {
             const hasFree = (r.freeAttempts ?? 0) > 0
             return (
             <button key={r.regId} onClick={() => openRow(r)}
-              style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%', background: C.sf1, border: `1px solid ${hasPromo ? C.gold + '66' : C.line}`, borderRight: hasPromo ? `3px solid ${C.gold}` : undefined, borderRadius: 13, padding: '13px 14px' }}>
+              style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%', background: C.sf1, border: `1px solid ${hasPromo ? C.gold + '66' : r.viaLeftover ? C.info + '66' : C.line}`, borderRight: hasPromo ? `3px solid ${C.gold}` : r.viaLeftover ? `3px solid ${C.info}` : undefined, borderRadius: 13, padding: '13px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{r.name}</span>
+                    {r.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px' }}>بازمانده</span>}
                     {hasPromo && <span dir="ltr" style={{ fontFamily: DISP, fontSize: 9.5, fontWeight: 800, color: C.gold, background: C.goldSoft, border: `1px solid ${C.gold}44`, borderRadius: 6, padding: '2px 7px' }}>{r.promoCode} · {r.totalOffPercent ?? r.discountPercent}٪</span>}
                     {hasFree && !hasPromo && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.win, background: C.winSoft, border: `1px solid ${C.win}44`, borderRadius: 6, padding: '2px 7px' }}>رایگان</span>}
                   </div>
@@ -144,7 +146,10 @@ export default function RequestList({ rows }: { rows: Row[] }) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 16, color: C.thi }}>{sel.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ fontWeight: 800, fontSize: 16, color: C.thi }}>{sel.name}</span>
+                  {sel.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px' }}>بازمانده</span>}
+                </div>
                 <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11.5, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{sel.tag}{sel.city ? ` · ${sel.city}` : ''}{sel.phone ? ` · ${sel.phone}` : ''}</div>
               </div>
               <button onClick={closeSheet} aria-label="بستن" style={{ all: 'unset', cursor: 'pointer', width: 32, height: 32, borderRadius: 999, background: C.sf2, border: `1px solid ${C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.tbody, fontSize: 13 }}>✕</button>
