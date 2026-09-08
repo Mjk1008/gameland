@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, leftoverPoolEventFor } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -17,6 +17,7 @@ import AddPlayerPanel, { type EmptySlot } from './add-player-panel'
 import TournamentPanel, { type BracketInfo, type ProvincePool } from './tournament-panel'
 import { type BatchPlayer } from './prelim-batch-panel'
 import DeleteEventButton from './delete-button'
+import LeftoverPoolToggle from './leftover-pool-toggle'
 import CollapsibleCard from './collapsible-card'
 import PrizeEditor from './prize-editor'
 import EventCoverPanel from './event-cover-panel'
@@ -173,6 +174,26 @@ export default async function AdminEventPage({ params }: { params: { id: string 
       })
     : []
 
+  // بازماندگان option in the ترکیبی batch tool — settled registrants of THIS
+  // رشته's own بازماندگان pool event, not yet seated in THIS event.
+  const poolEvent = leftoverPoolEventFor(c.id)
+  const leftoverPoolBatchPlayers: BatchPlayer[] = (!isTeamEvent && bracketModeOf(c.id) === 'prelims' && poolEvent)
+    ? drawEligibleRegistrations(poolEvent.id).filter(r => !isTeamPartnerReg(r)).map(r => {
+        const u = getUserById(r.userId)
+        const seated = seatCountInPrelims(c.id, r.userId)
+        return {
+          userId: r.userId,
+          tag: u?.tag || r.userId,
+          name: u?.name || '?',
+          city: u?.city || 'نامشخص',
+          province: drawProvinceOf(resolveProvince(u?.province, u?.city)),
+          attempts: settledAttempts(r),
+          seated,
+          assigned: seated >= settledAttempts(r),
+        }
+      })
+    : []
+
   const byProv = new Map<string, ProvincePool>()
   for (const r of regs) {
     const u = getUserById(r.userId)
@@ -252,6 +273,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
         batchPlayers={batchPlayers}
+        leftoverPoolPlayers={leftoverPoolBatchPlayers}
         emptySlotCount={emptySlots.length}
         teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
         finalSize={c.finalSize ?? 128}
@@ -271,6 +293,14 @@ export default async function AdminEventPage({ params }: { params: { id: string 
               regular staff can't toggle it away via the normal lifecycle control. */}
           {c.status !== 'cancelled' && <StatusControl compId={c.id} status={c.status} />}
           <PrizeEditor compId={c.id} prize={c.prize} initialSplit={cfg.prizeSplit ?? []} />
+          <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 14 }}>
+            <LeftoverPoolToggle
+              compId={c.id}
+              enabled={cfg.leftoverPoolEnabled === true}
+              poolEventId={poolEvent?.id}
+              poolPendingCount={poolEvent ? registrationsForComp(poolEvent.id).filter(r => r.status === 'pending' || unpaidAttempts(r) > 0).length : 0}
+            />
+          </div>
         </div>
       </CollapsibleCard>
 

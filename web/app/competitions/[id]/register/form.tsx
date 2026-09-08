@@ -5,10 +5,11 @@ import { DISC, Disc } from '@/lib/mock-data'
 import { C, DISP, Button, StatusChip, BackHeader, DISC_DOT } from '@/components/ui'
 import { PAYMENT, toman } from '@/lib/payment'
 import { fileToDataUrl } from '@/lib/receipt-image'
+import Link from 'next/link'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean; leftoverPoolEventId?: string }
 
-export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote, leftoverPoolEventId }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
@@ -135,6 +136,11 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
       <BackHeader title="ثبت‌نام در مسابقه" href={`/competitions/${comp.id}`} />
 
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {leftoverPoolEventId && (
+          <Link href={`/competitions/${leftoverPoolEventId}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 0', color: C.accent, fontWeight: 700, fontSize: 12.5 }}>
+            ثبت‌نام در جدول بازماندگان
+          </Link>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[comp.disc] ?? C.tmut, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>

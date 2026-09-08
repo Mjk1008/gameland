@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam, leftoverPoolEventFor } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { bracketModeOf, prelimGroupAlreadyDrawn } from '@/lib/bracket'
 import { isTehranPrelimHome } from '@/lib/iran-geo'
@@ -82,5 +82,7 @@ export default async function RegisterPage({ params }: { params: { id: string } 
   // warning even though their new سهم is heading straight to leftovers too.
   const leftoverNote = bracketModeOf(c.id) === 'prelims'
     && (!isTehranPrelimHome(u.province, u.city) || prelimGroupAlreadyDrawn(c.id, uid))
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} />
+  const pool = leftoverPoolEventFor(c.id)
+  const leftoverPoolEventId = pool?.id
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} leftoverPoolEventId={leftoverPoolEventId} />
 }

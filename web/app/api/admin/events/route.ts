@@ -42,11 +42,13 @@ export async function POST(req: Request) {
   const bracketMode = b.bracketMode === 'prelims' || b.bracketMode === 'direct'
     ? b.bracketMode
     : defaultBracketMode(b.disc)
+  const attemptsCap = b.attemptsCap != null && b.attemptsCap !== '' ? Number(b.attemptsCap) : undefined
   setEventConfig(e.id, {
     bracketMode,
     ...(teamSize !== undefined ? { teamSize } : {}),
     ...(ticketPrice !== undefined ? { ticketPrice } : {}),
     ...(ticketOriginal !== undefined ? { ticketOriginal } : {}),
+    ...(attemptsCap !== undefined ? { attemptsCap } : {}),
   })
   return NextResponse.json({ ok: true, event: e })
 }
@@ -107,6 +109,15 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'قرعه‌کشی انجام شده — نوع جدول دیگه قابل تغییر نیست' }, { status: 409 })
     }
     setEventConfig(id, { bracketMode: b.bracketMode })
+  }
+
+  // attemptsCap (سهم buy cap) is frozen once anyone has registered — changing
+  // the ceiling under existing purchases would be confusing/unfair.
+  if (b.attemptsCap != null && b.attemptsCap !== '') {
+    if (registrationsForComp(id).length > 0) {
+      return NextResponse.json({ error: 'ثبت‌نامی برای این مسابقه وجود داره — سقفِ سهم دیگه قابل تغییر نیست' }, { status: 409 })
+    }
+    setEventConfig(id, { attemptsCap: Number(b.attemptsCap) })
   }
 
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync, attemptsCapFor } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice, buyerTicketPricing } from '@/lib/promoter'
@@ -32,9 +32,10 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const compId = (body.compId ?? '').toString()
   const attempts = Number(body.attempts)
-  if (!attempts || attempts < 1 || attempts > 6) return NextResponse.json({ error: 'تعداد بلیط باید ۱ تا ۶ باشد' }, { status: 400 })
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
+  const cap = attemptsCapFor(compId)
+  if (!attempts || attempts < 1 || attempts > cap) return NextResponse.json({ error: `تعداد بلیط باید ۱ تا ${cap} باشد` }, { status: 400 })
   const isTeamEvent = getEventConfig(compId).teamSize === 2
 
   // Referral attribution happens at purchase (product decision): the buyer
@@ -99,10 +100,10 @@ export async function POST(req: Request) {
   }
 
   const errorMap: Record<string, string> = {
-    MAX_TICKETS: 'سقفِ ۶ سهم برای این رشته پر شده',
+    MAX_TICKETS: `سقفِ ${cap} سهم برای این رشته پر شده`,
     EXCEEDS_MAX: 'بیشتر از سهمیهٔ باقی‌مونده انتخاب کردی',
     REG_LOCKED: 'ثبت‌نام بسته شده — قرعه‌کشی انجام شده',
-    ATTEMPTS_OUT_OF_RANGE: 'تعداد سهم باید ۱ تا ۶ باشد',
+    ATTEMPTS_OUT_OF_RANGE: `تعداد سهم باید ۱ تا ${cap} باشد`,
     INSUFFICIENT_BALANCE: 'سکهٔ کافی نداری',
     TEAM_PARTNER_LOCKED: 'افزودن سهم فقط از طرفِ کاپیتانِ تیم انجام می‌شه',
     INVALID_PARTNER: 'تگِ هم‌تیمی پیدا نشد — درستشو بزن (یا نمی‌تونه خودت باشی)',
