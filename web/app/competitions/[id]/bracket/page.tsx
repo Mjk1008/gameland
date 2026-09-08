@@ -86,7 +86,11 @@ export default async function BracketPage({ params }: { params: { id: string } }
       p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1),
       p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
       winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status, cancelled: m.cancelled,
-      liveStartedAt: m.liveStartedAt,
+      // Belt-and-suspenders: a done/cancelled match is never "live" on
+      // screen no matter what liveStartedAt actually holds in memory/DB —
+      // so a stray stale value (old data, a future bug) can't resurrect the
+      // pulse on a match that's already decided.
+      liveStartedAt: (!m.cancelled && m.status !== 'done') ? m.liveStartedAt : undefined,
     }))
     const leftovers = isAdmin && !isTeamEvent
       ? leftoverPlayers(c.id).map(x => {

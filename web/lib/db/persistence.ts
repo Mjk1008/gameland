@@ -888,9 +888,18 @@ export const persist = {
       }).onConflictDoUpdate({
         target: schema.matches.id,
         // Every mutable field must appear here, even ones this call didn't
-        // change — a key missing from `set` (not merely undefined-valued)
-        // would silently drop it on re-save (docs/27 §1.4 risk #5).
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined, liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : undefined },
+        // change — a key missing from `set` would silently drop it on
+        // re-save (docs/27 §1.4 risk #5). An undefined-VALUED key is just as
+        // silent: drizzle's mapUpdateSet filters `value !== undefined`
+        // before building the SET clause, so `col: undefined` is dropped
+        // from the SQL exactly like a missing key — the row keeps its old
+        // value in Postgres forever, even though the in-memory object (the
+        // app's real source of truth) has already cleared it. That bit
+        // liveStartedAt: a finished match's stale "live" timestamp survived
+        // in the DB and came back on the next hydration/redeploy. Any field
+        // that needs to go from a real value back to "unset" must pass
+        // `null` here, never `undefined`.
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined, liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : null },
       }))
     },
     // Awaited by callers (generatePrelims) — a subsequent buildTree() creates
