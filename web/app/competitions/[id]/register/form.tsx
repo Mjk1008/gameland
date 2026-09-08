@@ -132,6 +132,29 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
   const needsReceipt = payableTotal > 0
   const promoPending = canUsePromo && !!promoCode.trim() && !promoOk && !promoErr
 
+  // Maxed on the normal 6 سهم but survivors are open — only the بازماندگان entry
+  // remains. (A maxed player on a non-survivor event was already redirected.)
+  if (remaining === 0 && leftoverOpen && !leftoverMode) {
+    return (
+      <div className="animate-fade-up">
+        <BackHeader title="ثبت‌نام در مسابقه" href={`/competitions/${comp.id}`} />
+        <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: DISC_DOT[comp.disc] ?? C.tmut, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{comp.title}</div>
+              <div style={{ fontSize: 11.5, color: C.tmut, marginTop: 2 }}>{d.name}</div>
+            </div>
+            <StatusChip status={comp.status} />
+          </div>
+          <Link href={`/competitions/${comp.id}/register?leftover=1`} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: '16px 0', color: C.accent, fontWeight: 800, fontSize: 15 }}>
+            جدول بازماندگان
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-up">
       <BackHeader title={leftoverMode ? 'ثبت‌نام در جدول بازماندگان' : 'ثبت‌نام در مسابقه'} href={`/competitions/${comp.id}`} />

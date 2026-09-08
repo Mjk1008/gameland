@@ -139,7 +139,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const r = createRegistration(uid, compId, attempts)
+    const r = createRegistration(uid, compId, attempts, undefined, { leftover: isLeftover })
     if (promo) await attachPromoToRegistration(r, promo)
     lockRegistrationUnitPrice(r)
     // referral-reward tickets cover part (or all) of this purchase automatically

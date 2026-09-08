@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DISC, avatarBg, statusColor } from '@/lib/mock-data'
-import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam, isLeftoverOpen, LEFTOVER_ATTEMPTS_CAP } from '@/lib/store'
+import { getUserById, getRegistration, getEvent, getEventConfig, profileCompletion, remainingTickets, teamForUser, captainTeamFor, currentTeamMembers, getTeam, isLeftoverOpen } from '@/lib/store'
 import { ticketPriceFor } from '@/lib/ticket-price'
 import { bracketModeOf, prelimGroupAlreadyDrawn } from '@/lib/bracket'
 import { isTehranPrelimHome } from '@/lib/iran-geo'
@@ -27,10 +27,18 @@ export default async function RegisterPage({ params, searchParams }: { params: {
   // starting over (store reuses the row with a fresh count)
   const existingReg = getRegistration(uid, params.id)
   const owned = existingReg && existingReg.status !== 'rejected' ? existingReg.attempts : 0
-  const remaining = remainingTickets(uid, params.id)
-  if (owned > 0 && remaining === 0) redirect(`/competitions/${params.id}/me`)
-
   const isTeamEvent = getEventConfig(c.id).teamSize === 2
+  // بازماندگان (survivor) sign-up (same event, solo only): the box shows when the
+  // admin opened it; ?leftover=1 enters the survivor buy (up to 4 more, row cap 10).
+  const leftoverOpen = !isTeamEvent && isLeftoverOpen(c.id)
+  const leftoverMode = leftoverOpen && searchParams?.leftover === '1'
+  const normalRemaining = remainingTickets(uid, params.id)
+  const leftoverRemaining = leftoverOpen ? remainingTickets(uid, params.id, true) : 0
+  const remaining = leftoverMode ? leftoverRemaining : normalRemaining
+  // Nothing left to buy in this view, and no survivor option to offer → roadmap.
+  if (owned > 0 && remaining === 0 && !(leftoverOpen && !leftoverMode && leftoverRemaining > 0)) {
+    redirect(`/competitions/${params.id}/me`)
+  }
   // On a 2v2 event the partner has nothing to do here — the captain runs the
   // team's سهم and payment. Send them to their status page. (The captain falls
   // through and can top up the same team.)
@@ -82,10 +90,5 @@ export default async function RegisterPage({ params, searchParams }: { params: {
   // warning even though their new سهم is heading straight to leftovers too.
   const leftoverNote = bracketModeOf(c.id) === 'prelims'
     && (!isTehranPrelimHome(u.province, u.city) || prelimGroupAlreadyDrawn(c.id, uid))
-  // بازماندگان sign-up (same event): the box shows when the admin opened it and
-  // this isn't a team event; ?leftover=1 enters the سهم-capped survivor buy.
-  const leftoverOpen = !isTeamEvent && isLeftoverOpen(c.id)
-  const leftoverMode = leftoverOpen && searchParams?.leftover === '1'
-  const formRemaining = leftoverMode ? Math.min(remaining, LEFTOVER_ATTEMPTS_CAP) : remaining
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={formRemaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} leftoverOpen={leftoverOpen} leftoverMode={leftoverMode} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} leftoverOpen={leftoverOpen} leftoverMode={leftoverMode} />
 }
