@@ -43,3 +43,12 @@ export function bracketModeLabel(mode: BracketMode): string {
 
 /** Ticket/سهم buy cap per discipline. Direct-bracket seats also use this. Seed-to-final cap is 2. */
 export const DEFAULT_ENTRY_CAP = 6
+
+// بازماندگان (survivor) sign-up limits, pure constants (kept here, not in
+// lib/store.ts, so client components — e.g. the admin requests review sheet —
+// can import them without pulling the whole store module, DB driver included,
+// into a browser bundle). LEFTOVER_ATTEMPTS_CAP = max سهم per survivor buy;
+// LEFTOVER_MAX_ATTEMPTS = hard ceiling a registration row can ever reach
+// (normal cap 6 + one survivor buy of 4).
+export const LEFTOVER_ATTEMPTS_CAP = 4
+export const LEFTOVER_MAX_ATTEMPTS = 10

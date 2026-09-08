@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
 import { toman } from '@/lib/payment'
 import type { TicketSlot } from '@/lib/promoter'
+import { LEFTOVER_MAX_ATTEMPTS } from '@/lib/discipline-format'
 
 interface Row {
   regId: string; attempts: number; freeAttempts?: number; paidAttempts?: number
@@ -71,7 +72,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
 
   async function setAttempts(n: number) {
     if (!sel) return
-    const v = Math.max(1, Math.min(6, n))
+    const v = Math.max(1, Math.min(LEFTOVER_MAX_ATTEMPTS, n))
     setTickets(v)
     const res = await fetch('/api/admin/reg-attempts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ regId: sel.regId, attempts: v }) })
     if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error || 'تغییر نشد') }
@@ -210,7 +211,7 @@ export default function RequestList({ rows }: { rows: Row[] }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button onClick={() => setAttempts(tickets - 1)} disabled={tickets <= 1} style={stepBtn}>−</button>
                 <Num size={20} color={C.accent}>{tickets}</Num>
-                <button onClick={() => setAttempts(tickets + 1)} disabled={tickets >= 6} style={stepBtn}>+</button>
+                <button onClick={() => setAttempts(tickets + 1)} disabled={tickets >= LEFTOVER_MAX_ATTEMPTS} style={stepBtn}>+</button>
               </div>
             </div>
 
