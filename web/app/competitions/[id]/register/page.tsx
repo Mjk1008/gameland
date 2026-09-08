@@ -90,5 +90,5 @@ export default async function RegisterPage({ params, searchParams }: { params: {
   // warning even though their new سهم is heading straight to leftovers too.
   const leftoverNote = bracketModeOf(c.id) === 'prelims'
     && (!isTehranPrelimHome(u.province, u.city) || prelimGroupAlreadyDrawn(c.id, uid))
-  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canSetRef={!u.referredBy} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} leftoverOpen={leftoverOpen} leftoverMode={leftoverMode} />
+  return <RegisterForm comp={{ id: c.id, title: c.title, disc: c.disc, status: c.status, statusLabel: c.statusLabel, prize: c.prize, format: c.format, teams: c.teams }} owned={owned} remaining={remaining} canUsePromo freeTickets={u.freeTickets ?? 0} price={price} isTeamEvent={isTeamEvent} reuseTeam={reuseLive ? { name: reuseLive.name, partnerTag: reusePartnerTag } : undefined} leftoverNote={leftoverNote} leftoverOpen={leftoverOpen} leftoverMode={leftoverMode} />
 }

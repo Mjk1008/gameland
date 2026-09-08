@@ -198,12 +198,6 @@ export default async function MePage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {u.role === 'gamer' && (
-          <Link href="/invite" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.gold}44`, borderRadius: 11 }}>
-            <span style={{ fontSize: 13, color: C.thi }}>دعوت رفیق — سهم رایگان</span>
-            <span style={{ color: C.gold, fontSize: 11.5, fontWeight: 700 }}>REF ›</span>
-          </Link>
-        )}
         <Link href="/gamenet" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 11 }}>
           <span style={{ fontSize: 13, color: C.thi }}>گیم‌نت داری؟ ثبتش کن</span>
           <span style={{ color: C.tmut }}>›</span>

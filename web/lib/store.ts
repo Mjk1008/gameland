@@ -334,21 +334,18 @@ export function activityPointsOf(u: User): number {
   return pts
 }
 
-// ─── Referral campaign («رفیقتو بیار») ──────────────────────────────────────
-// Code = the user's own @tag. Attribution is set ONCE at ticket purchase and never
-// changes. Rewards count only APPROVED (paid + admin-verified) registrations,
-// which is the anti-fraud gate. Milestones: 3 approved referral tickets → 1 free
-// ticket, 6 → 3 total. Free tickets are redeemed inside a normal registration.
+// ─── Referral campaign («رفیقتو بیار») — CLOSED ─────────────────────────────
+// setReferrerByTag/grantReferralRewards are permanent no-ops now — no new
+// referrer links, no new milestone grants. Everything below (approvedReferralCount,
+// referralLeaderboard, consumeFreeTickets) stays live: existing referredBy links,
+// freeTickets balances and referralMilestone counts are untouched and still
+// apply/display/redeem normally — this is read/spend-only history from here on.
+// (Original mechanic, for history: code = the user's own @tag, set once at
+// purchase; milestones were 3 approved referral tickets → 1 free ticket, 6 → 3 total.)
 
-export function setReferrerByTag(userId: string, refTag: string): boolean {
-  const u = users.get(userId)
-  if (!u || u.referredBy) return false                    // immutable once set
-  const ref = getUserByTag(refTag.trim().replace(/^@/, ''))
-  if (!ref || ref.id === userId) return false             // must exist, no self-referral
-  u.referredBy = ref.id
-  persist.user.update(userId, { referredBy: ref.id })
-  bumpNationalRanking(userId)
-  return true
+// Signature kept so callers don't need touching — always a no-op now.
+export function setReferrerByTag(_userId: string, _refTag: string): boolean {
+  return false
 }
 
 // Total APPROVED tickets (سهم) bought by this referrer's invitees.
@@ -361,26 +358,12 @@ export function approvedReferralCount(referrerId: string): number {
   return n
 }
 
-// Called after a registration is approved: reward the referee's referrer if a
-// milestone was crossed. Idempotent via referralMilestone.
-export function grantReferralRewards(referredUserId: string) {
-  const referred = users.get(referredUserId)
-  const refId = referred?.referredBy
-  if (!refId) return
-  const referrer = users.get(refId)
-  if (!referrer) return
-  const count = approvedReferralCount(refId)   // approved tickets brought
-  const milestone = referrer.referralMilestone ?? 0
-  let granted = 0
-  if (count >= 3 && milestone < 3) { granted += 1; referrer.referralMilestone = 3 }
-  if (count >= 6 && (referrer.referralMilestone ?? 0) < 6) { granted += 2; referrer.referralMilestone = 6 }
-  if (granted === 0) return
-  referrer.freeTickets = (referrer.freeTickets ?? 0) + granted
-  persist.user.update(refId, { freeTickets: referrer.freeTickets, referralMilestone: referrer.referralMilestone })
-  pushNotif(refId, 'announcement', granted === 1 ? '🎟 یه سهمِ رایگان گرفتی!' : '🎟 ۲ سهمِ رایگانِ دیگه گرفتی!',
-    count >= 6
-      ? 'دعوتی‌هات به ۶ سهمِ تاییدشده رسیدن — جمعاً ۳ سهمِ رایگان گرفتی و نشانِ «سفیر گیم‌لند» مالِ توئه. موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شن.'
-      : `دعوتی‌هات ${count} سهمِ تاییدشده خریدن. سهمِ رایگانت موقعِ ثبت‌نامِ بعدی خودکار حساب می‌شه — ${6 - count} سهمِ دیگه تا ۲ سهمِ رایگانِ بعدی!`)
+// Campaign closed — no new free-ticket grants from here on, even for accounts
+// that already have a referredBy link from before the closure. Whatever
+// freeTickets/referralMilestone a referrer already earned stays exactly as is
+// (still spendable) — this just stops any NEW milestone from firing.
+export function grantReferralRewards(_referredUserId: string) {
+  return
 }
 
 // Redeem free tickets inside a registration (called right after createRegistration).

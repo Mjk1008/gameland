@@ -7,14 +7,13 @@ import { PAYMENT, toman } from '@/lib/payment'
 import { fileToDataUrl } from '@/lib/receipt-image'
 import Link from 'next/link'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean; leftoverOpen?: boolean; leftoverMode?: boolean }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean; leftoverOpen?: boolean; leftoverMode?: boolean }
 
-export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote, leftoverOpen, leftoverMode }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote, leftoverOpen, leftoverMode }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
   const [attempts, setAttempts] = useState(1)
-  const [ref, setRef] = useState('')
   const [teamName, setTeamName] = useState('')
   const [partnerTag, setPartnerTag] = useState('')
   const [promoCode, setPromoCode] = useState('')
@@ -46,14 +45,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
     catch (e: any) { setImgErr(e.message) }
     finally { setImgBusy(false); if (fileRef.current) fileRef.current.value = '' }
   }
-
-  useEffect(() => {
-    if (!canSetRef) return
-    try {
-      const v = (new URLSearchParams(window.location.search).get('ref') || localStorage.getItem('gl_ref') || '').trim()
-      if (v) setRef(v.replace(/^@/, ''))
-    } catch {}
-  }, [canSetRef])
 
   useEffect(() => {
     if (!canUsePromo) return
@@ -114,7 +105,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
       const res = await fetch('/api/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          compId: comp.id, attempts, ref: ref.trim() || undefined,
+          compId: comp.id, attempts,
           promoCode: canUsePromo && codeForSubmit ? codeForSubmit : undefined,
           ...(leftoverMode ? { leftover: true } : {}),
           ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: (reuseTeam?.partnerTag || partnerTag).trim() } : {}),
@@ -244,14 +235,6 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
             {promoBusy && <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 5 }}>در حال بررسی…</div>}
             {promoOk && <div style={{ fontSize: 10.5, color: C.win, marginTop: 5 }}>✓ کد {promoLabel} — ٪{promoDiscount} تخفیف</div>}
             {promoErr && <div style={{ fontSize: 10.5, color: C.live, marginTop: 5 }}>{promoErr}</div>}
-          </div>
-        )}
-
-        {canSetRef && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.thi, marginBottom: 7 }}>کدِ معرّف (اختیاری)</div>
-            <input dir="ltr" value={ref} onChange={e => setRef(e.target.value.replace(/^@/, ''))} placeholder="gamertag"
-              style={{ background: C.sf2, border: `1px solid ${ref ? C.accent : C.line}`, borderRadius: 11, padding: '12px 13px', color: C.thi, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: DISP, textAlign: 'left' }} />
           </div>
         )}
 
