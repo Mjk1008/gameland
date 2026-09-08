@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     return h
   }
 
-  const found = new Map<string, { compId: string; title: string; count: number; matchId: string }>()
+  const found = new Map<string, { compId: string; title: string; count: number; matchId: string; round: number }>()
   for (const m of allMatches()) {
     if (m.compId === exclude || m.cancelled) continue
     const e = events.get(m.compId)
@@ -56,13 +56,20 @@ export async function GET(req: Request) {
     }
     if (seats === 0) continue
     const row = found.get(m.compId)
-    // First hit wins as the jump target: matches come out of the store in
-    // creation order, so that's the earliest round the name appears in.
-    if (row) row.count += seats
-    else found.set(m.compId, { compId: m.compId, title: e.title, count: seats, matchId: m.id })
+    if (!row) {
+      found.set(m.compId, { compId: m.compId, title: e.title, count: seats, matchId: m.id, round: m.round })
+      continue
+    }
+    row.count += seats
+    // Jump to the earliest round the name is seated in — that's where they
+    // still have a game to play, not a round they've already been through.
+    if (m.round < row.round) { row.round = m.round; row.matchId = m.id }
   }
 
   return NextResponse.json({
-    events: [...found.values()].sort((a, b) => b.count - a.count).slice(0, MAX_EVENTS),
+    events: [...found.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, MAX_EVENTS)
+      .map(({ compId, title, count, matchId }) => ({ compId, title, count, matchId })),
   })
 }

@@ -816,10 +816,14 @@ const RoundHeaders = memo(function RoundHeaders({ rounds, playersInRound, scale,
             width: CARD_W * scale,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 800, color: C.tmut,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px', boxSizing: 'border-box',
+            overflow: 'hidden', padding: '0 2px', boxSizing: 'border-box',
           }}
         >
-          {roundLabel(playersInRound(r))}
+          {/* ellipsis needs a real box — a bare text node in a flex container
+              is an anonymous item and would just clip at narrow zoom levels */}
+          <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {roundLabel(playersInRound(r))}
+          </span>
         </div>
       ))}
     </div>
@@ -930,9 +934,12 @@ const searchInput: React.CSSProperties = {
   background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, outline: 'none',
   paddingBlock: 10, paddingInlineStart: 34, paddingInlineEnd: 96,
 }
+// Stays RTL like the rest of the page, so «›» (forward, the app's own "into"
+// glyph) sits on the left the way it does on every other row. The n/total
+// counter carries .gl-num, which isolates its own LTR direction.
 const searchNav: React.CSSProperties = {
   position: 'absolute', insetInlineEnd: 8, top: '50%', transform: 'translateY(-50%)',
-  display: 'flex', alignItems: 'center', gap: 2, direction: 'ltr',
+  display: 'flex', alignItems: 'center', gap: 2,
 }
 const navBtn = (on: boolean): React.CSSProperties => ({
   all: 'unset', cursor: on ? 'pointer' : 'default', width: 24, height: 24,
