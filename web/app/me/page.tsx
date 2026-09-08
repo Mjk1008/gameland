@@ -43,15 +43,38 @@ export default async function MePage() {
 
   return (
     <div style={{ padding: '16px 16px 28px' }} className="animate-fade-up">
-      {/* Profile lower-third */}
-      <div style={{ position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+      {/* Profile lower-third — for gamers, a رتبه/امتیاز row makes this the
+          player's own stat card at a glance, not just an avatar+edit strip
+          (the same numbers ShareCard already puts on the shareable PNG). */}
+      <div style={{ position: 'relative', overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16 }}>
         <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.accent }} />
-        <AvatarEditor uid={uid} initial={u.tag[0]?.toUpperCase() ?? '؟'} hasPhoto={hasAvatar(uid)} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{u.name}</div>
-          <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{u.tag} · {u.city || '—'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <AvatarEditor uid={uid} initial={u.tag[0]?.toUpperCase() ?? '؟'} hasPhoto={hasAvatar(uid)} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 17, color: C.thi }}>{u.name}</div>
+            <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{u.tag} · {u.city || '—'}</div>
+          </div>
+          <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: C.tbody, minHeight: 40, display: 'inline-flex', alignItems: 'center', padding: '0 14px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
         </div>
-        <Link href="/welcome" style={{ all: 'unset', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: C.tbody, minHeight: 40, display: 'inline-flex', alignItems: 'center', padding: '0 14px', border: `1px solid ${C.line2}`, borderRadius: 9 }}>ویرایش</Link>
+
+        {u.role === 'gamer' && (
+          <div style={{ display: 'flex', gap: 8, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+            <div style={{ flex: 1, background: C.sf2, borderRadius: 11, padding: '9px 4px', textAlign: 'center' }}>
+              <Num size={20} color={myRank ? C.gold : C.tmut}>{myRank ? `#${myRank}` : '—'}</Num>
+              <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 3 }}>{myRank ? `از ${gamerTotal.toLocaleString('fa-IR')} گیمر` : 'بدونِ رتبه'}</div>
+            </div>
+            <div style={{ flex: 1, background: C.sf2, borderRadius: 11, padding: '9px 4px', textAlign: 'center' }}>
+              <Num size={20} color={C.accent}>{myPoints.toLocaleString('en-US')}</Num>
+              <div style={{ fontSize: 10.5, color: C.tmut, marginTop: 3 }}>امتیاز</div>
+            </div>
+            {u.primaryDisc && (
+              <div style={{ flex: 1, background: C.sf2, borderRadius: 11, padding: '9px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <GameBadge disc={u.primaryDisc} size={24} />
+                <div style={{ fontSize: 10.5, color: C.tmut }}>رشته‌ی اصلی</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Profile completion meter — only for gamers who aren't 100% yet */}
