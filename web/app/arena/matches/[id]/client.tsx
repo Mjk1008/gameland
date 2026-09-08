@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, BackHeader } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import {
   arenaStatusLabel, canSubmitArenaResult, matchPhaseIndex, MATCH_PHASES,
 } from '@/lib/arena-ui'
@@ -169,7 +170,8 @@ export default function MatchFlowClient({ matchId, myId }: Props) {
                   display: 'flex', alignItems: 'center', gap: 10,
                 }}>
                   {g.coverPhotoId ? (
-                    <img src={`/api/gamenet-photo/${g.coverPhotoId}`} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                    <ImgWithFallback src={`/api/gamenet-photo/${g.coverPhotoId}`} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                      fallback={<div style={{ width: 44, height: 44, borderRadius: 8, background: C.sf2, flexShrink: 0 }} />} />
                   ) : (
                     <div style={{ width: 44, height: 44, borderRadius: 8, background: C.sf2, flexShrink: 0 }} />
                   )}

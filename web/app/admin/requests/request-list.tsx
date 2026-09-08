@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C, DISP, Num, EmptyState } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { toman } from '@/lib/payment'
 import type { TicketSlot } from '@/lib/promoter'
 import { LEFTOVER_MAX_ATTEMPTS } from '@/lib/discipline-format'
@@ -241,7 +242,8 @@ export default function RequestList({ rows }: { rows: Row[] }) {
             {/* receipt */}
             {sel.hasReceipt ? (
               <a href={`/api/admin/receipt/${sel.regId}`} target="_blank" rel="noopener noreferrer" style={{ all: 'unset', cursor: 'pointer', display: 'block', marginTop: 12, borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.line2}`, position: 'relative' }}>
-                <img src={`/api/admin/receipt/${sel.regId}`} alt="فیش" style={{ display: 'block', width: '100%', maxHeight: 300, objectFit: 'contain', background: '#0E0C09' }} />
+                <ImgWithFallback src={`/api/admin/receipt/${sel.regId}`} alt="فیش" style={{ display: 'block', width: '100%', maxHeight: 300, objectFit: 'contain', background: '#0E0C09' }}
+                  fallback={<div style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, background: C.goldSoft, padding: '9px 12px' }}>⚠ فیش لود نشد — از راه‌های دیگه چک کن</div>} />
                 <span style={{ position: 'absolute', bottom: 8, insetInlineEnd: 8, fontSize: 11, fontWeight: 700, color: C.thi, background: 'rgba(20,17,13,.8)', border: `1px solid ${C.line2}`, borderRadius: 8, padding: '5px 10px' }}>بازکردنِ فیش (بزرگ) ›</span>
               </a>
             ) : (

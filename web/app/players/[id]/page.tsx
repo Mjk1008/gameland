@@ -4,7 +4,8 @@ import { challengePointsOf } from '@/lib/arena'
 import { playerCard } from '@/lib/player-cards'
 import { queryUserRank, queryGamerCount } from '@/lib/ranking-store'
 import { DISC } from '@/lib/mock-data'
-import { C, DISP, Num, BackHeader, EmptyState, DISC_DOT } from '@/components/ui'
+import { C, DISP, Num, BackHeader, EmptyState, DISC_DOT, GamerAvatar } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,18 +36,14 @@ export default async function PlayerPage({ params }: { params: { id: string } })
       {/* official ranking card (hero) when the player has one */}
       {card && (
         <div style={{ padding: '16px 16px 0' }}>
-          <img src={card} alt={u.name} style={{ width: '100%', display: 'block', borderRadius: 16, border: `1px solid ${C.line}`, boxShadow: '0 14px 40px -20px rgba(0,0,0,.85)' }} />
+          <ImgWithFallback src={card} alt={u.name} style={{ width: '100%', display: 'block', borderRadius: 16, border: `1px solid ${C.line}`, boxShadow: '0 14px 40px -20px rgba(0,0,0,.85)' }} fallback={null} />
         </div>
       )}
 
       <div style={{ padding: '20px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* Hero */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 84, height: 84, borderRadius: 22, background: C.line, border: `1px solid ${top3 ? C.gold + '88' : C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {hasAvatar(u.id)
-              ? <img src={`/api/avatar/${u.id}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontFamily: DISP, fontWeight: 800, fontSize: 38, color: top3 ? C.gold : C.accent }}>{u.tag[0]?.toUpperCase()}</span>}
-          </div>
+          <GamerAvatar uid={u.id} tag={u.tag} hasPhoto={hasAvatar(u.id)} size={84} ring={top3 ? C.gold + '88' : undefined} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: C.thi }}>{u.name}</div>
             <div dir="ltr" style={{ fontFamily: DISP, fontSize: 12, color: C.tmut, marginTop: 3 }}>@{u.tag} · {u.city}</div>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getCompetition, eventsForCompetition, getUserById, registrationsForUser, resolveCompetitionCardCover, resolveEventCardCover } from '@/lib/store'
 import { C, BackHeader, EmptyState } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { DisciplineCard } from '../../cards'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export default async function CompetitionSetPage({ params }: { params: { id: str
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {heroCover ? (
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 16, overflow: 'hidden', border: `1px solid ${C.line}` }}>
-            <img src={heroCover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <ImgWithFallback src={heroCover} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(20,17,13,.05) 0%, rgba(20,17,13,.94) 100%)' }} />
             <div style={{ position: 'absolute', insetInline: 14, bottom: 12 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: C.thi, textShadow: '0 2px 10px rgba(0,0,0,.8)' }}>{comp.title}</div>

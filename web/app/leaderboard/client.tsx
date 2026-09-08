@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { DISC, Player, Disc } from '@/lib/mock-data'
-import { C, DISP, Num, GameBadge } from '@/components/ui'
+import { C, Num, GameBadge, GamerAvatar } from '@/components/ui'
 import PageLoading from '@/components/PageLoading'
 
 type DiscFilter = 'all' | Disc
@@ -175,13 +175,7 @@ export default function LeaderboardClient() {
               <Link key={`${p.uid}-${p.rank}`} href={`/players/${p.tag.toLowerCase()}`} style={{ all: 'unset', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 13, boxSizing: 'border-box', padding: '11px 13px', background: isMe ? C.accentSoft : C.sf1, border: `1px solid ${isMe ? C.accent : C.line}`, borderRadius: 12 }}>
                 {isMe && <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 3, background: C.accent }} />}
                 <span className="gl-num" style={{ width: 22, textAlign: 'center', fontWeight: 800, fontSize: 19, color: p.rank === 1 ? C.accent : p.rank <= 3 ? C.gold : C.tmut, flexShrink: 0 }}>{p.rank}</span>
-                <div style={{ width: 54, height: 54, borderRadius: 13, overflow: 'hidden', background: C.line, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${p.rank <= 3 ? C.gold + '88' : C.line2}` }}>
-                  {p.hasAvatar
-                    ? <img src={`/api/avatar/${p.uid}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : p.card
-                    ? <img src={p.card} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }} />
-                    : <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 700, fontSize: 20, color: C.thi }}>{p.tag[0]?.toUpperCase()}</span>}
-                </div>
+                <GamerAvatar uid={p.uid} tag={p.tag} hasPhoto={p.hasAvatar} card={p.card} size={54} ring={p.rank <= 3 ? C.gold + '88' : undefined} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: C.thi }}>{p.name}{isMe ? ' · تو' : ''}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>

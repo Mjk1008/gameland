@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Event, Registration } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
 import { C, Num, StatusChip, DISC_DOT } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 
 const REG_STATE: Record<string, { label: string; c: string; s: string }> = {
   approved: { label: 'ثبت‌نامت تاییده', c: C.win, s: C.winSoft },
@@ -20,7 +21,7 @@ function Banner({ disc, coverSrc, title, sub, status, discColor }: { disc?: stri
   const img = coverSrc
   return (
     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', overflow: 'hidden', background: `linear-gradient(135deg, ${discColor}, ${discColor}55)` }}>
-      {img && <img src={img} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {img && <ImgWithFallback src={img} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(20,17,13,.05) 0%, rgba(20,17,13,.35) 50%, rgba(20,17,13,.94) 100%)' }} />
       {status && <div style={{ position: 'absolute', top: 12, insetInlineStart: 12 }}><StatusChip status={status} /></div>}
       <div style={{ position: 'absolute', insetInlineStart: 14, insetInlineEnd: 14, bottom: 12 }}>

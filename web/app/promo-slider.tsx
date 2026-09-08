@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { C } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { GlassArrow } from './news-slider'
 
 export type Slide = { src: string; href?: string }
@@ -20,7 +21,7 @@ export default function PromoSlider({ slides }: { slides: Slide[] }) {
     <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: 16, overflow: 'hidden', border: `1px solid ${C.line}`, background: C.sf1 }}>
       {slides.map((s, idx) => {
         const active = idx === i
-        const img = <img src={s.src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: active ? 1 : 0, transition: 'opacity .6s ease', pointerEvents: active ? 'auto' : 'none' }} />
+        const img = <ImgWithFallback src={s.src} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: active ? 1 : 0, transition: 'opacity .6s ease', pointerEvents: active ? 'auto' : 'none' }} fallback={null} />
         const isExternal = s.href ? /^https?:\/\//.test(s.href) : false
         return s.href
           ? <a key={idx} href={s.href} {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})} style={{ position: 'absolute', inset: 0, display: 'block', pointerEvents: active ? 'auto' : 'none' }} aria-label={`اسلاید ${idx + 1}`}>{img}</a>

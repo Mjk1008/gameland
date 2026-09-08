@@ -1,6 +1,7 @@
 'use client'
 import { createPortal } from 'react-dom'
 import { C, DISP } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 import type { NewsSlide } from './news-slider'
 
@@ -22,7 +23,7 @@ export function NewsStoryModal({ item, closing, onClose }: { item: NewsSlide; cl
       <div onClick={e => e.stopPropagation()}
         style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', background: '#171410', border: `1px solid ${C.line2}`, borderBottom: 'none', borderRadius: '22px 22px 0 0', animation: closing ? 'glSlideDown .24s ease forwards' : 'glSlideUp .3s cubic-bezier(.2,.9,.3,1)' }}>
         <div style={{ position: 'relative', aspectRatio: '1.85/1' }}>
-          <img src={item.cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <ImgWithFallback src={item.cover} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />
           <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(23,20,16,0) 45%, rgba(23,20,16,1) 100%)' }} />
           <button onClick={onClose} aria-label="بستن"
             style={{ all: 'unset', cursor: 'pointer', position: 'absolute', top: 12, insetInlineStart: 12, width: 34, height: 34, borderRadius: 999, background: 'rgba(11,10,8,.66)', backdropFilter: 'blur(6px)', border: `1px solid ${C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15 }}>✕</button>

@@ -1,5 +1,6 @@
 'use client'
 import { C } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import type { StoryItem } from '@/lib/today-snapshot'
 
 // Ring bar — newest-first (docs/37 §4.2/§9.6), color carries seen/unseen,
@@ -17,8 +18,7 @@ export default function StoryBar({ stories, onOpen }: { stories: StoryItem[]; on
             background: s.seen ? C.line2 : `conic-gradient(from 0deg, ${C.gold}, ${C.accent}, ${C.gold})`,
           }}>
             <span style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${C.sf1}`, background: C.sf2 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/story-media/${s.id}/thumb`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <ImgWithFallback src={`/api/story-media/${s.id}/thumb`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} fallback={null} />
             </span>
           </span>
         </button>

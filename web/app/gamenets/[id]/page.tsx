@@ -4,6 +4,7 @@ import { DISC } from '@/lib/mock-data'
 import { GAMENET_FEATURES, CONSOLE_KINDS } from '@/lib/gamenet-features'
 import { GAMENET_GAMES } from '@/lib/gamenet-games'
 import { C, DISP, DiscChip, BackHeader } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,11 +22,11 @@ export default function GamenetPage({ params }: { params: { id: string } }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 6 }}>
           {photoIds.length > 0 ? (
             photoIds.length === 1 ? (
-              <img src={`/api/gamenet-photo/${photoIds[0]}`} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 16, border: `1px solid ${C.line}` }} />
+              <ImgWithFallback src={`/api/gamenet-photo/${photoIds[0]}`} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 16, border: `1px solid ${C.line}` }} fallback={null} />
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
                 {photoIds.map(id => (
-                  <img key={id} src={`/api/gamenet-photo/${id}`} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 12, border: `1px solid ${C.line}` }} />
+                  <ImgWithFallback key={id} src={`/api/gamenet-photo/${id}`} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 12, border: `1px solid ${C.line}` }} fallback={null} />
                 ))}
               </div>
             )

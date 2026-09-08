@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { C, DISC_DOT } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { faDigits } from '@/lib/jalali'
 import { prizeMillionLabel } from '@/lib/payment'
 
@@ -212,7 +213,7 @@ export default function AssistantChat({ firstName, quotaUsed, quotaLimit }: { fi
         <div onClick={() => setStory(null)} style={sheetWrap}>
           <div onClick={e => e.stopPropagation()} style={{ ...sheetBody, padding: 0 }}>
             <div style={{ position: 'relative', aspectRatio: '1.85/1' }}>
-              <img src={story.cover} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <ImgWithFallback src={story.cover} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />
               <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(23,20,16,0) 45%, rgba(23,20,16,1) 100%)' }} />
               <button onClick={() => setStory(null)} aria-label="بستن" style={{ all: 'unset', cursor: 'pointer', position: 'absolute', top: 12, insetInlineStart: 12, width: 34, height: 34, borderRadius: 999, background: 'rgba(11,10,8,.66)', border: `1px solid ${C.line2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15 }}>✕</button>
             </div>
@@ -314,7 +315,7 @@ function Widget({ marker, ent, onStory, onAsk }: { marker: string; ent?: Entitie
           <button key={n.id} onClick={() => onStory(n)}
             style={{ all: 'unset', cursor: 'pointer', boxSizing: 'border-box', borderRadius: 13, overflow: 'hidden', background: C.sf1, border: `1px solid ${C.line}` }}>
             <span style={{ display: 'block', position: 'relative', aspectRatio: '16/9', background: C.sf2 }}>
-              <img src={n.cover} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <ImgWithFallback src={n.cover} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />
             </span>
             <span style={{ display: 'block', padding: '9px 10px 11px' }}>
               <span style={{ display: 'block', fontSize: 11.5, fontWeight: 800, color: C.thi, lineHeight: 1.7 }}>{n.title}</span>

@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { track } from '@/lib/track'
+import ImgWithFallback from './img-fallback'
 
 // ── tokens ──
 export const C = {
@@ -112,17 +113,23 @@ export function Wordmark({ size = 22, tagline = false, stacked = false }: { size
 }
 
 // ── gamer avatar badge — uploaded photo, else ranking-card face, else initial ──
+// `hasPhoto`/`card` can go stale (blob removed after the page's own data was
+// read, a bad fetch) — an onError fallback chain (photo → card → initial)
+// keeps this from ever showing the browser's broken-image glyph, since this
+// one component backs nearly every avatar in the app.
 export function GamerAvatar({ uid, tag, hasPhoto, card, size = 44, ring }: {
   uid: string; tag: string; hasPhoto?: boolean; card?: string | null; size?: number; ring?: string
 }) {
   const radius = Math.round(size * 0.28)
+  const initial = <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: size * 0.42, color: ring ?? C.thi }}>{tag[0]?.toUpperCase()}</span>
+  const cardImg = card
+    ? <ImgWithFallback src={card} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }} fallback={initial} />
+    : initial
   return (
     <span style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: C.line, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${ring ?? C.line2}` }}>
       {hasPhoto
-        ? <img src={`/api/avatar/${uid}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : card
-        ? <img src={card} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 18%' }} />
-        : <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: size * 0.42, color: ring ?? C.thi }}>{tag[0]?.toUpperCase()}</span>}
+        ? <ImgWithFallback src={`/api/avatar/${uid}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={cardImg} />
+        : cardImg}
     </span>
   )
 }

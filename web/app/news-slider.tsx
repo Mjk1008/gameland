@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { C } from '@/components/ui'
+import ImgWithFallback from '@/components/img-fallback'
 import { NewsStoryModal } from './news-story-modal'
 
 export interface NewsSlide { id: string; cover: string; title: string; body: string; tags: string[]; at: number }
@@ -108,7 +109,7 @@ export default function NewsSlider({ items }: { items: NewsSlide[] }) {
           {items.map((n, i) => (
             <button key={n.id} onClick={() => setOpen(n)}
               style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, width: items.length === 1 ? '100%' : '84%', maxWidth: 430, scrollSnapAlign: 'center', position: 'relative', borderRadius: 16, overflow: 'hidden', border: `1px solid ${C.line}`, background: C.sf1, aspectRatio: '2.1/1' }}>
-              <img src={n.cover} alt="" loading={i > 0 ? 'lazy' : undefined} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <ImgWithFallback src={n.cover} loading={i > 0 ? 'lazy' : undefined} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} fallback={null} />
               <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(11,10,8,0) 26%, rgba(11,10,8,.55) 58%, rgba(11,10,8,.92) 100%)' }} />
               <span style={{ position: 'absolute', insetInline: 14, bottom: 10 }}>
                 {n.tags[0] && <span style={{ display: 'inline-block', fontSize: 9.5, fontWeight: 800, color: C.gold, background: 'rgba(11,10,8,.66)', border: `1px solid ${C.gold}55`, borderRadius: 6, padding: '2px 8px', marginBottom: 5 }}>{n.tags[0]}</span>}
