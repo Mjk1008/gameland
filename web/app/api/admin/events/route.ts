@@ -49,7 +49,6 @@ export async function POST(req: Request) {
     ...(ticketPrice !== undefined ? { ticketPrice } : {}),
     ...(ticketOriginal !== undefined ? { ticketOriginal } : {}),
     ...(attemptsCap !== undefined ? { attemptsCap } : {}),
-    ...(b.isLeftoverPool === true ? { isLeftoverPool: true } : {}),
   })
   return NextResponse.json({ ok: true, event: e })
 }
@@ -119,9 +118,6 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'ثبت‌نامی برای این مسابقه وجود داره — سقفِ سهم دیگه قابل تغییر نیست' }, { status: 409 })
     }
     setEventConfig(id, { attemptsCap: Number(b.attemptsCap) })
-  }
-  if (b.isLeftoverPool != null) {
-    setEventConfig(id, { isLeftoverPool: b.isLeftoverPool === true })
   }
 
   try {

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import {
   drawEligibleRegistrations, getEvent, getEventConfig,
-  isTeamPartnerReg, settledAttempts, leftoverPoolEvent, type GroupMode,
+  isTeamPartnerReg, settledAttempts, leftoverPoolEventFor, type GroupMode,
 } from '@/lib/store'
 import { bracketModeOf, generatePrelimBatch, groupKeyForUser } from '@/lib/bracket'
 
@@ -41,8 +41,8 @@ export async function POST(req: Request) {
   const useLeftoverPool = isMixed && fromLeftoverPool === true
   let sourceCompId = compId
   if (useLeftoverPool) {
-    const pool = leftoverPoolEvent()
-    if (!pool) return NextResponse.json({ error: 'رشتهٔ بازماندگان تعریف نشده' }, { status: 400 })
+    const pool = leftoverPoolEventFor(compId)
+    if (!pool) return NextResponse.json({ error: 'بازماندگانِ این رشته روشن نیست' }, { status: 400 })
     sourceCompId = pool.id
   }
 

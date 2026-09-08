@@ -2016,14 +2016,20 @@ export interface EventConfig {
   // New draws set the group's key to false until admin presses انتشار.
   publishedGroups?: Record<string, boolean>
   // How many سهم one account may hold on this event. undefined ⇒ 6 (the normal
-  // default everywhere). The dedicated بازماندگان pool event sets this to 4.
+  // default everywhere). A بازماندگان pool event sets this to 4.
   // Frozen once anyone has registered — enforced in the edit route, like teamSize.
   attemptsCap?: number
-  // Marks THE ONE event that is the global بازماندگان ticket pool — anyone can
-  // register here (up to attemptsCap سهم) regardless of their status on any
-  // other رشته. Its settled registrants are what the "بازماندگان" option in a
-  // normal event's ترکیبی batch-draw pulls from (see leftoverPoolEvent()).
-  isLeftoverPool?: boolean
+  // This event's OWN بازماندگان pool — a sibling event anyone can register
+  // into (up to ITS attemptsCap) regardless of their status on this event,
+  // whose settled registrants are what the "بازماندگان" option in THIS
+  // event's ترکیبی batch-draw pulls from. Created once (see
+  // /api/admin/leftover-pool) and reused every time it's toggled back on;
+  // leftoverPoolEnabled controls visibility without losing the pool's data.
+  leftoverPoolEventId?: string
+  leftoverPoolEnabled?: boolean
+  // Set on a pool event itself, pointing back at the رشته it serves — purely
+  // informational (e.g. so its own admin page can say what it's for).
+  leftoverPoolParentId?: string
 }
 const eventConfigs = new Map<string, EventConfig>()
 
@@ -2046,12 +2052,38 @@ export function attemptsCapFor(compId: string): number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : 6
 }
 
-// The one event flagged as the global بازماندگان ticket pool, if any exists.
-// Most-recently-created wins if more than one is ever flagged (shouldn't happen).
-export function leftoverPoolEvent(): Event | undefined {
-  return Array.from(events.values())
-    .filter(e => getEventConfig(e.id).isLeftoverPool === true)
-    .sort((a, b) => b.createdAt - a.createdAt)[0]
+// This رشته's own بازماندگان pool event, if one exists and is switched on.
+export function leftoverPoolEventFor(compId: string): Event | undefined {
+  const cfg = getEventConfig(compId)
+  if (!cfg.leftoverPoolEnabled || !cfg.leftoverPoolEventId) return undefined
+  return getEvent(cfg.leftoverPoolEventId)
+}
+
+// Toggle a رشته's بازماندگان pool on/off. Turning it on for the first time
+// creates the sibling event (attemptsCap=4, linked both ways); turning it
+// back on later reuses the same one — its registrations are never lost.
+// Turning it off just hides it (leftoverPoolEnabled=false); the sibling event
+// and its registrations stay exactly as they are.
+export function setLeftoverPoolEnabled(compId: string, enabled: boolean, organizerId: string): Event | undefined {
+  const c = getEvent(compId)
+  if (!c) throw new Error('EVENT_NOT_FOUND')
+  const cfg = getEventConfig(compId)
+  if (!enabled) {
+    setEventConfig(compId, { leftoverPoolEnabled: false })
+    return cfg.leftoverPoolEventId ? getEvent(cfg.leftoverPoolEventId) : undefined
+  }
+  let pool = cfg.leftoverPoolEventId ? getEvent(cfg.leftoverPoolEventId) : undefined
+  if (!pool) {
+    pool = createEvent({
+      title: `${c.title} — بازماندگان`, season: c.season, disc: c.disc, tier: c.tier,
+      prize: 0, teams: c.teams, format: c.format, date: c.date,
+      status: 'open', statusLabel: 'ثبت‌نام باز',
+      organizerId, competitionId: c.competitionId, finalSize: c.finalSize,
+    })
+    setEventConfig(pool.id, { attemptsCap: 4, leftoverPoolParentId: compId })
+  }
+  setEventConfig(compId, { leftoverPoolEventId: pool.id, leftoverPoolEnabled: true })
+  return pool
 }
 
 const matches: Match[] = []

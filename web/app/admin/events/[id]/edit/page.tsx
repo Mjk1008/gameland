@@ -24,7 +24,6 @@ export default async function EditEventPage({ params }: { params: { id: string }
     ticketPrice: cfg.ticketPrice, ticketOriginal: cfg.ticketOriginal,
     bracketMode: cfg.bracketMode ?? defaultBracketMode(e.disc),
     attemptsCap: cfg.attemptsCap ?? 6,
-    isLeftoverPool: cfg.isLeftoverPool === true,
     // Format is frozen once anyone has registered (docs/27 §1.5) — the form
     // disables the selector using this, never re-derived on the client.
     formatLocked: registrationsForComp(e.id).length > 0,
