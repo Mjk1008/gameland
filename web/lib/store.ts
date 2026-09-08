@@ -7,11 +7,12 @@
 // → restart. Data persists across restarts automatically.
 
 import { Disc } from './mock-data'
-import { disciplineSlotKey } from './discipline-format'
+import { disciplineSlotKey, LEFTOVER_ATTEMPTS_CAP, LEFTOVER_MAX_ATTEMPTS } from './discipline-format'
 import { persist, startHydration, whenAuthReady as persistAuthReady } from './db/persistence'
 import { bundledBannerDataUrl } from './game-assets-server'
 import { defaultDiscBanner } from './game-assets'
 import { usingDb } from './db/client'
+export { LEFTOVER_ATTEMPTS_CAP, LEFTOVER_MAX_ATTEMPTS }
 
 // ─── Users ──────────────────────────────────────────────────────────────────
 
@@ -1020,7 +1021,10 @@ export function setRegistrationAttempts(regId: string, attempts: number, opts?: 
   if (!r) throw new Error('REG_NOT_FOUND')
   // Post-draw is normally locked; the re-entry flow (MD-5b) opts in explicitly.
   if (!opts?.allowPostDraw && matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
-  r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
+  // Ceiling is LEFTOVER_MAX_ATTEMPTS (10), not 6 — a بازماندگان (survivor) top-up
+  // can legitimately push a row past 6, and this admin tool must never silently
+  // clamp those سهم away just because someone nudges the count down by one.
+  r.attempts = Math.max(1, Math.min(LEFTOVER_MAX_ATTEMPTS, Math.round(attempts) || 1))
   persist.reg.update(r.id, { attempts: r.attempts } as any)
   bumpNationalRanking(r.userId)
   syncTeamMirrorFrom(r)
@@ -2052,12 +2056,9 @@ export function setEventConfig(compId: string, patch: Partial<EventConfig>) {
 }
 export function qualifyKey(groupKey: string, bracket: number) { return `${groupKey}#${bracket}` }
 
-// بازماندگان (survivor) buy limits. The normal سهم cap stays 6; a survivor buy
-// adds up to LEFTOVER_ATTEMPTS_CAP (4) more at a time and pushes the row up to a
-// hard LEFTOVER_MAX_ATTEMPTS (10) total — so a maxed-6 player can still join.
-export const LEFTOVER_ATTEMPTS_CAP = 4
-export const LEFTOVER_MAX_ATTEMPTS = 10
-
+// بازماندگان (survivor) buy limits (LEFTOVER_ATTEMPTS_CAP, LEFTOVER_MAX_ATTEMPTS)
+// live in ./discipline-format and are re-exported above — a maxed-6 player can
+// still add up to 4 more, up to a hard row ceiling of 10.
 export function isLeftoverOpen(compId: string): boolean {
   return getEventConfig(compId).leftoverOpen === true
 }
