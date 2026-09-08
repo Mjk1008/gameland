@@ -897,15 +897,20 @@ function deindexReg(r: Registration) {
 // top-up goes back to 'pending' for admin re-approval with the new receipt.
 // `attempts` = how many tickets to buy now. Stays open after the draw — extra
 // سهم land in the leftover pool (بازماندگان) instead of the existing trees.
-export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string): Registration {
-  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+// `opts.leftover` = this is a بازماندگان (survivor) buy, so the total ceiling on
+// the row is LEFTOVER_MAX_ATTEMPTS (10) instead of the normal 6 — a maxed-out
+// player can add survivor سهم on top. The extra land in the leftover pool like
+// any post-draw purchase; the draw/bracket logic is untouched.
+export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string, opts?: { leftover?: boolean }): Registration {
+  const ceiling = opts?.leftover ? LEFTOVER_MAX_ATTEMPTS : 6
+  if (attempts < 1 || attempts > ceiling) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   const key = userId + '|' + compId
   const existing = regs.get(key)
 
   if (existing && existing.status !== 'rejected') {
-    // active registration → top up, capped at 6 total for this discipline
-    if (existing.attempts >= 6) throw new Error('MAX_TICKETS')
-    if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
+    // active registration → top up, capped at the ceiling for this discipline
+    if (existing.attempts >= ceiling) throw new Error('MAX_TICKETS')
+    if (attempts > ceiling - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
     // Keep previously-approved rows approved so settled سهم stay in the draw.
     // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
@@ -974,11 +979,14 @@ export function createRegistration(userId: string, compId: string, attempts: num
   return r
 }
 
-// Tickets a user can still buy for a discipline (0..6). 0 = cap reached.
-export function remainingTickets(userId: string, compId: string): number {
+// Tickets a user can still buy for a discipline. Normal: 0..6. In بازماندگان
+// (survivor) mode: up to LEFTOVER_ATTEMPTS_CAP (4) more, but never past the
+// LEFTOVER_MAX_ATTEMPTS (10) row ceiling.
+export function remainingTickets(userId: string, compId: string, leftover = false): number {
   const r = regs.get(userId + '|' + compId)
-  if (!r || r.status === 'rejected') return 6
-  return Math.max(0, 6 - r.attempts)
+  const attempts = !r || r.status === 'rejected' ? 0 : r.attempts
+  if (leftover) return Math.max(0, Math.min(LEFTOVER_ATTEMPTS_CAP, LEFTOVER_MAX_ATTEMPTS - attempts))
+  return Math.max(0, 6 - attempts)
 }
 
 export function setRegistrationStatus(regId: string, status: RegStatus, rejectReason?: string): Registration {
@@ -2035,10 +2043,11 @@ export function setEventConfig(compId: string, patch: Partial<EventConfig>) {
 }
 export function qualifyKey(groupKey: string, bracket: number) { return `${groupKey}#${bracket}` }
 
-// Max سهم one account may buy through the بازماندگان (survivors) sign-up on an
-// event. The normal (pre-draw) cap stays MAX_ATTEMPTS (6); this is only the
-// ceiling for the leftover entry, enforced in /api/register when leftover=true.
+// بازماندگان (survivor) buy limits. The normal سهم cap stays 6; a survivor buy
+// adds up to LEFTOVER_ATTEMPTS_CAP (4) more at a time and pushes the row up to a
+// hard LEFTOVER_MAX_ATTEMPTS (10) total — so a maxed-6 player can still join.
 export const LEFTOVER_ATTEMPTS_CAP = 4
+export const LEFTOVER_MAX_ATTEMPTS = 10
 
 export function isLeftoverOpen(compId: string): boolean {
   return getEventConfig(compId).leftoverOpen === true
