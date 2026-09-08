@@ -1967,6 +1967,15 @@ export interface Match {
   // the match (see stampCompletedAt below); admin can also turn it off by
   // hand. See lib/bracket.ts startMatchLive/stopMatchLive.
   liveStartedAt?: number
+  // Set true when fillRestSlot() seats a leftover/بازماندگان account into
+  // that side (as opposed to the initial draw). Drives the admin "حذف"
+  // button next to that seat — removing puts a fresh rest placeholder back
+  // and the account's ticket is leftoverPlayers()-eligible again (purely
+  // derived, no separate bookkeeping). Never set for a normally-drawn seed,
+  // so the button never offers to pull a real draw position apart. See
+  // lib/bracket.ts fillRestSlot/removeRestFill.
+  restFillP1?: boolean
+  restFillP2?: boolean
 }
 
 // Per-event tournament config: grouping mode, per-bracket qualify counts, and

@@ -7,7 +7,10 @@ import RadialBracket from './RadialBracket'
 import MatchSheet, { roundLabel } from './MatchSheet'
 
 // ── types coming from the server ──
-export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number; slotKind?: 'rest' | 'cancelled'; restIndex?: number } | null
+// restFill: true only for a seat fillRestSlot() itself placed (a leftover/
+// بازماندگان account seated into a rest slot) — drives the admin "حذف"
+// button in MatchSheet. Never true for a normally-drawn seed.
+export type Player = { uid: string; tag: string; name: string; attempts?: number; entry?: number; slotKind?: 'rest' | 'cancelled'; restIndex?: number; restFill?: boolean } | null
 export type MatchDTO = {
   id: string; stage: 'prelim' | 'final'; groupKey: string; bracket: number; round: number; slot: number
   n?: number
