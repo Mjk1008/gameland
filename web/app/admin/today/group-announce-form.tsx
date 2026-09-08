@@ -10,7 +10,9 @@ interface Picked { id: string; name: string; tag: string; city?: string }
 interface EventBrief { compId: string; title: string }
 interface ProvincePulse { compId: string; province: string }
 
-export default function GroupAnnounceForm() {
+// `bare` — see StoryPanel: the board wraps this in a CollapsibleCard that
+// already supplies the surface and title.
+export default function GroupAnnounceForm({ bare }: { bare?: boolean }) {
   const [scope, setScope] = useState<Scope>('all')
   const [province, setProvince] = useState(IRAN_GEO[0]?.province ?? '')
   const [disc, setDisc] = useState<keyof typeof DISC>('fc26')
@@ -61,6 +63,11 @@ export default function GroupAnnounceForm() {
     if (!text.trim()) return setMsg('متنِ اعلان رو بنویس')
     if (scope === 'players' && picked.length === 0) return setMsg('حداقل یک بازیکن رو انتخاب کن')
     if (scope === 'bracket' && (!bCompId || !bProvince)) return setMsg('رویداد و استان رو انتخاب کن')
+    // Every other scope is aimed at people the admin just picked; «همه» is a
+    // push to the whole user base and can't be taken back, and the scope chip
+    // stays where the last send left it — so this one gets a confirm, the
+    // same way the irreversible bracket ops do.
+    if (scope === 'all' && !confirm('این اعلان برای همه فرستاده می‌شه. مطمئنی؟')) return
     const audience =
       scope === 'all' ? 'all' :
       scope === 'province' ? `province:${province}` :
@@ -81,8 +88,8 @@ export default function GroupAnnounceForm() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
-      <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>اعلانِ گروهی</span>
+    <div style={bare ? { display: 'flex', flexDirection: 'column', gap: 10 } : { display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
+      {!bare && <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>اعلانِ گروهی</span>}
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
         {([['all', 'همه'], ['province', 'استان'], ['disc', 'رشته'], ['bracket', 'براکت'], ['players', 'پلیرِ خاص']] as const).map(([k, l]) => {
           const on = scope === k

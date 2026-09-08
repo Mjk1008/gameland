@@ -29,7 +29,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // to record, so let them into روزِ زنده only, never the rest of /admin.
   const recordOnly = !isAdmin && hasPermission(u, 'result_entry')
   if (!isAdmin && !recordOnly) redirect('/me')
-  if (recordOnly && headers().get('x-pathname') !== '/admin/today') redirect('/admin/today')
+  // middleware.ts stamps x-pathname on every non-asset request, so it is
+  // present here in practice — but "missing header" must not resolve to
+  // "redirect to /admin/today", which would be an endless server redirect
+  // onto a page whose own header is equally missing. Fail closed to /me.
+  const path = headers().get('x-pathname')
+  if (recordOnly && path !== '/admin/today') redirect(path ? '/admin/today' : '/me')
 
   const codeReqPending = pendingCodeRequests().length
 

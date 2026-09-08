@@ -18,7 +18,7 @@ import TournamentPanel, { type BracketInfo, type ProvincePool } from './tourname
 import { type BatchPlayer } from './prelim-batch-panel'
 import DeleteEventButton from './delete-button'
 import LeftoverToggle from './leftover-toggle'
-import CollapsibleCard from './collapsible-card'
+import CollapsibleCard from '@/components/collapsible-card'
 import PrizeEditor from './prize-editor'
 import EventCoverPanel from './event-cover-panel'
 
@@ -218,6 +218,16 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         <Stat label="بلیط کل" value={totalAttempts} color={C.tbody} />
         <Stat label="کوالیفای" value={qualifierCount} color={C.gold} />
       </div>
+
+      {/* The bracket itself was reachable from every player-facing page and
+          from none of the admin ones — the admin had to leave the panel for
+          /competitions and find the discipline again to open its tree. */}
+      {drawn && (
+        <Link href={`/competitions/${c.id}/bracket`} style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px', background: C.sf1, border: `1px solid ${C.line2}`, borderRadius: 12 }}>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.thi }}>براکت</span>
+          <span style={{ color: C.tmut }}>›</span>
+        </Link>
+      )}
 
       {pendingCount > 0 && (
         <Link href="/admin/requests" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: C.accentSoft, border: `1px solid ${C.accent}`, borderRadius: 12 }}>

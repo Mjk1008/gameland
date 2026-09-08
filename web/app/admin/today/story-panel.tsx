@@ -13,7 +13,9 @@ function hoursLeft(expiresAt: number): string {
   return h > 0 ? `${h} ساعت و ${m} دقیقه مونده` : `${m} دقیقه مونده`
 }
 
-export default function StoryPanel() {
+// `bare` — rendered inside a CollapsibleCard on the board, which already draws
+// the surface and the title.
+export default function StoryPanel({ bare }: { bare?: boolean }) {
   const [rows, setRows] = useState<StoryRow[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -51,10 +53,10 @@ export default function StoryPanel() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
+    <div style={bare ? { display: 'flex', flexDirection: 'column', gap: 10 } : { display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>استوری</span>
-        <span className="gl-num" style={{ fontSize: 11, color: C.tmut }}>{rows.length} / ۱۵ در ۲۴ ساعت</span>
+        {!bare && <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>استوری</span>}
+        <span className="gl-num" style={{ fontSize: 11, color: C.tmut, marginInlineStart: 'auto' }}>{rows.length} / ۱۵ در ۲۴ ساعت</span>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />

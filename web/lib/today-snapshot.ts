@@ -4,7 +4,8 @@
 // everything on each request.
 // See docs/35-live-day-hub-plan.md, docs/36-live-day-hub-design-brief.md,
 // docs/37-today-stories-plan.md (stories + the §9 layout redesign).
-import { allEvents, allMatches, matchesForUser, matchesForComp, getUserById, getEvent, getSetting, hasAvatar, getCompetition, hasCompetitionCover, type Match } from './store'
+import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, getCompetition, hasCompetitionCover, type Match } from './store'
+import { matchNumberMap } from './bracket'
 import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS } from './match-desk'
 import { activeStories, hasSeenStory, activeAnnouncements } from './stories'
 import { queryUserRank } from './ranking-store'
@@ -16,8 +17,13 @@ import { queryUserRank } from './ranking-store'
 // else) and it isn't done/cancelled yet. This only ever widens the set, so
 // a discipline an admin explicitly marked live is never dropped by it.
 export function liveEventIds(): string[] {
+  // "has a drawn bracket" as one pass over the match table, not
+  // matchesForComp() per event — that filters AND sorts the whole table each
+  // call, so the old shape was O(events × matches) on every /api/today poll.
+  const drawn = new Set<string>()
+  for (const m of allMatches()) drawn.add(m.compId)
   return allEvents()
-    .filter(e => e.status === 'live' || (e.status !== 'done' && e.status !== 'cancelled' && matchesForComp(e.id).length > 0))
+    .filter(e => e.status === 'live' || (e.status !== 'done' && e.status !== 'cancelled' && drawn.has(e.id)))
     .map(e => e.id)
 }
 
@@ -304,12 +310,25 @@ export function buildTodaySnapshot(userId: string): TodaySnapshot {
 // waiting (no station yet) → playing (just called) → late → absent. The
 // old 'ref' bucket is gone (ref-request was a player-only action).
 
+// compId/eventTitle/n identify WHICH match a row is: on a match day several
+// disciplines run at once, so two names and a station number alone don't say
+// which رشته the board is talking about — and they're what the bracket page
+// is keyed by, so a row can link straight to its own MatchSheet.
 export interface QueueRow {
   matchId: string
+  compId: string
+  eventTitle: string
+  n?: number              // "بازی N" — the same number the bracket card shows
   p1Name: string
   p2Name: string
   station?: string
   sinceMs: number         // how long this match has been in its current bucket
+  bucket: QueueBucket     // carried on the row so lists can mix buckets
+  // Match.liveStartedAt — an admin pressed «شروع لایو» on this match in the
+  // MatchSheet. It already drives the LIVE pulse on the bracket cards; the
+  // board was the one place that knew about stations but not about it, which
+  // is exactly where "which game is actually being played right now" is asked.
+  live: boolean
 }
 
 export type QueueBucket = 'waiting' | 'playing' | 'late' | 'absent'
@@ -319,6 +338,11 @@ export interface StationCard {
   status: 'playing' | 'late'
   current?: string   // "p1 — p2"
   next?: string
+  matchId: string
+  compId: string
+  eventTitle: string
+  n?: number
+  live: boolean
 }
 
 export interface AdminTodaySnapshot {
@@ -337,24 +361,50 @@ export function buildAdminToday(): AdminTodaySnapshot {
   const active = allMatches().filter(m => liveIds.includes(m.compId) && m.status === 'ready' && !m.cancelled)
   const now = Date.now()
 
+  // matchNumberMap keys by stage|groupKey|bracket — NOT by compId — so it has
+  // to be built per discipline or two events would share (and overwrite) each
+  // other's numbering. Bucketed in ONE pass rather than calling matchesForComp
+  // per discipline: that filters and sorts the whole match table each time, and
+  // this board re-derives every 5 seconds with several رشته live at once.
+  const wanted = new Set(active.map(m => m.compId))
+  const byComp = new Map<string, Match[]>()
+  for (const m of allMatches()) {
+    if (!wanted.has(m.compId)) continue
+    const list = byComp.get(m.compId)
+    if (list) list.push(m)
+    else byComp.set(m.compId, [m])
+  }
+  const numbers = new Map<string, number>()
+  for (const list of byComp.values()) {
+    for (const [id, n] of matchNumberMap(list)) numbers.set(id, n)
+  }
+  const matchNo = (m: Match): number | undefined => numbers.get(m.id)
+  const titleOf = (compId: string): string => getEvent(compId)?.title ?? '—'
+
   const queue: Record<QueueBucket, QueueRow[]> = { waiting: [], playing: [], late: [], absent: [] }
 
   for (const m of active) {
     const desk = getDesk(m.id)
     const row: QueueRow = {
-      matchId: m.id, p1Name: nameOf(m.p1UserId), p2Name: nameOf(m.p2UserId),
+      matchId: m.id, compId: m.compId, eventTitle: titleOf(m.compId), n: matchNo(m),
+      p1Name: nameOf(m.p1UserId), p2Name: nameOf(m.p2UserId),
       station: desk?.station, sinceMs: now - (desk?.calledAt ?? m.createdAt),
+      live: !!m.liveStartedAt,
+      bucket: 'waiting',
     }
     if (!desk?.station) {
       queue.waiting.push(row)
     } else {
       const waited = now - (desk.calledAt ?? now)
-      if (waited >= ABSENT_MS) queue.absent.push(row)
-      else if (waited >= LATE_MS) queue.late.push(row)
-      else queue.playing.push(row)
+      row.bucket = waited >= ABSENT_MS ? 'absent' : waited >= LATE_MS ? 'late' : 'playing'
+      queue[row.bucket].push(row)
     }
   }
-  for (const b of Object.keys(queue) as QueueBucket[]) queue[b].sort((a, c) => a.sinceMs - c.sinceMs).reverse()
+  // Longest-waiting first, as before — but a match an admin actually started
+  // («شروع لایو») outranks it: that's the one being played this minute.
+  for (const b of Object.keys(queue) as QueueBucket[]) {
+    queue[b].sort((a, c) => Number(c.live) - Number(a.live) || c.sinceMs - a.sinceMs)
+  }
 
   const stations: StationCard[] = allDesks()
     .filter(d => d.station && active.some(m => m.id === d.matchId))
@@ -365,6 +415,8 @@ export function buildAdminToday(): AdminTodaySnapshot {
         station: d.station!,
         status: waited >= LATE_MS ? 'late' : 'playing',
         current: `${nameOf(m.p1UserId)} — ${nameOf(m.p2UserId)}`,
+        matchId: m.id, compId: m.compId, eventTitle: titleOf(m.compId), n: matchNo(m),
+        live: !!m.liveStartedAt,
       } as StationCard
     })
     .sort((a, b) => a.station.localeCompare(b.station))

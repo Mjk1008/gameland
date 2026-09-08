@@ -69,7 +69,7 @@ export function GameBadge({ disc, size = 30 }: { disc: string; size?: number }) 
 }
 
 // status → {color, soft, label}
-const STATUS: Record<string, { c: string; s: string; label: string }> = {
+export const STATUS: Record<string, { c: string; s: string; label: string }> = {
   open: { c: C.win, s: C.winSoft, label: 'ثبت‌نام باز' },
   live: { c: C.live, s: C.liveSoft, label: 'زنده' },
   soon: { c: C.gold, s: C.goldSoft, label: 'به‌زودی' },

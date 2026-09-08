@@ -11,11 +11,14 @@ export const ANNOUNCE = [
 ] as const
 
 export function MatchOps({
-  p1, p2, cancelled, status, busy, restricted, canReopen, onWin, onCancelMatch, onReopen, onAnnounce, winnerUid,
+  p1, p2, cancelled, status, busy, restricted, canReopen, onWin, onCancelMatch, onReopen, onAnnounce, winnerUid, sent,
 }: {
   p1: OpsPlayer; p2: OpsPlayer; cancelled?: boolean
   status: 'pending' | 'ready' | 'done'
   busy: boolean
+  // id of the announce kind that just went out — shown as a tick on that
+  // button so a fire-and-forget notification isn't sent twice "to be sure".
+  sent?: string
   // Scoped 'result_entry' grant — win/correct buttons only, no cancel or announce.
   restricted?: boolean
   // Super-admin only — reverts a played/cancelled match back to "not played"
@@ -62,7 +65,9 @@ export function MatchOps({
             {p1 && p2 && p1.uid !== p2.uid && <button type="button" onClick={() => setWho('both')} style={seg(who === 'both')}>هر دو</button>}
           </div>
           {ANNOUNCE.map(k => (
-            <button key={k.id} type="button" disabled={busy} onClick={() => onAnnounce(k.id, who)} style={ghostBtn}>{k.label}</button>
+            <button key={k.id} type="button" disabled={busy} onClick={() => onAnnounce(k.id, who)} style={sent === k.id ? { ...ghostBtn, color: C.win, borderColor: C.win } : ghostBtn}>
+              {k.label}{sent === k.id ? ' ✓' : ''}
+            </button>
           ))}
         </div>
       )}

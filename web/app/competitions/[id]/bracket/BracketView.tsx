@@ -85,7 +85,12 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   // Default: list («مرحله‌ای») for everyone — it never breaks and answers "where am I".
   const [mode, setMode] = useState<'rounds' | 'tree' | 'radial'>('rounds')
   const [myPathOnly, setMyPathOnly] = useState(false)
-  const [sel, setSel] = useState<MatchDTO | null>(null)
+  // The open sheet is held by ID, not by a copied MatchDTO: the object a card
+  // hands over is a snapshot, so a sheet left open across a router.refresh()
+  // (or another admin's result landing in the poll) used to keep rendering the
+  // pre-result state. Looking it up in `matches` every render means the sheet
+  // always shows what the server last said.
+  const [selId, setSelId] = useState<string | null>(null)
   const [restSide, setRestSide] = useState<1 | 2 | null>(null)
   // Round tab lives here, not inside RoundsView, so search can jump it to the
   // round holding a hit and so it can be restored after a remount (below).
@@ -95,8 +100,10 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   // ctrl+F) — it must never swap the admin into a different view.
   const [query, setQuery] = useState('')
 
+  const sel = useMemo(() => (selId ? matches.find(m => m.id === selId) ?? null : null), [matches, selId])
+
   function openMatch(m: MatchDTO, side?: 1 | 2) {
-    setSel(m)
+    setSelId(m.id)
     setRestSide(side ?? null)
   }
 
@@ -161,6 +168,12 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
   // sessionStorage survives the remount. Result-entry surfaces only; a player's
   // bracket keeps its "jump to my own match" defaults untouched.
   const stateKey = (isAdmin || canRecord) ? `gl:bracket:${compId}` : null
+  // Which of the three views someone reads a bracket in is a preference about
+  // them, not about this رویداد — an admin who works in «درختی» wants it in
+  // every discipline, not to re-pick it once per event. So the view mode is
+  // remembered under one shared key while place (scope/bracket/round/search)
+  // stays per-compId.
+  const MODE_KEY = 'gl:bracket:mode'
   const [restored, setRestored] = useState(!stateKey)
   useEffect(() => {
     if (!stateKey) return
@@ -170,19 +183,51 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
       if (v && typeof v === 'object') {
         if (typeof v.scopeKey === 'string') setScopeKey(v.scopeKey)
         if (typeof v.bracket === 'number') setBracket(v.bracket)
-        if (v.mode === 'rounds' || v.mode === 'tree' || v.mode === 'radial') setMode(v.mode)
         if (typeof v.round === 'number') setRoundSel(v.round)
         if (typeof v.query === 'string') setQuery(v.query)
       }
+      const savedMode = sessionStorage.getItem(MODE_KEY) ?? (v && typeof v === 'object' ? v.mode : null)
+      if (savedMode === 'rounds' || savedMode === 'tree' || savedMode === 'radial') setMode(savedMode)
     } catch {}
     setRestored(true)
   }, [stateKey])
   useEffect(() => {
     if (!stateKey || !restored) return
     try {
-      sessionStorage.setItem(stateKey, JSON.stringify({ scopeKey, bracket: bracket_, mode, round: roundSel, query }))
+      sessionStorage.setItem(stateKey, JSON.stringify({ scopeKey, bracket: bracket_, round: roundSel, query }))
+      sessionStorage.setItem(MODE_KEY, mode)
     } catch {}
   }, [stateKey, restored, scopeKey, bracket_, mode, roundSel, query])
+
+  // ── ?match=<id> — one tap from the روزِ زنده board into this exact match ──
+  // The board knows which game is on which station; the bracket knows how to
+  // record it. Landing here with a match id moves scope/bracket/round onto it
+  // and opens its sheet, so an admin never has to re-find a game they were
+  // already looking at. Runs once: after the result is recorded the sheet
+  // closes and re-opening it would fight the admin.
+  // Read straight off location rather than useSearchParams(), which forces a
+  // Suspense boundary on this subtree at build time.
+  const deepLinkDone = useRef(false)
+  useEffect(() => {
+    if (!restored || deepLinkDone.current) return
+    let deepLinkId: string | null = null
+    try { deepLinkId = new URLSearchParams(window.location.search).get('match') } catch {}
+    if (!deepLinkId) return
+    const m = matches.find(x => x.id === deepLinkId)
+    if (!m) return
+    deepLinkDone.current = true
+    setScopeKey(m.stage === 'final' ? 'final' : 'prelim:' + m.groupKey)
+    setBracket(m.bracket)
+    setRoundSel(m.round)
+    // «دایره‌ای» has no per-match card and so no sheet — landing there from the
+    // board would look like the link did nothing.
+    setMode(v => (v === 'radial' ? 'rounds' : v))
+    setSelId(m.id)
+    // Drop ?match= once consumed: recording a result triggers router.refresh(),
+    // and Next remounts this subtree on the first one — a param still sitting
+    // in the URL would re-open the sheet on the match just decided.
+    try { window.history.replaceState(null, '', window.location.pathname) } catch {}
+  }, [restored, matches])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -270,7 +315,7 @@ export default function BracketView({ matches, meUid, isAdmin, canRecord, compId
           leftovers={(leftovers ?? []).filter(u => leftoverFillOpen(sel?.groupKey ?? '') || !u.groupKey || u.groupKey === (sel?.groupKey ?? ''))}
           restSide={restSide}
           restFillable={!!isAdmin}
-          onClose={() => { setSel(null); setRestSide(null) }}
+          onClose={() => { setSelId(null); setRestSide(null) }}
           onFollow={todayHubEnabled && meUid ? follow : undefined}
         />
       )}

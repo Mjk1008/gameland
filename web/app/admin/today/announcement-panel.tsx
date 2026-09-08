@@ -14,7 +14,9 @@ function splitAnnouncement(text: string): { title: string; body?: string } {
   return i === -1 ? { title: text } : { title: text.slice(0, i), body: text.slice(i + 1).trim() || undefined }
 }
 
-export default function AnnouncementPanel() {
+// `bare` — see StoryPanel: the board wraps this in a CollapsibleCard that
+// already supplies the surface and title.
+export default function AnnouncementPanel({ bare }: { bare?: boolean }) {
   const [rows, setRows] = useState<AnnouncementRow[]>([])
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -44,6 +46,8 @@ export default function AnnouncementPanel() {
   }
 
   async function onDelete(id: string) {
+    // Same guard StoryPanel already puts on its own list-row delete.
+    if (!confirm('این اعلان حذف بشه؟')) return
     setBusy(true)
     try {
       await fetch(`/api/admin/today-announcements/${id}`, { method: 'DELETE' })
@@ -52,8 +56,8 @@ export default function AnnouncementPanel() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
-      <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>تابلوِ اعلان</span>
+    <div style={bare ? { display: 'flex', flexDirection: 'column', gap: 10 } : { display: 'flex', flexDirection: 'column', gap: 10, background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 13 }}>
+      {!bare && <span style={{ fontSize: 13.5, fontWeight: 700, color: C.thi }}>تابلوِ اعلان</span>}
       <input value={title} onChange={e => setTitle(e.target.value.slice(0, 80))}
         placeholder="عنوان…" style={{ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 11, padding: '11px 12px', color: C.thi, fontSize: 12.5, outline: 'none', fontFamily: 'inherit' }} />
       <textarea value={body} onChange={e => setBody(e.target.value.slice(0, 500))} rows={2}

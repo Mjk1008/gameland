@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { C } from '@/components/ui'
@@ -41,8 +41,16 @@ export default function MatchSheet({
   const [busy, setBusy] = useState(false)
   const [peek, setPeek] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  // Winner uid this sheet just posted, from the API's own response. Until the
+  // refreshed bracket confirms it, the sheet stays open and renders the result
+  // from here — previously it closed the instant the fetch resolved, so on a
+  // slow phone the admin watched the sheet vanish over an unchanged bracket
+  // with no way to tell whether the result had actually landed, and re-tapped.
+  const [saved, setSaved] = useState<{ winnerUid?: string; cancelled?: boolean } | null>(null)
+  // '' = idle, otherwise the announce button that just went through.
+  const [sent, setSent] = useState('')
   useEffect(() => setMounted(true), [])
-  useEffect(() => { setQ('') }, [match?.id])
+  useEffect(() => { setQ(''); setSaved(null); setSent('') }, [match?.id])
   useEffect(() => {
     if (!match) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -50,19 +58,51 @@ export default function MatchSheet({
     return () => window.removeEventListener('keydown', onKey)
   }, [match, onClose])
 
-  async function post(body: object) {
+  // Close only once the server-rendered bracket agrees with what we posted —
+  // or, as a backstop, after the refresh has had long enough (a router.refresh
+  // that remounts this subtree unmounts the sheet on its own anyway). onClose
+  // is an inline arrow in the parent, so it goes through a ref: as a dependency
+  // it would restart the timer on every parent render.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  const settled = !!saved && match?.status === 'done' &&
+    (saved.cancelled ? !!match?.cancelled : match?.winnerUid === saved.winnerUid)
+  useEffect(() => {
+    if (!saved) return
+    if (settled) { closeRef.current(); return }
+    const t = setTimeout(() => closeRef.current(), 4000)
+    return () => clearTimeout(t)
+  }, [saved, settled])
+
+  // keepOpen: «شروع/پایان لایو» and «بازگردانی» change the match without
+  // finishing with it — closing the sheet only to make the admin find the same
+  // match again to record it was pure friction. A result closes as before,
+  // once the refreshed bracket confirms it.
+  async function post(body: object, keepOpen = false) {
+    // Belt to the disabled-button brace: two taps landing in the same frame
+    // would both pass the `busy` check before React re-rendered.
+    if (busy) return
     setBusy(true)
     try {
       const res = await fetch('/api/admin/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ثبت نشد')
-      onClose()
+      const m = j.match
+      if (keepOpen) setSaved(null)
+      else if (m && (m.status === 'done' || m.cancelled)) setSaved({ winnerUid: m.winnerUserId, cancelled: !!m.cancelled })
+      else onClose()
       router.refresh()
-    } catch (e: any) { alert(e.message) }
+    } catch (e: any) {
+      // "نتیجه قبلاً ثبت شده" / "راند بعدی … بازی شده" mean this sheet is looking
+      // at stale state — pull the truth in rather than leaving the admin arguing
+      // with a bracket that still shows the match as unplayed.
+      alert(e.message)
+      router.refresh()
+    }
     finally { setBusy(false) }
   }
   async function fillRest(userId: string, side: 1 | 2) {
-    if (!match) return
+    if (!match || busy) return
     setBusy(true)
     try {
       const res = await fetch('/api/admin/bracket-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: match.id, side, userId }) })
@@ -74,7 +114,7 @@ export default function MatchSheet({
     finally { setBusy(false) }
   }
   async function removeRest(side: 1 | 2) {
-    if (!match) return
+    if (!match || busy) return
     if (!confirm('این بازیکن از این جایگاه حذف می‌شه و سهمش برمی‌گرده به بازماندگان. مطمئنی؟')) return
     setBusy(true)
     try {
@@ -87,18 +127,29 @@ export default function MatchSheet({
     finally { setBusy(false) }
   }
   async function announce(kind: typeof ANNOUNCE[number]['id'], who: 'p1' | 'p2' | 'both') {
-    if (!match) return
+    if (!match || busy) return
     setBusy(true)
     try {
       const res = await fetch('/api/admin/match-announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: match.id, kind, who }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ارسال نشد')
+      // This call had no success signal at all — the admin tapped and nothing
+      // on screen changed, so the only way to feel sure was to tap again and
+      // notify the player twice. A tick on the button that fired is enough.
+      setSent(kind)
+      setTimeout(() => setSent(s => (s === kind ? '' : s)), 2500)
     } catch (e: any) { alert(e.message) }
     finally { setBusy(false) }
   }
 
   if (!mounted || !match) return null
-  const { p1, p2, winnerUid, status, score, cancelled, liveStartedAt } = match
+  const { p1, p2, score, liveStartedAt } = match
+  // While a just-posted result is waiting for the refresh to come back, the
+  // sheet shows what the API returned — the winner row turns gold immediately,
+  // so "did that save?" is answered before the bracket behind it catches up.
+  const winnerUid = saved ? saved.winnerUid : match.winnerUid
+  const status = saved ? 'done' : match.status
+  const cancelled = saved ? !!saved.cancelled : match.cancelled
   const s1 = score?.split('-')[0]
   const s2 = score?.split('-')[1]
   // Admin "شروع" toggle — both real players seated, not decided/cancelled yet.
@@ -146,7 +197,7 @@ export default function MatchSheet({
           <button
             type="button"
             disabled={busy}
-            onClick={() => post({ matchId: match.id, live: !isLive })}
+            onClick={() => post({ matchId: match.id, live: !isLive }, true)}
             className={isLive ? 'gl-live-pulse' : undefined}
             style={{
               all: 'unset', boxSizing: 'border-box', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -211,9 +262,10 @@ export default function MatchSheet({
           <MatchOps
             p1={p1 ? { uid: p1.uid, name: p1.name, placeholder: !!p1.slotKind } : null}
             p2={p2 ? { uid: p2.uid, name: p2.name, placeholder: !!p2.slotKind } : null}
-            cancelled={cancelled} status={status} busy={busy}
+            cancelled={cancelled} status={status} busy={busy || !!saved}
             restricted={!isAdmin}
             canReopen={isAdmin}
+            sent={sent}
             onWin={uid => {
               if (status === 'done' && !confirm('نتیجهٔ ثبت‌شده تغییر می‌کنه. مطمئنی؟')) return
               post({ matchId: match.id, winnerUserId: uid, correct: status === 'done' })
@@ -224,7 +276,7 @@ export default function MatchSheet({
             }}
             onReopen={() => {
               if (!confirm('این مسابقه به حالت انجام‌نشده برمی‌گرده و نتیجه/لغوش پاک می‌شه. مطمئنی؟')) return
-              post({ matchId: match.id, reopen: true })
+              post({ matchId: match.id, reopen: true }, true)
             }}
             onAnnounce={announce}
             winnerUid={winnerUid}
