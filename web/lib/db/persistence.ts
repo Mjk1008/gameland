@@ -772,11 +772,18 @@ export const persist = {
     // committed before the 200, and only after its user row (no FK race).
     async insertAsync(r: Registration) {
       const d = db(); if (!d) return
+      // receiptAttemptsAt must land here explicitly as null (not be omitted)
+      // when the in-memory field is undefined — this is the awaited write
+      // that finalizes فیش tracking after a top-up (see createRegistration /
+      // attachReceiptToBatchAsync), so a skipped column would let a stale
+      // batch number survive in Postgres and reappear on the next hydration.
+      const receiptPayBatch = (r as any).receiptPayBatch ?? null
+      const receiptAttemptsAt = (r as any).receiptAttemptsAt ?? null
       await d.insert(schema.registrations).values({
         id: r.id, userId: r.userId, compId: r.compId,
         attempts: r.attempts, status: r.status, seedsEarned: r.seedsEarned, prelimsCompleted: r.prelimsCompleted, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId,
-        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch,
-      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch: (r as any).receiptPayBatch } })
+        promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt,
+      }).onConflictDoUpdate({ target: schema.registrations.id, set: { attempts: r.attempts, status: r.status as any, freeAttempts: r.freeAttempts, paidAttempts: r.paidAttempts, teamId: (r as any).teamId, promoterCodeId: (r as any).promoterCodeId, discountPercent: (r as any).discountPercent, lockedUnitPrice: (r as any).lockedUnitPrice, payBatch: (r as any).payBatch ?? 1, receiptPayBatch, receiptAttemptsAt } })
     },
     update(id: string, patch: Partial<Registration>) {
       const d = db(); if (!d) return

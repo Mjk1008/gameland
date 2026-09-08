@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatch } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice, buyerTicketPricing } from '@/lib/promoter'
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
       lockRegistrationUnitPrice(r)
       const free = Math.min(u.freeTickets ?? 0, attempts)
       if (free > 0) consumeFreeTickets(uid, r.id, free)
-      if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); attachReceiptToBatch(r) }
+      if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); await attachReceiptToBatchAsync(r) }
       await persist.user.insertAsync(u)
       await persist.reg.insertAsync(r)
       const paid = attempts - free
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     // referral-reward tickets cover part (or all) of this purchase automatically
     const free = Math.min(u.freeTickets ?? 0, attempts)
     if (free > 0) consumeFreeTickets(uid, r.id, free)
-    if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); attachReceiptToBatch(r) }
+    if (hasImage) { await persist.receipt.upsertAsync(r.id, imageData); await attachReceiptToBatchAsync(r) }
     // Durable + ordered: commit the user row first, then the registration, so a
     // surge can't lose the reg or hit the users FK. Notif stays fire-and-forget.
     await persist.user.insertAsync(u)

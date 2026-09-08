@@ -247,7 +247,15 @@ export function receiptCoversPendingPayment(reg: Registration): boolean {
   const batch = reg.payBatch ?? 1
   if (reg.receiptPayBatch != null) return reg.receiptPayBatch === batch
   if (reg.receiptAttemptsAt != null) return reg.receiptAttemptsAt === reg.attempts
-  return false
+  // A فیش is on file but neither tracking field is set. This should only
+  // happen for a legacy row backfillLegacyReceiptTracking() hasn't reached
+  // yet, or a narrow write-ordering race right after a top-up (see
+  // attachReceiptToBatchAsync / createRegistration). A real, uploaded فیش
+  // sitting invisible in neither the admin queue nor leftovers is worse than
+  // showing it against the current batch — admin still reviews the actual
+  // receipt image before approving, so a stale/mismatched photo is caught
+  // there, not here.
+  return true
 }
 export function markReceipt(regId: string): void { receiptRegIds.add(regId) }
 export function attachReceiptToBatch(reg: Registration): void {
@@ -255,6 +263,20 @@ export function attachReceiptToBatch(reg: Registration): void {
   reg.receiptPayBatch = reg.payBatch ?? 1
   reg.receiptAttemptsAt = reg.attempts
   persist.reg.update(reg.id, { receiptPayBatch: reg.receiptPayBatch, receiptAttemptsAt: reg.attempts } as any)
+}
+// Awaitable twin of attachReceiptToBatch — used on the register/receipt-upload
+// critical path so the write commits before the 200, and (crucially) so it
+// can't lose a write-ordering race against another fire-and-forget update on
+// the same row (e.g. createRegistration's top-up write): two un-awaited
+// writes to the same registration row have no ordering guarantee against
+// Postgres and can land out of issue-order (the same hazard fireOrdered()
+// exists for match rows — registrations don't see two same-tick writes
+// often enough to warrant that machinery, so this just awaits instead).
+export async function attachReceiptToBatchAsync(reg: Registration): Promise<void> {
+  markReceipt(reg.id)
+  reg.receiptPayBatch = reg.payBatch ?? 1
+  reg.receiptAttemptsAt = reg.attempts
+  await persist.reg.updateAsync(reg.id, { receiptPayBatch: reg.receiptPayBatch, receiptAttemptsAt: reg.attempts } as any)
 }
 
 // One-time repair, run after hydration: registrations whose فیش was uploaded
@@ -369,8 +391,15 @@ export function consumeFreeTickets(userId: string, regId: string, n: number) {
   if (use <= 0) return
   u.freeTickets = (u.freeTickets ?? 0) - use
   r.freeAttempts = (r.freeAttempts ?? 0) + use
+  const patch: any = { freeAttempts: r.freeAttempts }
+  // On an already-approved row (a free top-up bought after the original
+  // approval) unpaidAttempts() no longer looks at freeAttempts at all — it
+  // must be settled here instead, or these سهم sit forever as "unpaid" with
+  // no فیش to ever cover them (never queued for admin, never drawn/seated).
+  // A still-pending row folds freeAttempts in on approval as usual.
+  if (r.status === 'approved') { r.paidAttempts = (r.paidAttempts ?? 0) + use; patch.paidAttempts = r.paidAttempts }
   persist.user.update(userId, { freeTickets: u.freeTickets })
-  persist.reg.update(regId, { freeAttempts: r.freeAttempts } as any)
+  persist.reg.update(regId, patch)
 }
 
 // Public campaign leaderboard — top referrers by approved tickets brought.
@@ -882,6 +911,15 @@ export function createRegistration(userId: string, compId: string, attempts: num
     // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
     if (existing.status !== 'approved' && (existing.paidAttempts ?? 0) === 0) existing.status = 'pending'
     existing.payBatch = (existing.payBatch ?? 1) + 1
+    // Clear the old batch's فیش tracking in memory only — NOT via a
+    // fire-and-forget DB write here. The caller (register/route.ts) attaches
+    // the new فیش (attachReceiptToBatchAsync) or settles free tickets
+    // (consumeFreeTickets) right after this returns, then persists the row
+    // with an awaited insertAsync; two un-awaited writes to the same row
+    // (this null-clear + the attach's real value) have no ordering guarantee
+    // against Postgres and could resolve out of order, leaving the فیش
+    // untracked (the ایلیا زینالی class of bug). The awaited insertAsync at
+    // the end of the request is the only writer of these two columns now.
     existing.receiptPayBatch = undefined
     existing.receiptAttemptsAt = undefined
     existing.promoterCodeId = undefined
@@ -890,7 +928,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, {
       attempts: existing.attempts, status: existing.status, teamId: existing.teamId,
-      payBatch: existing.payBatch, receiptPayBatch: null, receiptAttemptsAt: null,
+      payBatch: existing.payBatch,
       promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
     } as any)
     bumpNationalRanking(userId)
@@ -905,6 +943,9 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
     existing.paidAttempts = 0   // nothing settled on a rejected row
     existing.payBatch = 1
+    // Cleared in memory only — same write-ordering reason as the top-up
+    // branch above; the caller's awaited insertAsync persists whatever the
+    // subsequent attach/free-ticket call leaves in memory.
     existing.receiptPayBatch = undefined
     existing.receiptAttemptsAt = undefined
     existing.promoterCodeId = undefined
@@ -913,7 +954,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, {
       attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId,
-      payBatch: 1, receiptPayBatch: null, receiptAttemptsAt: null, promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
+      payBatch: 1, promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
     } as any)
     bumpNationalRanking(userId)
     return existing
@@ -2126,6 +2167,16 @@ export function unpaidAttempts(r: Registration): number {
   // Approved rows from before paidAttempts existed left it NULL. Treat those
   // as fully settled — otherwise they look like unpaid re-entry after a draw.
   if (r.status === 'approved' && r.paidAttempts == null) return 0
+  // Once a row is approved, freeAttempts is already folded into paidAttempts
+  // (setRegistrationStatus settles the whole row on approve, and
+  // consumeFreeTickets bumps paidAttempts for a free top-up on an already-
+  // approved row — see there). Subtracting freeAttempts again here hid a paid
+  // top-up bought after an earlier free ticket: attempts=6, paidAttempts=4,
+  // freeAttempts=2 (from the original approval) used to read unpaid=0 even
+  // though 2 brand-new سهم were never paid or reviewed (see docs/handoff on
+  // ایلیا زینالی u_34g959zv). For a still-pending row freeAttempts must stay
+  // subtracted — it isn't folded into paidAttempts until approval.
+  if (r.status === 'approved') return Math.max(0, r.attempts - (r.paidAttempts ?? 0))
   return Math.max(0, r.attempts - (r.paidAttempts ?? 0) - (r.freeAttempts ?? 0))
 }
 
