@@ -89,7 +89,8 @@ export default function MatchSheet({
       if (!res.ok) throw new Error(j.error || 'ثبت نشد')
       const m = j.match
       if (keepOpen) setSaved(null)
-      else if (m && (m.status === 'done' || m.cancelled)) setSaved({ winnerUid: m.winnerUserId, cancelled: !!m.cancelled })
+      // winnerTeamId on a 2v2 event — MatchDTO.winnerUid carries either one.
+      else if (m && (m.status === 'done' || m.cancelled)) setSaved({ winnerUid: m.winnerUserId ?? m.winnerTeamId, cancelled: !!m.cancelled })
       else onClose()
       router.refresh()
     } catch (e: any) {
