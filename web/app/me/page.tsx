@@ -136,10 +136,16 @@ export default async function MePage() {
       )}
 
       {u.role === 'gamer' && hasPermission(u, 'result_entry') && (
-        <Link href="/competitions" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>ثبت نتیجه براکت</span>
-          <span style={{ color: C.gold }}>›</span>
-        </Link>
+        <>
+          <Link href="/competitions" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>ثبت نتیجه براکت</span>
+            <span style={{ color: C.gold }}>›</span>
+          </Link>
+          <Link href="/admin/today" style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, padding: '13px 14px', background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>بازی‌های زنده</span>
+            <span style={{ color: C.gold }}>›</span>
+          </Link>
+        </>
       )}
 
       {myTeams.length > 0 && (

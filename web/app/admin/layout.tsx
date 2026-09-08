@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, isSuperAdmin, whenReady } from '@/lib/store'
+import { getUserById, isSuperAdmin, hasPermission, whenReady } from '@/lib/store'
 import { pendingCodeRequests } from '@/lib/promoter'
 import { C, DISP } from '@/components/ui'
 
@@ -21,11 +22,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const role = (session as any)?.role
   const u = uid ? getUserById(uid) : null
   if (!u) redirect('/login?callbackUrl=/admin')
-  if (role !== 'admin' && role !== 'organizer') redirect('/me')
+  const isAdmin = role === 'admin' || role === 'organizer'
+  // A scoped 'result_entry' grant (docs: PERMISSIONS above lib/store.ts) is
+  // meant to stay narrow — no analytics, no player attempts, no bracket
+  // build/edit — but they need to see which matches are live to know what
+  // to record, so let them into روزِ زنده only, never the rest of /admin.
+  const recordOnly = !isAdmin && hasPermission(u, 'result_entry')
+  if (!isAdmin && !recordOnly) redirect('/me')
+  if (recordOnly && headers().get('x-pathname') !== '/admin/today') redirect('/admin/today')
 
   const codeReqPending = pendingCodeRequests().length
 
-  const TABS = [
+  const TABS = recordOnly ? [] : [
     { href: '/admin', label: 'داشبورد' },
     { href: '/admin/events', label: 'مسابقات' },
     { href: '/admin/content', label: 'محتوا' },
@@ -45,6 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span dir="ltr" style={{ fontFamily: DISP, fontWeight: 800, fontSize: 16, color: C.accent, letterSpacing: '.1em' }}>GAMELAND · ADMIN</span>
           <Link href="/me" style={{ all: 'unset', cursor: 'pointer', fontSize: 11, color: C.tmut }}>خروج ›</Link>
         </div>
+        {TABS.length > 0 && (
         <div className="gl-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '4px 16px 10px' }}>
           {TABS.map(t => (
             <Link key={t.href} href={t.href} style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, position: 'relative', fontSize: 12, fontWeight: 700, padding: '7px 13px', borderRadius: 999, background: C.sf1, border: `1px solid ${C.line}`, color: C.tbody }}>
@@ -55,6 +64,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </div>
+        )}
       </header>
       {children}
     </>

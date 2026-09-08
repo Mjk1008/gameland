@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, isLeftoverOpen, type Event } from '@/lib/store'
+import { allEvents, allCompetitions, getUserById, registrationsForUser, eventsForCompetition, resolveCompetitionCardCover, resolveEventCardCover, isLeftoverOpen, matchesForComp, type Event } from '@/lib/store'
 import { DISC } from '@/lib/mock-data'
 import { C, EmptyState } from '@/components/ui'
 import { DisciplineCard, CompetitionCard } from './cards'
@@ -38,6 +38,13 @@ export default async function CompetitionsPage() {
   const leftoverEvents = events
     .filter(e => isLeftoverOpen(e.id))
     .map(e => ({ id: e.id, disc: e.disc, label: DISC[e.disc as keyof typeof DISC]?.name ?? e.disc }))
+  // Same درِ بازماندگان box, second tab: any رشته whose قرعه‌کشی already
+  // happened (matchesForComp > 0 — the same drawn-check CLAUDE.md §3 uses
+  // everywhere else), so people can jump straight to a bracket they know is
+  // live without hunting through every competition card.
+  const drawnEvents = events
+    .filter(e => matchesForComp(e.id).length > 0)
+    .map(e => ({ id: e.id, disc: e.disc, label: DISC[e.disc as keyof typeof DISC]?.name ?? e.disc }))
 
   return (
     <div className="animate-fade-up" style={{ padding: '16px 16px 28px' }}>
@@ -46,7 +53,7 @@ export default async function CompetitionsPage() {
         <span style={{ fontSize: 12.5, color: C.tmut }}><span className="gl-num">{total}</span> رویداد</span>
       </div>
 
-      <LeftoverEntryBox events={leftoverEvents} />
+      <LeftoverEntryBox events={leftoverEvents} bracketEvents={drawnEvents} />
 
       {total === 0 ? (
         <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14 }}>

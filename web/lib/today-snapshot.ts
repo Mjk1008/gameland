@@ -4,13 +4,21 @@
 // everything on each request.
 // See docs/35-live-day-hub-plan.md, docs/36-live-day-hub-design-brief.md,
 // docs/37-today-stories-plan.md (stories + the §9 layout redesign).
-import { allEvents, allMatches, matchesForUser, getUserById, getEvent, getSetting, hasAvatar, getCompetition, hasCompetitionCover, type Match } from './store'
+import { allEvents, allMatches, matchesForUser, matchesForComp, getUserById, getEvent, getSetting, hasAvatar, getCompetition, hasCompetitionCover, type Match } from './store'
 import { getDesk, allDesks, followingList, LATE_MS, ABSENT_MS } from './match-desk'
 import { activeStories, hasSeenStory, activeAnnouncements } from './stories'
 import { queryUserRank } from './ranking-store'
 
+// "Live" for the Today hub means: an admin flipped the discipline's status
+// to live, OR — since a tournament day has many disciplines running at once
+// and an admin can easily forget to flip every one — its bracket is drawn
+// (matchesForComp > 0, the same drawn-check CLAUDE.md §3 uses everywhere
+// else) and it isn't done/cancelled yet. This only ever widens the set, so
+// a discipline an admin explicitly marked live is never dropped by it.
 export function liveEventIds(): string[] {
-  return allEvents().filter(e => e.status === 'live').map(e => e.id)
+  return allEvents()
+    .filter(e => e.status === 'live' || (e.status !== 'done' && e.status !== 'cancelled' && matchesForComp(e.id).length > 0))
+    .map(e => e.id)
 }
 
 export interface HeroOpponent {
@@ -194,12 +202,21 @@ function storiesFor(userId: string): StoryItem[] {
 
 export interface AnnouncementItem {
   id: string
-  text: string
+  title: string
+  body?: string
   createdAt: number
 }
 
+// No new column for this — the composer writes "عنوان\nمتن" into the same
+// `text` field the board already stored (see admin/today/announcement-panel.tsx),
+// so an older single-line announcement just renders as a title with no body.
 function announcementsFor(): AnnouncementItem[] {
-  return activeAnnouncements().map(a => ({ id: a.id, text: a.text, createdAt: a.createdAt }))
+  return activeAnnouncements().map(a => {
+    const i = a.text.indexOf('\n')
+    return i === -1
+      ? { id: a.id, title: a.text, createdAt: a.createdAt }
+      : { id: a.id, title: a.text.slice(0, i), body: a.text.slice(i + 1).trim() || undefined, createdAt: a.createdAt }
+  })
 }
 
 export interface TodaySnapshot {

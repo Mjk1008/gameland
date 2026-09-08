@@ -20,7 +20,9 @@ export async function POST(req: Request) {
   if (!uid) return NextResponse.json({ error: 'فقط ادمین' }, { status: 403 })
 
   const b = await req.json().catch(() => ({}))
-  const text = (b.text ?? '').toString().trim().slice(0, 500)
+  // Composer sends "عنوان\nمتن" — title capped at 80 + body capped at 500,
+  // so 600 covers both without truncating the body mid-sentence.
+  const text = (b.text ?? '').toString().trim().slice(0, 600)
   if (!text) return NextResponse.json({ error: 'متنِ اعلان رو بنویس' }, { status: 400 })
 
   const a = createAnnouncement(text, uid)
