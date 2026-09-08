@@ -12,10 +12,8 @@ export type EventInit = {
   tier: 'S' | 'A' | 'B' | 'C'; status: 'open' | 'soon' | 'live' | 'done' | 'cancelled'
   teamSize: 1 | 2; ticketPrice?: number; ticketOriginal?: number
   bracketMode: 'prelims' | 'direct'
-  attemptsCap: number
   formatLocked: boolean
   bracketLocked: boolean
-  attemptsCapLocked: boolean
 }
 const statusLabels: Record<string, string> = { open: 'ثبت‌نام باز', soon: 'به‌زودی', live: 'در حال برگزاری', done: 'پایان‌یافته', cancelled: 'لغوشده' }
 
@@ -35,7 +33,6 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   const [bracketMode, setBracketMode] = useState<'prelims' | 'direct'>(init.bracketMode)
   const [ticketPrice, setTicketPrice] = useState(init.ticketPrice != null ? String(init.ticketPrice) : '')
   const [ticketOriginal, setTicketOriginal] = useState(init.ticketOriginal != null ? String(init.ticketOriginal) : '')
-  const [attemptsCap, setAttemptsCap] = useState(init.attemptsCap)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -43,7 +40,7 @@ export default function EditEventForm({ init }: { init: EventInit }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setErr(null); setBusy(true); setSaved(false)
     try {
-      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize: init.formatLocked ? undefined : teamSize, bracketMode: init.bracketLocked ? undefined : bracketMode, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined, attemptsCap: init.attemptsCapLocked ? undefined : attemptsCap }) })
+      const res = await fetch('/api/admin/events', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: init.id, title, season, disc, tier, prize, teams, format, finalSize, date, status, statusLabel: statusLabels[status], teamSize: init.formatLocked ? undefined : teamSize, bracketMode: init.bracketLocked ? undefined : bracketMode, ticketPrice: ticketPrice || undefined, ticketOriginal: ticketOriginal || undefined }) })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'ذخیره نشد، دوباره امتحان کن')
       setSaved(true); router.refresh()
@@ -113,10 +110,6 @@ export default function EditEventForm({ init }: { init: EventInit }) {
         <Field label="قیمت هر سهم (تومان)"><input type="number" inputMode="numeric" min="0" value={ticketPrice} onChange={e => setTicketPrice(e.target.value)} style={inp} placeholder="۵۰۰۰۰۰" /></Field>
         <Field label="قیمت قبل از تخفیف"><input type="number" inputMode="numeric" min="0" value={ticketOriginal} onChange={e => setTicketOriginal(e.target.value)} style={inp} placeholder="۷۹۸۰۰۰" /></Field>
       </div>
-
-      <Field label="سقفِ سهم" hint={init.attemptsCapLocked ? 'ثبت‌نامی برای این مسابقه وجود داره — سقف دیگه قابل تغییر نیست' : undefined}>
-        <input type="number" inputMode="numeric" min="1" max="20" disabled={init.attemptsCapLocked} value={attemptsCap} onChange={e => setAttemptsCap(Number(e.target.value))} style={{ ...inp, opacity: init.attemptsCapLocked ? 0.5 : 1 }} />
-      </Field>
 
       <Field label="سایزِ براکتِ فینال">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>

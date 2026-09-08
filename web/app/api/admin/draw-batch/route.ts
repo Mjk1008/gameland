@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import {
   drawEligibleRegistrations, getEvent, getEventConfig,
-  isTeamPartnerReg, settledAttempts, leftoverPoolEventFor, type GroupMode,
+  isTeamPartnerReg, settledAttempts, type GroupMode,
 } from '@/lib/store'
 import { bracketModeOf, generatePrelimBatch, groupKeyForUser } from '@/lib/bracket'
 
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (role !== 'admin' && role !== 'organizer') return NextResponse.json({ error: 'دسترسی نداری' }, { status: 403 })
 
   const body = await req.json().catch(() => ({}))
-  const { compId, groupMode, place, bracketCount, capacityPerBracket, userIds, mixed, batchLabel, fromLeftoverPool } = body
+  const { compId, groupMode, place, bracketCount, capacityPerBracket, userIds, mixed, batchLabel } = body
   if (!compId || !getEvent(compId)) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
   if (getEventConfig(compId).teamSize === 2) return NextResponse.json({ error: 'فقط رشتهٔ انفرادی' }, { status: 400 })
   if (bracketModeOf(compId) !== 'prelims') return NextResponse.json({ error: 'فقط مسابقات مقدماتی' }, { status: 400 })
@@ -35,19 +35,8 @@ export async function POST(req: Request) {
   const ids = Array.isArray(userIds) ? userIds.filter((id: unknown) => typeof id === 'string') : []
   if (ids.length === 0) return NextResponse.json({ error: 'حداقل یک بازیکن انتخاب کن' }, { status: 400 })
 
-  // بازماندگان source: these userIds' سهم are settled on the global leftover-
-  // pool event, not this compId — verify them against that event instead of
-  // trusting the client's numbers.
-  const useLeftoverPool = isMixed && fromLeftoverPool === true
-  let sourceCompId = compId
-  if (useLeftoverPool) {
-    const pool = leftoverPoolEventFor(compId)
-    if (!pool) return NextResponse.json({ error: 'بازماندگانِ این رشته روشن نیست' }, { status: 400 })
-    sourceCompId = pool.id
-  }
-
   const regByUser = new Map(
-    drawEligibleRegistrations(sourceCompId)
+    drawEligibleRegistrations(compId)
       .filter(r => !isTeamPartnerReg(r))
       .map(r => [r.userId, r]),
   )

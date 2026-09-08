@@ -7,9 +7,9 @@ import { PAYMENT, toman } from '@/lib/payment'
 import { fileToDataUrl } from '@/lib/receipt-image'
 import Link from 'next/link'
 
-interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean; leftoverPoolEventId?: string }
+interface Props { comp: { id: string; title: string; disc: Disc; status: 'live' | 'open' | 'soon' | 'done'; statusLabel: string; prize: number; format: string; teams: number }; owned: number; remaining: number; canSetRef?: boolean; canUsePromo?: boolean; freeTickets?: number; price: { price: number; original: number; offPercent: number }; isTeamEvent?: boolean; reuseTeam?: { name: string; partnerTag?: string }; leftoverNote?: boolean; leftoverOpen?: boolean; leftoverMode?: boolean }
 
-export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote, leftoverPoolEventId }: Props) {
+export default function RegisterForm({ comp, owned, remaining, canSetRef, canUsePromo = true, freeTickets = 0, price, isTeamEvent, reuseTeam, leftoverNote, leftoverOpen, leftoverMode }: Props) {
   const router = useRouter()
   const d = DISC[comp.disc]
 
@@ -116,6 +116,7 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
         body: JSON.stringify({
           compId: comp.id, attempts, ref: ref.trim() || undefined,
           promoCode: canUsePromo && codeForSubmit ? codeForSubmit : undefined,
+          ...(leftoverMode ? { leftover: true } : {}),
           ...(isTeamEvent ? { teamName: teamName.trim(), partnerTag: (reuseTeam?.partnerTag || partnerTag).trim() } : {}),
           ...(imageData ? { imageData } : {}),
         }),
@@ -133,12 +134,12 @@ export default function RegisterForm({ comp, owned, remaining, canSetRef, canUse
 
   return (
     <div className="animate-fade-up">
-      <BackHeader title="ثبت‌نام در مسابقه" href={`/competitions/${comp.id}`} />
+      <BackHeader title={leftoverMode ? 'ثبت‌نام در جدول بازماندگان' : 'ثبت‌نام در مسابقه'} href={`/competitions/${comp.id}`} />
 
       <div style={{ padding: '18px 16px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {leftoverPoolEventId && (
-          <Link href={`/competitions/${leftoverPoolEventId}/register`} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 0', color: C.accent, fontWeight: 700, fontSize: 12.5 }}>
-            ثبت‌نام در جدول بازماندگان
+        {leftoverOpen && !leftoverMode && (
+          <Link href={`/competitions/${comp.id}/register?leftover=1`} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 14, padding: '16px 0', color: C.accent, fontWeight: 800, fontSize: 15 }}>
+            جدول بازماندگان
           </Link>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

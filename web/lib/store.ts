@@ -898,15 +898,14 @@ function deindexReg(r: Registration) {
 // `attempts` = how many tickets to buy now. Stays open after the draw — extra
 // سهم land in the leftover pool (بازماندگان) instead of the existing trees.
 export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string): Registration {
-  const cap = attemptsCapFor(compId)
-  if (attempts < 1 || attempts > cap) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   const key = userId + '|' + compId
   const existing = regs.get(key)
 
   if (existing && existing.status !== 'rejected') {
-    // active registration → top up, capped at this event's سهم ceiling
-    if (existing.attempts >= cap) throw new Error('MAX_TICKETS')
-    if (attempts > cap - existing.attempts) throw new Error('EXCEEDS_MAX')
+    // active registration → top up, capped at 6 total for this discipline
+    if (existing.attempts >= 6) throw new Error('MAX_TICKETS')
+    if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
     // Keep previously-approved rows approved so settled سهم stay in the draw.
     // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
@@ -975,12 +974,11 @@ export function createRegistration(userId: string, compId: string, attempts: num
   return r
 }
 
-// Tickets a user can still buy for a discipline (0..attemptsCapFor(compId)). 0 = cap reached.
+// Tickets a user can still buy for a discipline (0..6). 0 = cap reached.
 export function remainingTickets(userId: string, compId: string): number {
-  const cap = attemptsCapFor(compId)
   const r = regs.get(userId + '|' + compId)
-  if (!r || r.status === 'rejected') return cap
-  return Math.max(0, cap - r.attempts)
+  if (!r || r.status === 'rejected') return 6
+  return Math.max(0, 6 - r.attempts)
 }
 
 export function setRegistrationStatus(regId: string, status: RegStatus, rejectReason?: string): Registration {
@@ -1014,7 +1012,7 @@ export function setRegistrationAttempts(regId: string, attempts: number, opts?: 
   if (!r) throw new Error('REG_NOT_FOUND')
   // Post-draw is normally locked; the re-entry flow (MD-5b) opts in explicitly.
   if (!opts?.allowPostDraw && matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
-  r.attempts = Math.max(1, Math.min(attemptsCapFor(r.compId), Math.round(attempts) || 1))
+  r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
   persist.reg.update(r.id, { attempts: r.attempts } as any)
   bumpNationalRanking(r.userId)
   syncTeamMirrorFrom(r)
@@ -1307,7 +1305,7 @@ export function reconcileTeams(): void {
 // Async — the team row must be committed before its member rows insert, or the
 // FK on app_team_members.team_id can race a fire-and-forget team insert.
 export async function createTeam(compId: string, captainId: string, name: string, partnerTag: string, attempts: number): Promise<{ team: Team; registration: Registration }> {
-  if (attempts < 1 || attempts > attemptsCapFor(compId)) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
 
   const mine = getRegistration(captainId, compId)
@@ -2007,7 +2005,7 @@ export interface EventConfig {
   // Frozen once isDrawn(compId) — enforced in the edit route.
   bracketMode?: 'prelims' | 'direct'
   // Max distinct entries one account can carry into the assembled final.
-  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately attemptsCap.
+  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately 6.
   entryCap?: number
   // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
   // drives bracketState() 'not-started' checks for re-entry (MD-5b).
@@ -2015,21 +2013,13 @@ export interface EventConfig {
   // Per-group publish. Missing key / missing map = already public (legacy draws).
   // New draws set the group's key to false until admin presses انتشار.
   publishedGroups?: Record<string, boolean>
-  // How many سهم one account may hold on this event. undefined ⇒ 6 (the normal
-  // default everywhere). A بازماندگان pool event sets this to 4.
-  // Frozen once anyone has registered — enforced in the edit route, like teamSize.
-  attemptsCap?: number
-  // This event's OWN بازماندگان pool — a sibling event anyone can register
-  // into (up to ITS attemptsCap) regardless of their status on this event,
-  // whose settled registrants are what the "بازماندگان" option in THIS
-  // event's ترکیبی batch-draw pulls from. Created once (see
-  // /api/admin/leftover-pool) and reused every time it's toggled back on;
-  // leftoverPoolEnabled controls visibility without losing the pool's data.
-  leftoverPoolEventId?: string
-  leftoverPoolEnabled?: boolean
-  // Set on a pool event itself, pointing back at the رشته it serves — purely
-  // informational (e.g. so its own admin page can say what it's for).
-  leftoverPoolParentId?: string
+  // بازماندگان (survivors) sign-up switch for THIS رشته. When on, its
+  // registration page shows a «جدول بازماندگان» box that opens a سهم-capped
+  // (LEFTOVER_ATTEMPTS_CAP) sign-up ON THE SAME event — those سهم land in the
+  // same event's leftover pool (leftoverPlayers) like any post-draw purchase,
+  // and are drawn from the ترکیبی batch tool into the same final. No separate
+  // event is created.
+  leftoverOpen?: boolean
 }
 const eventConfigs = new Map<string, EventConfig>()
 
@@ -2045,45 +2035,13 @@ export function setEventConfig(compId: string, patch: Partial<EventConfig>) {
 }
 export function qualifyKey(groupKey: string, bracket: number) { return `${groupKey}#${bracket}` }
 
-// سهم buy cap for this event — 6 everywhere by default; the بازماندگان pool
-// event overrides it to 4. Every place that used to hardcode 6 reads this now.
-export function attemptsCapFor(compId: string): number {
-  const n = getEventConfig(compId).attemptsCap
-  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : 6
-}
+// Max سهم one account may buy through the بازماندگان (survivors) sign-up on an
+// event. The normal (pre-draw) cap stays MAX_ATTEMPTS (6); this is only the
+// ceiling for the leftover entry, enforced in /api/register when leftover=true.
+export const LEFTOVER_ATTEMPTS_CAP = 4
 
-// This رشته's own بازماندگان pool event, if one exists and is switched on.
-export function leftoverPoolEventFor(compId: string): Event | undefined {
-  const cfg = getEventConfig(compId)
-  if (!cfg.leftoverPoolEnabled || !cfg.leftoverPoolEventId) return undefined
-  return getEvent(cfg.leftoverPoolEventId)
-}
-
-// Toggle a رشته's بازماندگان pool on/off. Turning it on for the first time
-// creates the sibling event (attemptsCap=4, linked both ways); turning it
-// back on later reuses the same one — its registrations are never lost.
-// Turning it off just hides it (leftoverPoolEnabled=false); the sibling event
-// and its registrations stay exactly as they are.
-export function setLeftoverPoolEnabled(compId: string, enabled: boolean, organizerId: string): Event | undefined {
-  const c = getEvent(compId)
-  if (!c) throw new Error('EVENT_NOT_FOUND')
-  const cfg = getEventConfig(compId)
-  if (!enabled) {
-    setEventConfig(compId, { leftoverPoolEnabled: false })
-    return cfg.leftoverPoolEventId ? getEvent(cfg.leftoverPoolEventId) : undefined
-  }
-  let pool = cfg.leftoverPoolEventId ? getEvent(cfg.leftoverPoolEventId) : undefined
-  if (!pool) {
-    pool = createEvent({
-      title: `${c.title} — بازماندگان`, season: c.season, disc: c.disc, tier: c.tier,
-      prize: 0, teams: c.teams, format: c.format, date: c.date,
-      status: 'open', statusLabel: 'ثبت‌نام باز',
-      organizerId, competitionId: c.competitionId, finalSize: c.finalSize,
-    })
-    setEventConfig(pool.id, { attemptsCap: 4, leftoverPoolParentId: compId })
-  }
-  setEventConfig(compId, { leftoverPoolEventId: pool.id, leftoverPoolEnabled: true })
-  return pool
+export function isLeftoverOpen(compId: string): boolean {
+  return getEventConfig(compId).leftoverOpen === true
 }
 
 const matches: Match[] = []
