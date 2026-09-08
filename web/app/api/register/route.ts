@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync, isLeftoverOpen, LEFTOVER_ATTEMPTS_CAP } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync, isLeftoverOpen, LEFTOVER_ATTEMPTS_CAP } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice, buyerTicketPricing } from '@/lib/promoter'
@@ -41,11 +41,6 @@ export async function POST(req: Request) {
   const cap = isLeftover ? LEFTOVER_ATTEMPTS_CAP : 6
   if (!attempts || attempts < 1 || attempts > cap) return NextResponse.json({ error: `تعداد بلیط باید ۱ تا ${cap} باشد` }, { status: 400 })
   const isTeamEvent = getEventConfig(compId).teamSize === 2
-
-  // Referral attribution happens at purchase (product decision): the buyer
-  // enters/confirms the code here; set once, immutable, self-referral blocked.
-  const ref = (body.ref ?? '').toString().trim()
-  if (ref && !u.referredBy) setReferrerByTag(uid, ref)
 
   const existingReg = getRegistration(uid, compId)
   // A rejected row is reused with a fresh count (createRegistration) — treat

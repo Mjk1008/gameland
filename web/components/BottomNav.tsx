@@ -29,17 +29,14 @@ function Icon({ d, style }: { d: React.ReactNode; style?: React.CSSProperties })
 const ARENA_ON = isArenaEnabled()
 const TODAY_ON = isTodayHubEnabled()
 
-// «امروز» replaces «دعوت» whenever its own flag is on, independent of
-// Arena's — the two occupy what were originally different tab slots, so
-// both can be simultaneously on (a 6th tab; the flex:1 layout tolerates it).
+// «دعوت» retired with the referral campaign — «امروز» (when its flag is on)
+// is the only thing that still occupies that slot.
 const TABS = [
   { href: '/', label: 'خانه', icon: icons.home },
   { href: '/competitions', label: 'مسابقات', icon: icons.cup },
   { href: '/leaderboard', label: 'رنکینگ', icon: icons.rank },
   ...(ARENA_ON ? [{ href: '/arena', label: 'میدون', icon: icons.arena }] : []),
-  ...(TODAY_ON
-    ? [{ href: '/today', label: 'امروز', icon: icons.today }]
-    : ARENA_ON ? [] : [{ href: '/invite', label: 'دعوت', icon: icons.gift }]),
+  ...(TODAY_ON ? [{ href: '/today', label: 'امروز', icon: icons.today }] : []),
 ]
 
 // Floating glass pill with a liquid highlight that slides + squishes to the
@@ -48,12 +45,11 @@ const TABS = [
 export default function BottomNav() {
   const path = usePathname()
 
-  // catch ?ref=<tag> and ?code=<promo> from links anywhere in the app
+  // catch ?code=<promo> from links anywhere in the app. (Referral capture —
+  // ?ref=<tag> → gl_ref — retired with the campaign; no new referrer links.)
   useEffect(() => {
     try {
       const qs = new URLSearchParams(window.location.search)
-      const ref = qs.get('ref')
-      if (ref) localStorage.setItem('gl_ref', ref)
       const code = qs.get('code')
       if (code) localStorage.setItem('gl_code', code)
     } catch {}

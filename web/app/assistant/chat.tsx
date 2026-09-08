@@ -25,7 +25,6 @@ const CAPABILITIES: { icon: string; title: string; asks: string[] }[] = [
   { icon: '🏆', title: 'مسابقات و قرعه', asks: ['چه مسابقاتی الان بازه؟', 'قرعه‌کشی چطوری انجام می‌شه؟', 'مسیرم تا فینال چیه؟'] },
   { icon: '📰', title: 'اخبار', asks: ['چه خبر؟', 'آخرین اخبار گیم‌لند رو نشونم بده'] },
   { icon: '📈', title: 'رتبه و امتیاز', asks: ['رتبه‌ام چنده؟', 'امتیاز چطوری حساب می‌شه؟'] },
-  { icon: '🎁', title: 'دعوت رفیق', asks: ['کمپین دعوت چطوریه؟', 'چند سهم رایگان دارم؟'] },
   { icon: '🎮', title: 'تریک بازی', asks: ['یه تریک FC26 بده', 'تو eFootball چطوری بهتر دفاع کنم؟'] },
 ]
 
@@ -355,7 +354,7 @@ function Widget({ marker, ent, onStory, onAsk }: { marker: string; ent?: Entitie
   }
   if (marker.startsWith('go:')) {
     const [href, label] = marker.slice(3).split('|')
-    const allowed = ['/competitions', '/leaderboard', '/arena', '/invite', '/me', '/me/competitions', '/rules', '/support']
+    const allowed = ['/competitions', '/leaderboard', '/arena', '/me', '/me/competitions', '/rules', '/support']
     if (!allowed.some(a => href.startsWith(a))) return null
     return <CtaRow href={href} label={label || 'برو'} />
   }

@@ -75,7 +75,7 @@ export function tryAssistantFaq(
   }
 
   if (/دعوت|ریفرال|سهم رایگان|کد دعوت|referral/.test(q)) {
-    return 'کد دعوت = @تگ خودت. هر ۳ سهم تأییدشده از دعوتی‌ها = ۱ سهم رایگان (تا ۳). [[go:/invite|صفحهٔ دعوت]]'
+    return 'کمپین دعوت بسته شده — دیگه دعوتِ جدید یا سهمِ رایگانِ جدید نداریم. سهمِ رایگانِ قبلاً گرفته‌شده هنوز موقعِ ثبت‌نام حساب می‌شه.'
   }
 
   if (/چند سهم|سقف سهم|حداکثر سهم/.test(q)) {
@@ -123,7 +123,6 @@ export function assistantWidgetFallback(message: string, ent: AssistantEntities,
     /خبر|اخبار|چه خبر/.test(asked) && ent.news.length ? '[[news]]'
     : /ثبت.?نام|تایید|رد|وضعیت|فیش|پرداخت/.test(asked) && ent.regs.length ? '[[status]]'
     : /رتبه|رنکینگ|امتیاز/.test(asked) ? '[[go:/leaderboard|رنکینگ ملی]]'
-    : /دعوت|ریفرال|رایگان/.test(asked) ? '[[go:/invite|صفحهٔ دعوت]]'
     : /مسابق|تورن|شرکت|رشته/.test(asked) && ent.events.length ? `[[event:${ent.events[0].id}]]`
     : ''
   return fallback ? `${text}\n${fallback}` : text
