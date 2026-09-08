@@ -199,6 +199,9 @@ export const matches = pgTable('app_matches', {
   completedAt: timestamp('completed_at', { withTimezone: true }),
   // Admin "شروع" toggle on the bracket action sheet — see lib/store.ts Match.liveStartedAt.
   liveStartedAt: timestamp('live_started_at', { withTimezone: true }),
+  // Admin "حذف" (undo a rest-fill) — see lib/store.ts Match.restFillP1/P2.
+  restFillP1: boolean('rest_fill_p1').notNull().default(false),
+  restFillP2: boolean('rest_fill_p2').notNull().default(false),
 }, (t) => ({
   byComp: index('match_comp_idx').on(t.compId, t.bracket, t.round, t.slot),
 }))
