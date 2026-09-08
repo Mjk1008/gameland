@@ -244,6 +244,9 @@ export function startHydration(loaders: {
           created_by TEXT NOT NULL, removed_at TIMESTAMPTZ)`,
         // Admin "شروع" toggle on the bracket sheet — see lib/store.ts Match.liveStartedAt.
         `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS live_started_at TIMESTAMPTZ`,
+        // Admin "حذف" (undo a rest-fill) — see lib/store.ts Match.restFillP1/P2.
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS rest_fill_p1 BOOLEAN NOT NULL DEFAULT false`,
+        `ALTER TABLE app_matches ADD COLUMN IF NOT EXISTS rest_fill_p2 BOOLEAN NOT NULL DEFAULT false`,
       ]) { try { await d.execute(sql.raw(stmt)) } catch (e) { console.error('[db] ensureSchema:', e) } }
       try {
         await d.insert(schema.settings).values({ key: 'schema_version', value: '4' })
@@ -363,6 +366,7 @@ export function startHydration(loaders: {
         status: m.status as any, createdAt: ms(m.createdAt),
         completedAt: (m as any).completedAt ? ms((m as any).completedAt) : undefined,
         liveStartedAt: (m as any).liveStartedAt ? ms((m as any).liveStartedAt) : undefined,
+        restFillP1: !!(m as any).restFillP1, restFillP2: !!(m as any).restFillP2,
       })
 
       try {
@@ -877,7 +881,7 @@ export const persist = {
     },
   },
   match: {
-    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean; completedAt?: number; liveStartedAt?: number }) {
+    insert(m: { id: string; compId: string; stage?: string; groupKey?: string; bracket: number; round: number; slot: number; p1UserId?: string; p2UserId?: string; winnerUserId?: string; p1TeamId?: string; p2TeamId?: string; winnerTeamId?: string; score?: string; status: string; cancelled?: boolean; completedAt?: number; liveStartedAt?: number; restFillP1?: boolean; restFillP2?: boolean }) {
       const d = db(); if (!d) return
       // Ordered per match id — see fireOrdered's comment. Bracket resolution
       // (a fresh draw immediately resolving its own byes, or a played match
@@ -892,12 +896,24 @@ export const persist = {
         score: m.score, status: m.status as any, cancelled: m.cancelled ?? false,
         completedAt: m.completedAt ? new Date(m.completedAt) : undefined,
         liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : undefined,
+        restFillP1: m.restFillP1 ?? false, restFillP2: m.restFillP2 ?? false,
       }).onConflictDoUpdate({
         target: schema.matches.id,
         // Every mutable field must appear here, even ones this call didn't
-        // change — a key missing from `set` (not merely undefined-valued)
-        // would silently drop it on re-save (docs/27 §1.4 risk #5).
-        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined, liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : undefined },
+        // change — a key missing from `set` would silently drop it on
+        // re-save (docs/27 §1.4 risk #5). An undefined-VALUED key is just as
+        // silent: drizzle's mapUpdateSet filters `value !== undefined`
+        // before building the SET clause, so `col: undefined` is dropped
+        // from the SQL exactly like a missing key — the row keeps its old
+        // value in Postgres forever, even though the in-memory object (the
+        // app's real source of truth) has already cleared it. That bit
+        // liveStartedAt: a finished match's stale "live" timestamp survived
+        // in the DB and came back on the next hydration/redeploy. Any field
+        // that needs to go from a real value back to "unset" must pass
+        // `null` here, never `undefined` — restFillP1/P2 sidestep the whole
+        // issue by always passing a concrete boolean (`?? false`), same as
+        // `cancelled` already does.
+        set: { p1UserId: m.p1UserId, p2UserId: m.p2UserId, winnerUserId: m.winnerUserId, p1TeamId: m.p1TeamId, p2TeamId: m.p2TeamId, winnerTeamId: m.winnerTeamId, score: m.score, status: m.status as any, cancelled: m.cancelled ?? false, completedAt: m.completedAt ? new Date(m.completedAt) : undefined, liveStartedAt: m.liveStartedAt ? new Date(m.liveStartedAt) : null, restFillP1: m.restFillP1 ?? false, restFillP2: m.restFillP2 ?? false },
       }))
     },
     // Awaited by callers (generatePrelims) — a subsequent buildTree() creates

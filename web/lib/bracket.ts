@@ -23,7 +23,7 @@ import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './disci
 import { MAX_SEEDS_TO_FINAL } from './competition-engine'
 import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 import {
-  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restSlotKey, MAX_BRACKET_QUALIFY,
+  cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restIndex, restSlotKey, MAX_BRACKET_QUALIFY,
 } from './bracket-slots'
 
 // ── deterministic RNG (seedable so a redraw is reproducible) ──
@@ -914,11 +914,53 @@ export function fillRestSlot(matchId: string, side: 1 | 2, userId: string): Matc
   const other = side === 1 ? m.p2UserId : m.p1UserId
   if (other === userId) throw new Error('SELF_MATCH')
   if (m.status === 'done') unwindAdvance(m)
-  if (side === 1) m.p1UserId = userId
-  else m.p2UserId = userId
+  if (side === 1) { m.p1UserId = userId; m.restFillP1 = true }
+  else { m.p2UserId = userId; m.restFillP2 = true }
   m.cancelled = false
   m.winnerUserId = undefined
   m.status = (isRealPlayer(m.p1UserId) && isRealPlayer(m.p2UserId)) ? 'ready' : 'pending'
+  saveMatch(m)
+  resolveByes(m.compId, m.stage, m.groupKey, m.bracket)
+  if (m.stage === 'final') syncFinalEntries(m.compId)
+  return getMatch(matchId) ?? m
+}
+
+// Next free rest index within this bracket's round-1 slots — purely cosmetic
+// (restColor()/"restN" label), so it only needs to avoid colliding with a
+// rest placeholder currently on screen, never to match a slot's original
+// index (that number is lost the moment fillRestSlot overwrites it).
+function nextRestIndex(m: Match): number {
+  const siblings = matchesForComp(m.compId).filter(x =>
+    x.stage === m.stage && x.groupKey === m.groupKey && x.bracket === m.bracket && x.round === 1,
+  )
+  let n = 1
+  for (const s of siblings) {
+    if (isRestSlot(s.p1UserId)) n = Math.max(n, restIndex(s.p1UserId!) + 1)
+    if (isRestSlot(s.p2UserId)) n = Math.max(n, restIndex(s.p2UserId!) + 1)
+  }
+  return n
+}
+
+// ── admin "حذف" — undo a mistaken fillRestSlot() (see above). Only ever
+// works on a side that fillRestSlot itself flagged (restFillP1/P2) — a
+// normally-drawn seed was never flagged, so this can't pull a real draw
+// position apart. Puts a fresh rest placeholder back in the seat;
+// leftoverPlayers()/leftoverTicketsOf() are purely derived from seated
+// slots, so the account's ticket is immediately re-offered in بازماندگان —
+// no separate bookkeeping, and it can be seated anywhere, including a
+// different bracket.
+export function removeRestFill(matchId: string, side: 1 | 2): Match {
+  const m = getMatch(matchId)
+  if (!m) throw new Error('SLOT_NOT_FOUND')
+  if (!(side === 1 ? m.restFillP1 : m.restFillP2)) throw new Error('NOT_REST_FILL')
+  if (bracketState(m.compId, m.groupKey, m.bracket) === 'done') throw new Error('BRACKET_DONE')
+  if (m.status === 'done') unwindAdvance(m)
+  const n = nextRestIndex(m)
+  if (side === 1) { m.p1UserId = restSlotKey(n); m.restFillP1 = false }
+  else { m.p2UserId = restSlotKey(n); m.restFillP2 = false }
+  m.cancelled = false
+  m.winnerUserId = undefined
+  m.status = 'pending'
   saveMatch(m)
   resolveByes(m.compId, m.stage, m.groupKey, m.bracket)
   if (m.stage === 'final') syncFinalEntries(m.compId)
