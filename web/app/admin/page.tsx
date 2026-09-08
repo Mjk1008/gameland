@@ -1,13 +1,58 @@
 import Link from 'next/link'
-import { allUsers, allEvents, pendingRegistrations, allPromos } from '@/lib/store'
+import { allUsers, allEvents, allMatches, pendingRegistrations, allPromos, getCompetition } from '@/lib/store'
 import { pendingCodeRequests } from '@/lib/promoter'
 import { C, Num } from '@/components/ui'
+import BracketPicker, { BracketPickerHeader, type PickerGroup, type PickerDisc } from './bracket-picker'
 
 export const dynamic = 'force-dynamic'
+
+// Drawn رویداد → its drawn رشته‌ها, for the picker at the top of the dashboard.
+// "Drawn" is the same check used everywhere else (CLAUDE.md §3): the event has
+// matches. Cancelled events drop out; finished ones stay listed but sort last,
+// because a result still gets corrected after the bracket is complete.
+//
+// A standalone مسابقه has no parent رویداد, so those are collected under the
+// same «مستقل» label the tournaments list already uses for them.
+function drawnGroups(): PickerGroup[] {
+  const stats = new Map<string, { total: number; done: number }>()
+  for (const m of allMatches()) {
+    const s = stats.get(m.compId) ?? { total: 0, done: 0 }
+    s.total++
+    if (m.status === 'done') s.done++
+    stats.set(m.compId, s)
+  }
+
+  const byGroup = new Map<string, PickerGroup>()
+  for (const e of allEvents()) {          // newest-first from the store
+    const s = stats.get(e.id)
+    if (!s || s.total === 0 || e.status === 'cancelled') continue
+    const parent = e.competitionId ? getCompetition(e.competitionId) : undefined
+    const key = parent ? parent.id : 'solo'
+    const g = byGroup.get(key) ?? {
+      key,
+      title: parent ? parent.title : 'مستقل',
+      date: parent?.date || undefined,
+      discs: [] as PickerDisc[],
+      remaining: 0,
+    }
+    g.discs.push({ compId: e.id, title: e.title, disc: e.disc, done: s.done, total: s.total })
+    g.remaining += s.total - s.done
+    byGroup.set(key, g)
+  }
+
+  for (const g of byGroup.values()) {
+    // Unfinished brackets first inside a رویداد — that's what's being run today.
+    g.discs.sort((a, b) => Number(b.done < b.total) - Number(a.done < a.total))
+  }
+  // Same rule one level up, then newest-first (allEvents order is preserved by
+  // the insertion above).
+  return [...byGroup.values()].sort((a, b) => Number(b.remaining > 0) - Number(a.remaining > 0))
+}
 
 export default function AdminHome() {
   const userCount = allUsers().length
   const events = allEvents()
+  const groups = drawnGroups()
   const liveComps = events.filter(c => c.status === 'live' || c.status === 'open').length
   const pending = pendingRegistrations().length
   const codeReqPending = pendingCodeRequests().length
@@ -54,6 +99,14 @@ export default function AdminHome() {
           <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.gold }}>درخواست کد پروموتر منتظر تأیید</span>
           <Num size={18} color={C.gold}>{codeReqPending}</Num>
         </Link>
+      )}
+
+      {/* the thing an admin opens more than anything else, two taps from here */}
+      {groups.length > 0 && (
+        <div>
+          <BracketPickerHeader count={groups.reduce((n, g) => n + g.discs.length, 0)} />
+          <BracketPicker groups={groups} />
+        </div>
       )}
 
       {/* everything the admin can do — one hub */}

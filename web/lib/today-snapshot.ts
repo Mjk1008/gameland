@@ -322,8 +322,13 @@ export interface QueueRow {
   p1Name: string
   p2Name: string
   station?: string
-  sinceMs: number         // how long this match has been in its current bucket
+  // Time since the station call. Only meaningful once a match HAS been called:
+  // an uncalled match has no "became playable" timestamp to measure from, and
+  // falling back to Match.createdAt measured time since the draw — every
+  // round-1 pair reporting the same number, later rounds overstating badly.
+  sinceMs?: number
   bucket: QueueBucket     // carried on the row so lists can mix buckets
+  round: number           // dispatch order for the not-yet-called queue
   // Match.liveStartedAt — an admin pressed «شروع لایو» on this match in the
   // MatchSheet. It already drives the LIVE pulse on the bracket cards; the
   // board was the one place that knew about stations but not about it, which
@@ -388,9 +393,9 @@ export function buildAdminToday(): AdminTodaySnapshot {
     const row: QueueRow = {
       matchId: m.id, compId: m.compId, eventTitle: titleOf(m.compId), n: matchNo(m),
       p1Name: nameOf(m.p1UserId), p2Name: nameOf(m.p2UserId),
-      station: desk?.station, sinceMs: now - (desk?.calledAt ?? m.createdAt),
+      station: desk?.station, sinceMs: desk?.calledAt ? now - desk.calledAt : undefined,
       live: !!m.liveStartedAt,
-      bucket: 'waiting',
+      bucket: 'waiting', round: m.round,
     }
     if (!desk?.station) {
       queue.waiting.push(row)
@@ -400,11 +405,15 @@ export function buildAdminToday(): AdminTodaySnapshot {
       queue[row.bucket].push(row)
     }
   }
-  // Longest-waiting first, as before — but a match an admin actually started
-  // («شروع لایو») outranks it: that's the one being played this minute.
-  for (const b of Object.keys(queue) as QueueBucket[]) {
-    queue[b].sort((a, c) => Number(c.live) - Number(a.live) || c.sinceMs - a.sinceMs)
+  // Called matches: longest-waiting first, but a match an admin actually
+  // started («شروع لایو») outranks it — that's the one being played this minute.
+  for (const b of ['playing', 'late', 'absent'] as const) {
+    queue[b].sort((a, c) => Number(c.live) - Number(a.live) || (c.sinceMs ?? 0) - (a.sinceMs ?? 0))
   }
+  // Not-yet-called: bracket order — earliest round, then match number. This is
+  // the order a floor is actually dispatched in, and the only honest one here
+  // (nothing records when a pair became playable).
+  queue.waiting.sort((a, c) => a.round - c.round || (a.n ?? 0) - (c.n ?? 0) || a.eventTitle.localeCompare(c.eventTitle, 'fa'))
 
   const stations: StationCard[] = allDesks()
     .filter(d => d.station && active.some(m => m.id === d.matchId))

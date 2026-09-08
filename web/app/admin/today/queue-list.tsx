@@ -44,10 +44,17 @@ export default function QueueList({ resetKey, rows, busy, onCall, showEvent }: {
               <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p1Name} — {r.p2Name}</span>
             </span>
             <span style={{ fontSize: 10.5, color: C.tmut, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {showEvent && r.eventTitle ? `${r.eventTitle} · ` : ''}
-              {r.n != null ? `بازی ${r.n} · ` : ''}
-              {r.station ? `ایستگاه ${r.station} · ` : ''}
-              <span style={{ color: urgent ? C.live : C.tmut }}>{minutesLabel(r.sinceMs)}</span>
+              {[
+                showEvent && r.eventTitle ? r.eventTitle : null,
+                r.n != null ? `بازی ${r.n}` : null,
+                r.station ? `ایستگاه ${r.station}` : null,
+              ].filter(Boolean).join(' · ')}
+              {r.sinceMs != null && (
+                <>
+                  {' · '}
+                  <span style={{ color: urgent ? C.live : C.tmut }}>{minutesLabel(r.sinceMs)}</span>
+                </>
+              )}
             </span>
           </Link>
           {/* «صدا کن» pings both players with their station — it stays on the

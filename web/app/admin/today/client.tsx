@@ -74,7 +74,7 @@ export default function TodayAdminClient({ initial, staff, isAdminRole }: {
   // matches first — the board's answer to "what's on right now".
   const underway = useMemo(
     () => [...data.queue.playing, ...data.queue.late, ...data.queue.absent]
-      .sort((a, b) => Number(b.live) - Number(a.live) || b.sinceMs - a.sinceMs),
+      .sort((a, b) => Number(b.live) - Number(a.live) || (b.sinceMs ?? 0) - (a.sinceMs ?? 0)),
     [data],
   )
 
@@ -103,7 +103,7 @@ export default function TodayAdminClient({ initial, staff, isAdminRole }: {
         {/* "Which match is being played right now" was the one question this
             board couldn't answer at a glance: it opened on the «منتظر» tab —
             games that have NOT started — and the ones under way were a tab
-            away. They lead now; the not-yet-called queue is folded below. */}
+            away. They lead now, with the dispatch queue right below. */}
         {underway.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span style={{ fontSize: 11, color: C.tmut, fontFamily: DISP, letterSpacing: '.12em', fontWeight: 700 }}>LIVE · درحالِ‌بازی</span>
@@ -116,15 +116,17 @@ export default function TodayAdminClient({ initial, staff, isAdminRole }: {
           <StationGrid stations={data.stations} showEvent={!active} />
         </div>
 
-        {/* The waiting queue and the three composers below are the parts of
-            this board that don't get used on a match day. Folded away with
-            their counts on the header — nothing lost, just no longer the
-            tallest thing on the page. */}
-        <CollapsibleCard title="صف" badge={queueBadge}>
-          <div style={{ paddingTop: 14 }}>
-            <QueueList resetKey={`waiting:${active ?? ''}`} rows={data.queue.waiting} busy={busy} onCall={staff ? call : undefined} showEvent={!active} />
+        {/* Pairs the bracket has already formed but nobody has been called for
+            yet — this is the dispatch list, so it stays open with «صدا کن» on
+            every row. (It's the composers below, not this, that go unused on a
+            match day.) In bracket order: earliest round, then match number. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, color: C.tmut, fontFamily: DISP, letterSpacing: '.12em', fontWeight: 700 }}>QUEUE · صف</span>
+            <span className="gl-num" style={{ fontSize: 11, color: C.tmut }}>{queueBadge}</span>
           </div>
-        </CollapsibleCard>
+          <QueueList resetKey={`waiting:${active ?? ''}`} rows={data.queue.waiting} busy={busy} onCall={staff ? call : undefined} showEvent={!active} />
+        </div>
 
         {isAdminRole && <CollapsibleCard title="استوری"><div style={{ paddingTop: 14 }}><StoryPanel bare /></div></CollapsibleCard>}
         {isAdminRole && <CollapsibleCard title="تابلوِ اعلان"><div style={{ paddingTop: 14 }}><AnnouncementPanel bare /></div></CollapsibleCard>}
