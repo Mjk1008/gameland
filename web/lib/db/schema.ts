@@ -137,6 +137,7 @@ export const registrations = pgTable('app_registrations', {
   payBatch:         integer('pay_batch').notNull().default(1),
   receiptPayBatch:  integer('receipt_pay_batch'),
   receiptAttemptsAt: integer('receipt_attempts_at'),
+  viaLeftover:      boolean('via_leftover').notNull().default(false),   // بازماندگان (survivor) sign-up marker
   createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   uniqByUserComp: uniqueIndex('reg_user_comp_idx').on(t.userId, t.compId),

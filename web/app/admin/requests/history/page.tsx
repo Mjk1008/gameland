@@ -16,6 +16,7 @@ export default function RequestHistoryPage() {
         regId: r.id,
         status: r.status as 'approved' | 'rejected',
         attempts: r.attempts,
+        viaLeftover: r.viaLeftover === true,
         name: u?.name ?? 'کاربر حذف‌شده',
         tag: u?.tag ?? '—',
         phone: u?.phone ?? '',

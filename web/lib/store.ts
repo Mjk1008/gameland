@@ -847,6 +847,7 @@ export interface Registration {
   payBatch?: number           // bumps on each new paid checkout (top-up / fresh reg)
   receiptPayBatch?: number    // payBatch when the current valid فیش was uploaded
   receiptAttemptsAt?: number  // reg.attempts when فیش was uploaded
+  viaLeftover?: boolean       // any سهم on this row ever came from a بازماندگان sign-up — sticky once true, drives the admin-side survivor color/badge
   createdAt: number
 }
 
@@ -896,6 +897,9 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (existing.attempts >= ceiling) throw new Error('MAX_TICKETS')
     if (attempts > ceiling - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
+    // Sticky — once any سهم on this row came from بازماندگان, the whole row
+    // stays marked, even if a later normal top-up tops it off further.
+    if (opts?.leftover) existing.viaLeftover = true
     // Keep previously-approved rows approved so settled سهم stay in the draw.
     // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
     if (existing.status !== 'approved' && (existing.paidAttempts ?? 0) === 0) existing.status = 'pending'
@@ -917,7 +921,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, {
       attempts: existing.attempts, status: existing.status, teamId: existing.teamId,
-      payBatch: existing.payBatch,
+      payBatch: existing.payBatch, viaLeftover: existing.viaLeftover,
       promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
     } as any)
     bumpNationalRanking(userId)
@@ -932,6 +936,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     existing.freeAttempts = 0   // fresh count — free tickets re-apply from the balance
     existing.paidAttempts = 0   // nothing settled on a rejected row
     existing.payBatch = 1
+    existing.viaLeftover = !!opts?.leftover   // fresh cycle — reflects only this purchase
     // Cleared in memory only — same write-ordering reason as the top-up
     // branch above; the caller's awaited insertAsync persists whatever the
     // subsequent attach/free-ticket call leaves in memory.
@@ -943,7 +948,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     if (teamId !== undefined) existing.teamId = teamId
     persist.reg.update(existing.id, {
       attempts, status: 'pending', seedsEarned: 0, prelimsCompleted: 0, freeAttempts: 0, paidAttempts: 0, teamId,
-      payBatch: 1, promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
+      payBatch: 1, viaLeftover: existing.viaLeftover, promoterCodeId: null, discountPercent: null, lockedUnitPrice: null,
     } as any)
     bumpNationalRanking(userId)
     return existing
@@ -955,6 +960,7 @@ export function createRegistration(userId: string, compId: string, attempts: num
     seedsEarned: 0, prelimsCompleted: 0,
     payBatch: 1,
     teamId,
+    viaLeftover: !!opts?.leftover,
     createdAt: Date.now(),
   }
   indexReg(r)

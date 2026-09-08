@@ -6,6 +6,7 @@ import { toJalali, faDigits, J_MONTHS } from '@/lib/jalali'
 
 interface Row {
   regId: string; status: 'approved' | 'rejected'; attempts: number
+  viaLeftover?: boolean
   name: string; tag: string; phone: string; city: string; event: string
   hasReceipt: boolean; at: number
 }
@@ -72,11 +73,14 @@ export default function HistoryList({ rows }: { rows: Row[] }) {
           {filtered.map(r => {
             const ok = r.status === 'approved'
             return (
-              <div key={r.regId} style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 12, padding: '12px 13px' }}>
+              <div key={r.regId} style={{ background: C.sf1, border: `1px solid ${r.viaLeftover ? C.info + '66' : C.line}`, borderRight: r.viaLeftover ? `3px solid ${C.info}` : undefined, borderRadius: 12, padding: '12px 13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 10.5, fontWeight: 800, padding: '4px 9px', borderRadius: 7, background: ok ? C.winSoft : C.liveSoft, color: ok ? C.win : C.live, border: `1px solid ${(ok ? C.win : C.live)}44`, flexShrink: 0 }}>{ok ? 'تایید' : 'رد'}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5, color: C.thi }}>{r.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13.5, color: C.thi }}>{r.name}</span>
+                      {r.viaLeftover && <span style={{ fontSize: 9.5, fontWeight: 800, color: C.info, background: C.infoSoft, border: `1px solid ${C.info}44`, borderRadius: 6, padding: '2px 7px' }}>بازمانده</span>}
+                    </div>
                     <div dir="ltr" style={{ fontFamily: DISP, fontSize: 11, color: C.tmut, marginTop: 2, textAlign: 'right' }}>@{r.tag}{r.city ? ` · ${r.city}` : ''}{r.phone ? ` · ${r.phone}` : ''}</div>
                   </div>
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>

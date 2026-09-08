@@ -2,13 +2,22 @@
 // competition, and which of an account's entries a given round-1 slot is.
 // Used by the admin run-panel and the public bracket page (MD-4 / MD-8).
 
-import { approvedRegistrationsForComp, matchesForComp } from './store'
+import { approvedRegistrationsForComp, registrationsForComp, matchesForComp } from './store'
 
 /** uid → total سهم (attempts) in this competition. */
 export function attemptsForComp(compId: string): Map<string, number> {
   const m = new Map<string, number>()
   for (const r of approvedRegistrationsForComp(compId)) m.set(r.userId, r.attempts)
   return m
+}
+
+/** uids whose registration on this competition carries a بازماندگان (survivor)
+ *  سهم — any status, so it's visible in the admin queue too, not just once
+ *  approved. Drives the survivor color/badge everywhere admin sees a player. */
+export function leftoverAccountsForComp(compId: string): Set<string> {
+  const s = new Set<string>()
+  for (const r of registrationsForComp(compId)) if (r.viaLeftover) s.add(r.userId)
+  return s
 }
 
 /**
