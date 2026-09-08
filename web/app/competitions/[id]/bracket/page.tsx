@@ -51,7 +51,7 @@ export default async function BracketPage({ params }: { params: { id: string } }
   const attemptsMap = isTeamEvent ? new Map<string, number>() : attemptsForComp(c.id)
   const entryMap = isTeamEvent ? new Map<string, number>() : entryIndexForComp(c.id)
 
-  const player = (uid?: string, matchId?: string, side?: 1 | 2): Player => {
+  const player = (uid?: string, matchId?: string, side?: 1 | 2, restFill?: boolean): Player => {
     if (!uid) return null
     if (isRestSlot(uid)) {
       const n = restIndex(uid)
@@ -66,6 +66,9 @@ export default async function BracketPage({ params }: { params: { id: string } }
       uid: u.id, tag: u.tag, name: playerName(u),
       attempts: attemptsMap.get(u.id),
       entry: matchId && side ? entryMap.get(`${matchId}:${side}`) : undefined,
+      // Admin "حذف" — only ever true for a seat fillRestSlot() itself placed
+      // (see lib/store.ts Match.restFillP1/P2); admin viewport only.
+      restFill: isAdmin && restFill ? true : undefined,
     }
   }
   // Team side of a match resolves to a synthetic Player: uid = team id (so
@@ -83,8 +86,8 @@ export default async function BracketPage({ params }: { params: { id: string } }
     const dto: MatchDTO[] = real.map(m => ({
       id: m.id, stage: m.stage, groupKey: m.groupKey, bracket: m.bracket, round: m.round, slot: m.slot,
       n: nums.get(m.id),
-      p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1),
-      p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2),
+      p1: isTeamEvent ? teamPlayer(m.p1TeamId) : player(m.p1UserId, m.id, 1, !!m.restFillP1),
+      p2: isTeamEvent ? teamPlayer(m.p2TeamId) : player(m.p2UserId, m.id, 2, !!m.restFillP2),
       winnerUid: isTeamEvent ? m.winnerTeamId : m.winnerUserId, score: m.score, status: m.status, cancelled: m.cancelled,
       // Belt-and-suspenders: a done/cancelled match is never "live" on
       // screen no matter what liveStartedAt actually holds in memory/DB —
