@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync, attemptsCapFor } from '@/lib/store'
+import { createRegistration, createTeam, consumeFreeTickets, setReferrerByTag, pushNotif, getUserById, getEvent, getEventConfig, profileCompletion, whenReady, captainTeamFor, getRegistration, attachReceiptToBatchAsync, isLeftoverOpen, LEFTOVER_ATTEMPTS_CAP } from '@/lib/store'
 import { persist } from '@/lib/db/persistence'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { validatePromoCode, attachPromoToRegistration, promoErrorMessage, lockRegistrationUnitPrice, buyerTicketPricing } from '@/lib/promoter'
@@ -34,7 +34,11 @@ export async function POST(req: Request) {
   const attempts = Number(body.attempts)
   const c = getEvent(compId)
   if (!c) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
-  const cap = attemptsCapFor(compId)
+  // بازماندگان sign-up: same event, but capped lower and only when the admin
+  // has opened it. Otherwise the normal 6-سهم cap applies.
+  const isLeftover = body.leftover === true
+  if (isLeftover && !isLeftoverOpen(compId)) return NextResponse.json({ error: 'ثبت‌نام بازماندگان برای این رشته باز نیست' }, { status: 400 })
+  const cap = isLeftover ? LEFTOVER_ATTEMPTS_CAP : 6
   if (!attempts || attempts < 1 || attempts > cap) return NextResponse.json({ error: `تعداد بلیط باید ۱ تا ${cap} باشد` }, { status: 400 })
   const isTeamEvent = getEventConfig(compId).teamSize === 2
 

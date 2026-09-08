@@ -23,14 +23,11 @@ export default async function EditEventPage({ params }: { params: { id: string }
     teamSize: cfg.teamSize === 2 ? 2 : 1,
     ticketPrice: cfg.ticketPrice, ticketOriginal: cfg.ticketOriginal,
     bracketMode: cfg.bracketMode ?? defaultBracketMode(e.disc),
-    attemptsCap: cfg.attemptsCap ?? 6,
     // Format is frozen once anyone has registered (docs/27 §1.5) — the form
     // disables the selector using this, never re-derived on the client.
     formatLocked: registrationsForComp(e.id).length > 0,
     // bracketMode is frozen once the draw has run.
     bracketLocked: matchesForComp(e.id).length > 0,
-    // attemptsCap is frozen the same way as teamSize (formatLocked reused).
-    attemptsCapLocked: registrationsForComp(e.id).length > 0,
   }
   return <EditEventForm init={init} />
 }
