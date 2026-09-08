@@ -17,6 +17,12 @@ export type BatchPlayer = {
 
 type Scope = 'local' | 'mixed'
 
+// Sentinel value for the ترکیبی pool-source select — a "بازماندگان" bucket
+// behaves just like a province, except its people come from the global
+// بازماندگان ticket pool (a separate event) instead of this event's own
+// unassigned registrants.
+export const LEFTOVER_POOL_SOURCE = '__leftover_pool__'
+
 function groupKeyOf(p: BatchPlayer, mode: 'city' | 'province') {
   const val = mode === 'province' ? p.province : p.city
   return `${mode}:${val || 'نامشخص'}`
@@ -26,9 +32,10 @@ type Props = {
   compId: string
   groupMode: 'city' | 'province'
   players: BatchPlayer[]
+  leftoverPoolPlayers?: BatchPlayer[]
 }
 
-export default function PrelimBatchPanel({ compId, groupMode: initialMode, players }: Props) {
+export default function PrelimBatchPanel({ compId, groupMode: initialMode, players, leftoverPoolPlayers = [] }: Props) {
   const router = useRouter()
   const [scope, setScope] = useState<Scope>('local')
   const [mode, setMode] = useState<'city' | 'province'>(initialMode)
@@ -45,6 +52,12 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
 
   const grouped = useMemo(() => {
     if (scope === 'mixed') {
+      if (filterProvince === LEFTOVER_POOL_SOURCE) {
+        return {
+          available: leftoverPoolPlayers.filter(p => !p.assigned),
+          assigned: leftoverPoolPlayers.filter(p => p.assigned),
+        }
+      }
       const available = filterProvince
         ? allRemaining.filter(p => p.province === filterProvince)
         : allRemaining
@@ -56,7 +69,7 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
       available: inGroup.filter(p => !p.assigned),
       assigned: inGroup.filter(p => p.assigned),
     }
-  }, [players, mode, place, scope, filterProvince, allRemaining])
+  }, [players, mode, place, scope, filterProvince, allRemaining, leftoverPoolPlayers])
 
   function openPlace(p: string) {
     setPlace(p)
@@ -94,14 +107,15 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
 
   const ready = scope === 'mixed' ? picked.size > 0 : !!place && picked.size > 0
   const pickedSeats = useMemo(() => {
+    const pool = filterProvince === LEFTOVER_POOL_SOURCE ? leftoverPoolPlayers : players
     let s = 0
     for (const uid of picked) {
-      const p = players.find(x => x.userId === uid)
+      const p = pool.find(x => x.userId === uid)
       if (!p) continue
       s += Math.max(0, p.attempts - p.seated)
     }
     return s
-  }, [picked, players])
+  }, [picked, players, leftoverPoolPlayers, filterProvince])
   const minCap = pickedSeats > 0 ? Math.ceil(pickedSeats / bracketCount) : 0
 
   async function create() {
@@ -116,6 +130,7 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
             bracketCount,
             capacityPerBracket: capacity,
             userIds: [...picked],
+            fromLeftoverPool: filterProvince === LEFTOVER_POOL_SOURCE,
           }
         : {
             compId,
@@ -171,13 +186,16 @@ export default function PrelimBatchPanel({ compId, groupMode: initialMode, playe
       {scope === 'mixed' && (
         <>
           <input value={mixedLabel} onChange={e => setMixedLabel(e.target.value)} style={inp} dir="rtl" />
-          <select value={filterProvince} onChange={e => setFilterProvince(e.target.value)} style={inp}>
+          <select value={filterProvince} onChange={e => { setFilterProvince(e.target.value); setPicked(new Set()) }} style={inp}>
             <option value="">همهٔ استان‌ها</option>
+            {leftoverPoolPlayers.length > 0 && <option value={LEFTOVER_POOL_SOURCE}>بازماندگان</option>}
             {PROVINCE_NAMES.map(p => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
-          <div style={{ fontSize: 11.5, color: C.tmut }}>{allRemaining.length} بازمانده در کل</div>
+          <div style={{ fontSize: 11.5, color: C.tmut }}>
+            {filterProvince === LEFTOVER_POOL_SOURCE ? leftoverPoolPlayers.length : allRemaining.length} بازمانده در کل
+          </div>
         </>
       )}
 

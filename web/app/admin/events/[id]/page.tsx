@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, leftoverPoolEvent } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -173,6 +173,26 @@ export default async function AdminEventPage({ params }: { params: { id: string 
       })
     : []
 
+  // بازماندگان option in the ترکیبی batch tool — settled registrants of the
+  // one global بازماندگان ticket event, not yet seated in THIS event.
+  const poolEvent = leftoverPoolEvent()
+  const leftoverPoolBatchPlayers: BatchPlayer[] = (!isTeamEvent && bracketModeOf(c.id) === 'prelims' && poolEvent && poolEvent.id !== c.id)
+    ? drawEligibleRegistrations(poolEvent.id).filter(r => !isTeamPartnerReg(r)).map(r => {
+        const u = getUserById(r.userId)
+        const seated = seatCountInPrelims(c.id, r.userId)
+        return {
+          userId: r.userId,
+          tag: u?.tag || r.userId,
+          name: u?.name || '?',
+          city: u?.city || 'نامشخص',
+          province: drawProvinceOf(resolveProvince(u?.province, u?.city)),
+          attempts: settledAttempts(r),
+          seated,
+          assigned: seated >= settledAttempts(r),
+        }
+      })
+    : []
+
   const byProv = new Map<string, ProvincePool>()
   for (const r of regs) {
     const u = getUserById(r.userId)
@@ -252,6 +272,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         qualifierCount={qualifierCount} finalExists={finalExists} finalSeats={finalSeats}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
         batchPlayers={batchPlayers}
+        leftoverPoolPlayers={leftoverPoolBatchPlayers}
         emptySlotCount={emptySlots.length}
         teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
         finalSize={c.finalSize ?? 128}

@@ -22,6 +22,7 @@ type Props = {
   prelimVenues?: Record<string, PrelimVenue>
   gamenetOptions: { id: string; name: string; city: string; province?: string }[]
   batchPlayers?: BatchPlayer[]
+  leftoverPoolPlayers?: BatchPlayer[]
   emptySlotCount?: number
   teamSize?: number
   provincePools?: ProvincePool[]
@@ -133,8 +134,8 @@ export default function TournamentPanel(p: Props) {
       )}
 
       <Section title={direct ? '۱ · قرعه‌کشی' : '۱ · مرحلهٔ مقدماتی'}>
-        {!direct && p.batchPlayers && p.batchPlayers.length > 0 && (
-          <PrelimBatchPanel compId={p.compId} groupMode={p.groupMode} players={p.batchPlayers} />
+        {!direct && (((p.batchPlayers?.length ?? 0) > 0) || ((p.leftoverPoolPlayers?.length ?? 0) > 0)) && (
+          <PrelimBatchPanel compId={p.compId} groupMode={p.groupMode} players={p.batchPlayers ?? []} leftoverPoolPlayers={p.leftoverPoolPlayers} />
         )}
         {direct || team ? (
           <>

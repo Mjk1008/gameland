@@ -898,14 +898,15 @@ function deindexReg(r: Registration) {
 // `attempts` = how many tickets to buy now. Stays open after the draw — extra
 // سهم land in the leftover pool (بازماندگان) instead of the existing trees.
 export function createRegistration(userId: string, compId: string, attempts: number, teamId?: string): Registration {
-  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  const cap = attemptsCapFor(compId)
+  if (attempts < 1 || attempts > cap) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   const key = userId + '|' + compId
   const existing = regs.get(key)
 
   if (existing && existing.status !== 'rejected') {
-    // active registration → top up, capped at 6 total for this discipline
-    if (existing.attempts >= 6) throw new Error('MAX_TICKETS')
-    if (attempts > 6 - existing.attempts) throw new Error('EXCEEDS_MAX')
+    // active registration → top up, capped at this event's سهم ceiling
+    if (existing.attempts >= cap) throw new Error('MAX_TICKETS')
+    if (attempts > cap - existing.attempts) throw new Error('EXCEEDS_MAX')
     existing.attempts += attempts
     // Keep previously-approved rows approved so settled سهم stay in the draw.
     // The unpaid delta (attempts − paidAttempts) is what the admin queue sees.
@@ -974,11 +975,12 @@ export function createRegistration(userId: string, compId: string, attempts: num
   return r
 }
 
-// Tickets a user can still buy for a discipline (0..6). 0 = cap reached.
+// Tickets a user can still buy for a discipline (0..attemptsCapFor(compId)). 0 = cap reached.
 export function remainingTickets(userId: string, compId: string): number {
+  const cap = attemptsCapFor(compId)
   const r = regs.get(userId + '|' + compId)
-  if (!r || r.status === 'rejected') return 6
-  return Math.max(0, 6 - r.attempts)
+  if (!r || r.status === 'rejected') return cap
+  return Math.max(0, cap - r.attempts)
 }
 
 export function setRegistrationStatus(regId: string, status: RegStatus, rejectReason?: string): Registration {
@@ -1012,7 +1014,7 @@ export function setRegistrationAttempts(regId: string, attempts: number, opts?: 
   if (!r) throw new Error('REG_NOT_FOUND')
   // Post-draw is normally locked; the re-entry flow (MD-5b) opts in explicitly.
   if (!opts?.allowPostDraw && matchesForComp(r.compId).length > 0) throw new Error('REG_LOCKED')
-  r.attempts = Math.max(1, Math.min(6, Math.round(attempts) || 1))
+  r.attempts = Math.max(1, Math.min(attemptsCapFor(r.compId), Math.round(attempts) || 1))
   persist.reg.update(r.id, { attempts: r.attempts } as any)
   bumpNationalRanking(r.userId)
   syncTeamMirrorFrom(r)
@@ -1305,7 +1307,7 @@ export function reconcileTeams(): void {
 // Async — the team row must be committed before its member rows insert, or the
 // FK on app_team_members.team_id can race a fire-and-forget team insert.
 export async function createTeam(compId: string, captainId: string, name: string, partnerTag: string, attempts: number): Promise<{ team: Team; registration: Registration }> {
-  if (attempts < 1 || attempts > 6) throw new Error('ATTEMPTS_OUT_OF_RANGE')
+  if (attempts < 1 || attempts > attemptsCapFor(compId)) throw new Error('ATTEMPTS_OUT_OF_RANGE')
   if (matchesForComp(compId).length > 0) throw new Error('REG_LOCKED')
 
   const mine = getRegistration(captainId, compId)
@@ -2005,7 +2007,7 @@ export interface EventConfig {
   // Frozen once isDrawn(compId) — enforced in the edit route.
   bracketMode?: 'prelims' | 'direct'
   // Max distinct entries one account can carry into the assembled final.
-  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately 6.
+  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately attemptsCap.
   entryCap?: number
   // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
   // drives bracketState() 'not-started' checks for re-entry (MD-5b).
@@ -2013,6 +2015,15 @@ export interface EventConfig {
   // Per-group publish. Missing key / missing map = already public (legacy draws).
   // New draws set the group's key to false until admin presses انتشار.
   publishedGroups?: Record<string, boolean>
+  // How many سهم one account may hold on this event. undefined ⇒ 6 (the normal
+  // default everywhere). The dedicated بازماندگان pool event sets this to 4.
+  // Frozen once anyone has registered — enforced in the edit route, like teamSize.
+  attemptsCap?: number
+  // Marks THE ONE event that is the global بازماندگان ticket pool — anyone can
+  // register here (up to attemptsCap سهم) regardless of their status on any
+  // other رشته. Its settled registrants are what the "بازماندگان" option in a
+  // normal event's ترکیبی batch-draw pulls from (see leftoverPoolEvent()).
+  isLeftoverPool?: boolean
 }
 const eventConfigs = new Map<string, EventConfig>()
 
@@ -2027,6 +2038,21 @@ export function setEventConfig(compId: string, patch: Partial<EventConfig>) {
   return next
 }
 export function qualifyKey(groupKey: string, bracket: number) { return `${groupKey}#${bracket}` }
+
+// سهم buy cap for this event — 6 everywhere by default; the بازماندگان pool
+// event overrides it to 4. Every place that used to hardcode 6 reads this now.
+export function attemptsCapFor(compId: string): number {
+  const n = getEventConfig(compId).attemptsCap
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : 6
+}
+
+// The one event flagged as the global بازماندگان ticket pool, if any exists.
+// Most-recently-created wins if more than one is ever flagged (shouldn't happen).
+export function leftoverPoolEvent(): Event | undefined {
+  return Array.from(events.values())
+    .filter(e => getEventConfig(e.id).isLeftoverPool === true)
+    .sort((a, b) => b.createdAt - a.createdAt)[0]
+}
 
 const matches: Match[] = []
 
