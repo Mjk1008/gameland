@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, DISP } from '@/components/ui'
 import { timeAgoFa } from '@/lib/arena-ui'
 import { feedSentence } from '@/lib/feed-templates'
@@ -32,18 +32,41 @@ function CoverBadge({ compId, compTitle }: { compId: string; compTitle: string }
 }
 
 export default function LiveFeed({ feed }: { feed: FeedItem[] }) {
+  const shown = feed.slice(0, SHOWN_COUNT)
+  const shownKey = shown.map(f => f.matchId).join(',')
+
+  // A poll every 8s can bring a genuinely new result — flash it instead of
+  // letting it slide in silently. seenIds is the previous poll's visible
+  // set; anything in `shown` not already there just landed. First mount has
+  // no "previous" to diff against, so nothing flashes on initial load.
+  const seenIds = useRef<Set<string> | null>(null)
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const ids = new Set(shown.map(f => f.matchId))
+    const prev = seenIds.current
+    seenIds.current = ids
+    if (prev) {
+      const fresh = [...ids].filter(id => !prev.has(id))
+      if (fresh.length > 0) {
+        setFreshIds(new Set(fresh))
+        const t = setTimeout(() => setFreshIds(new Set()), 2200)
+        return () => clearTimeout(t)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownKey])
+
   if (feed.length === 0) {
     return (
       <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, fontSize: 12, color: C.tmut, textAlign: 'center', padding: '18px 0' }}>هنوز نتیجه‌ای ثبت نشده</div>
     )
   }
 
-  const shown = feed.slice(0, SHOWN_COUNT)
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: '2px 12px' }}>
       {shown.map((f, i) => (
-        <div key={f.matchId} style={{
+        <div key={f.matchId} className={freshIds.has(f.matchId) ? 'gl-feed-flash' : undefined} style={{
+          position: 'relative', overflow: 'hidden',
           display: 'flex', alignItems: 'center', gap: 11, padding: '11px 0',
           borderBottom: i < shown.length - 1 ? `1px solid ${C.sf2}` : 'none',
           animation: 'todayFeedIn .3s ease-out',
@@ -72,7 +95,16 @@ export default function LiveFeed({ feed }: { feed: FeedItem[] }) {
         </div>
       ))}
 
-      <style>{'@keyframes todayFeedIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }'}</style>
+      <style>{`
+        @keyframes todayFeedIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+        @keyframes todayFeedFlashFade { from { opacity: 1 } to { opacity: 0 } }
+        .gl-feed-flash::before {
+          content: ''; position: absolute; inset: -2px -12px;
+          background: linear-gradient(90deg, ${C.goldSoft}, transparent);
+          animation: todayFeedFlashFade 2.2s ease-out forwards;
+        }
+        @media (prefers-reduced-motion: reduce) { .gl-feed-flash::before { display: none; } }
+      `}</style>
     </div>
   )
 }

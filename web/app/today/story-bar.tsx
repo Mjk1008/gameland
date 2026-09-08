@@ -12,9 +12,9 @@ export default function StoryBar({ stories, onOpen }: { stories: StoryItem[]; on
       {stories.map((s, i) => (
         <button key={s.id} type="button" onClick={() => onOpen(i)}
           style={{ all: 'unset', cursor: 'pointer', flexShrink: 0, width: 60, height: 60 }}>
-          <span style={{
+          <span className={s.seen ? undefined : 'gl-story-ring'} style={{
             display: 'flex', width: 60, height: 60, borderRadius: '50%', padding: 2, alignItems: 'center', justifyContent: 'center',
-            background: s.seen ? C.line2 : `linear-gradient(135deg, ${C.gold}, ${C.accent})`,
+            background: s.seen ? C.line2 : `conic-gradient(from 0deg, ${C.gold}, ${C.accent}, ${C.gold})`,
           }}>
             <span style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${C.sf1}`, background: C.sf2 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -23,6 +23,11 @@ export default function StoryBar({ stories, onOpen }: { stories: StoryItem[]; on
           </span>
         </button>
       ))}
+      <style>{`
+        @keyframes glStoryRingSpin { to { transform: rotate(360deg) } }
+        .gl-story-ring { animation: glStoryRingSpin 3.5s linear infinite; }
+        @media (prefers-reduced-motion: reduce) { .gl-story-ring { animation: none; } }
+      `}</style>
     </div>
   )
 }

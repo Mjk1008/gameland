@@ -28,11 +28,16 @@ export default function PulseStrip({ items, selected, onSelect }: {
               <span dir="ltr" style={{ fontSize: 10, color: C.tmut, flexShrink: 0 }}>{p.done}/{p.total}</span>
             </div>
             <span style={{ display: 'block', height: 4, borderRadius: 999, background: C.line, overflow: 'hidden' }}>
-              <span style={{ display: 'block', width: `${pct}%`, height: '100%', background: full ? C.gold : C.accent }} />
+              <span className={full ? 'gl-pulse-full' : undefined} style={{ display: 'block', width: `${pct}%`, height: '100%', borderRadius: 999, background: full ? C.gold : C.accent, transition: 'width 1s cubic-bezier(.2,.8,.2,1)' }} />
             </span>
           </button>
         )
       })}
+      <style>{`
+        @keyframes glPulseFull { 0%,100% { filter: brightness(1) } 50% { filter: brightness(1.5) } }
+        .gl-pulse-full { animation: glPulseFull 1.8s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .gl-pulse-full { animation: none; } }
+      `}</style>
     </div>
   )
 }
