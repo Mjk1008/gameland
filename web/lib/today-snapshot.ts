@@ -221,6 +221,7 @@ function announcementsFor(): AnnouncementItem[] {
 
 export interface TodaySnapshot {
   live: boolean
+  playingNow: number   // matches actually mid-game right now (status==='ready'), not just "today has a live رشته"
   hero: HeroState
   stories: StoryItem[]
   announcements: AnnouncementItem[]
@@ -281,8 +282,12 @@ export async function matchDetailFor(userId: string, matchId: string): Promise<M
 
 export function buildTodaySnapshot(userId: string): TodaySnapshot {
   const liveIds = liveEventIds()
+  // Same 'ready' check admin's queue board uses (buildAdminToday below) —
+  // "playing right now", not merely a رشته that's active today.
+  const playingNow = allMatches().filter(m => liveIds.includes(m.compId) && m.status === 'ready' && !m.cancelled).length
   return {
     live: liveIds.length > 0,
+    playingNow,
     hero: deriveHeroState(userId, liveIds),
     stories: storiesFor(userId),
     announcements: announcementsFor(),

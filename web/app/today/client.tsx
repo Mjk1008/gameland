@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { usePolling } from '@/components/use-polling'
 import { Button } from '@/components/ui'
 import type { TodaySnapshot } from '@/lib/today-snapshot'
+import LivePulseBar from './live-pulse-bar'
 import StoryBar from './story-bar'
 import StoryViewer from './story-viewer'
 import HeroCard from './hero-card'
@@ -40,6 +41,7 @@ export default function TodayClient({ initial }: { initial: TodaySnapshot }) {
 
   return (
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <LivePulseBar live={snapshot.live} playingNow={snapshot.playingNow} />
       <StoryBar stories={snapshot.stories} onOpen={openStoryAt} />
 
       {inCompetition && (
