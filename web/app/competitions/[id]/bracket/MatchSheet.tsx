@@ -73,6 +73,19 @@ export default function MatchSheet({
     } catch (e: any) { alert(e.message) }
     finally { setBusy(false) }
   }
+  async function removeRest(side: 1 | 2) {
+    if (!match) return
+    if (!confirm('این بازیکن از این جایگاه حذف می‌شه و سهمش برمی‌گرده به بازماندگان. مطمئنی؟')) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/admin/bracket-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: match.id, side, remove: true }) })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || 'حذف نشد')
+      onClose()
+      router.refresh()
+    } catch (e: any) { alert(e.message) }
+    finally { setBusy(false) }
+  }
   async function announce(kind: typeof ANNOUNCE[number]['id'], who: 'p1' | 'p2' | 'both') {
     if (!match) return
     setBusy(true)
@@ -156,13 +169,13 @@ export default function MatchSheet({
           <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 800, color: C.tmut, background: C.sf2, borderRadius: 8, padding: '6px 0', marginBottom: 10 }}>خودی</div>
         )}
 
-        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} />
+        <SheetRow p={p1} win={!cancelled && status === 'done' && winnerUid === p1?.uid} lose={!cancelled && status === 'done' && !!p1 && winnerUid !== p1?.uid} me={p1?.uid === meUid} score={s1} onFollow={onFollow} onPeek={isAdmin && p1 && p1.slotKind !== 'rest' && p1.slotKind !== 'cancelled' ? () => setPeek(p1.uid) : undefined} onRemove={isAdmin && p1?.restFill ? () => removeRest(1) : undefined} busy={busy} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '9px 2px' }}>
           <div style={{ flex: 1, height: 1, background: C.line }} />
           <span style={{ fontSize: 11, fontWeight: 800, color: C.tmut }}>vs</span>
           <div style={{ flex: 1, height: 1, background: C.line }} />
         </div>
-        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={isAdmin && p2 && p2.slotKind !== 'rest' && p2.slotKind !== 'cancelled' ? () => setPeek(p2.uid) : undefined} />
+        <SheetRow p={p2} win={!cancelled && status === 'done' && winnerUid === p2?.uid} lose={!cancelled && status === 'done' && !!p2 && winnerUid !== p2?.uid} me={p2?.uid === meUid} score={s2} onFollow={onFollow} onPeek={isAdmin && p2 && p2.slotKind !== 'rest' && p2.slotKind !== 'cancelled' ? () => setPeek(p2.uid) : undefined} onRemove={isAdmin && p2?.restFill ? () => removeRest(2) : undefined} busy={busy} />
 
         {fillSide && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -230,8 +243,10 @@ export default function MatchSheet({
   )
 }
 
-function SheetRow({ p, win, lose, me, score, onFollow, onPeek }: {
+function SheetRow({ p, win, lose, me, score, onFollow, onPeek, onRemove, busy }: {
   p: Player; win: boolean; lose: boolean; me: boolean; score?: string; onFollow?: (uid: string) => void; onPeek?: () => void
+  // Admin "حذف" — undo a mistaken بازماندگان fill (Player.restFill only).
+  onRemove?: () => void; busy?: boolean
 }) {
   return (
     <div onClick={onPeek} style={{
@@ -252,6 +267,11 @@ function SheetRow({ p, win, lose, me, score, onFollow, onPeek }: {
       {p && onFollow && (
         <button onClick={e => { e.stopPropagation(); onFollow(p.uid) }} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}44`, borderRadius: 8, padding: '6px 9px', flexShrink: 0 }}>
           مسیرش
+        </button>
+      )}
+      {p && onRemove && (
+        <button disabled={busy} onClick={e => { e.stopPropagation(); onRemove() }} style={{ all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}44`, borderRadius: 8, padding: '6px 9px', flexShrink: 0 }}>
+          حذف
         </button>
       )}
     </div>
