@@ -20,7 +20,6 @@ import {
   settledAttempts, drawEligibleRegistrations, type EventConfig,
 } from './store'
 import { DEFAULT_ENTRY_CAP, defaultBracketMode, type BracketMode } from './discipline-format'
-import { MAX_SEEDS_TO_FINAL } from './competition-engine'
 import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 import {
   cancelledSlotKey, isCancelledSlot, isRealPlayer, isRestSlot, leftoverFillOpen, restIndex, restSlotKey, MAX_BRACKET_QUALIFY,
@@ -254,9 +253,17 @@ export async function generatePrelimBatch(input: PrelimBatchInput): Promise<{ br
   }
 }
 
-/** Max distinct entries one account carries into the final for this event. */
+// Max distinct entries one account can carry into the final tree — direct
+// mode (no prelims) and the prelim→final pool (below) share this one config
+// knob (EventConfig.entryCap). Left unset, the default matches what each
+// mode already did before this was configurable: 6 for a direct bracket
+// (DEFAULT_ENTRY_CAP), 2 for the prelim funnel (the old hardcoded
+// MAX_SEEDS_TO_FINAL) — an admin who sets entryCap explicitly overrides
+// either, no hardcoded ceiling either way.
 export function entryCapFor(compId: string): number {
-  return getEventConfig(compId).entryCap ?? DEFAULT_ENTRY_CAP
+  const v = getEventConfig(compId).entryCap
+  if (v != null) return Math.max(1, Math.floor(v))
+  return bracketModeOf(compId) === 'direct' ? DEFAULT_ENTRY_CAP : 2
 }
 
 // Split a bracket into `k` regions by recursively giving each half as even a
@@ -1029,15 +1036,17 @@ function pickBracketQualifiers(
 }
 
 // ── qualifiers across all prelim brackets (only complete brackets contribute) ──
-// One row PER QUALIFICATION, not per player. Every finished bracket contributes
-// exactly its configured qualify count (sum of admin stepper values). An
-// account may qualify from several brackets → up to MAX_SEEDS_TO_FINAL entries
-// in the final spread; extra slots in a bracket go to the next ranked player.
+// This is an ESTIMATE for the admin panel, not the final's source of truth —
+// assembleFinal() below reads only the final pool. One row PER QUALIFICATION,
+// not per player. Every finished bracket contributes exactly its configured
+// qualify count (sum of admin stepper values). An account may qualify from
+// several brackets → up to entryCapFor(compId) entries in the estimate;
+// extra slots in a bracket go to the next ranked player.
 export interface Qualifier { userId: string; groupKey: string; bracket: number; rank: number }
 export function computeQualifiers(compId: string): Qualifier[] {
   const cfg = getEventConfig(compId)
   const all = matchesForComp(compId)
-  const seedCap = MAX_SEEDS_TO_FINAL
+  const seedCap = entryCapFor(compId)
   const held = new Map<string, number>()
   const out: Qualifier[] = []
   for (const gk of prelimGroupKeys(compId)) {
@@ -1087,16 +1096,109 @@ export function liveFinalEntries(compId: string, userId: string): number {
   return Math.max(0, total - lost - selfLosses)
 }
 
-// ── assemble / re-assemble the final bracket from current qualifiers ──
-// One qualification row = one seat. Multi-entry accounts get spread entries.
+// ── final pool: admin-curated {userId, sahm} rows staged before assembling
+// the final tree. Nothing lands here automatically — the admin either sends
+// candidates up from a prelim bracket (bracketQualifyCandidates below) or
+// adds any account directly (final-pool admin panel). assembleFinal reads
+// ONLY this list; computeQualifiers()/rankBracket() above stay as a
+// full-bracket-completion estimate shown alongside it, not the source of truth.
+export interface FinalPoolEntry { userId: string; sahm: number }
+
+export function getFinalPool(compId: string): FinalPoolEntry[] {
+  return getEventConfig(compId).finalPool ?? []
+}
+
+export function finalPoolTotalSahm(compId: string): number {
+  return getFinalPool(compId).reduce((s, p) => s + p.sahm, 0)
+}
+
+function clampSahm(compId: string, sahm: number): number {
+  return Math.max(0, Math.min(entryCapFor(compId), Math.floor(sahm)))
+}
+
+/** Add `sahm` (default 1) final entries for `userId` — additive if already in the pool. */
+export function addToFinalPool(compId: string, userId: string, sahm = 1): FinalPoolEntry[] {
+  const pool = getFinalPool(compId).slice()
+  const i = pool.findIndex(p => p.userId === userId)
+  if (i >= 0) pool[i] = { userId, sahm: clampSahm(compId, pool[i].sahm + Math.max(1, Math.floor(sahm))) }
+  else pool.push({ userId, sahm: clampSahm(compId, Math.max(1, Math.floor(sahm))) })
+  setEventConfig(compId, { finalPool: pool })
+  return pool
+}
+
+/** Set (not add) one account's final-pool سهم count outright; 0 removes it. */
+export function setFinalPoolSahm(compId: string, userId: string, sahm: number): FinalPoolEntry[] {
+  const clamped = clampSahm(compId, sahm)
+  let pool = getFinalPool(compId).slice()
+  if (clamped <= 0) pool = pool.filter(p => p.userId !== userId)
+  else {
+    const i = pool.findIndex(p => p.userId === userId)
+    if (i >= 0) pool[i] = { userId, sahm: clamped }
+    else pool.push({ userId, sahm: clamped })
+  }
+  setEventConfig(compId, { finalPool: pool })
+  return pool
+}
+
+export function removeFromFinalPool(compId: string, userId: string): FinalPoolEntry[] {
+  const pool = getFinalPool(compId).filter(p => p.userId !== userId)
+  setEventConfig(compId, { finalPool: pool })
+  return pool
+}
+
+/** Admin-set per-account final-entry cap for this event (EventConfig.entryCap
+ * — see entryCapFor above). Re-clamps any pool member already above the new cap. */
+export function setEntryCap(compId: string, cap: number): void {
+  const n = Math.max(1, Math.floor(cap))
+  const pool = getFinalPool(compId).map(p => ({ ...p, sahm: Math.min(n, p.sahm) }))
+  setEventConfig(compId, { entryCap: n, finalPool: pool })
+}
+
+/**
+ * Candidates for "send to final pool" from one prelim bracket. These matches
+ * were never about becoming bracket champion — they were about the ticket —
+ * so this does NOT require the bracket to finish: it walks rounds 1..(deepest
+ * fully-played round) and returns the survivor set at the tightest round
+ * boundary that's still >= the bracket's configured qualify count. Round
+ * boundaries in a single-elim tree are always powers of two, so when the
+ * configured count doesn't line up exactly (5, 3, 6…) the returned set is a
+ * superset — there's no unambiguous automatic answer for a non-boundary
+ * count, so the admin picks the exact players out of it by hand.
+ */
+export interface FinalCandidates { candidates: string[]; atRound: number; aliveCount: number; exact: boolean }
+export function bracketQualifyCandidates(compId: string, groupKey: string, bracket: number): FinalCandidates | null {
+  const ms = matchesForComp(compId).filter(m => m.stage === 'prelim' && m.groupKey === groupKey && m.bracket === bracket)
+  if (ms.length === 0) return null
+  const cfg = getEventConfig(compId)
+  const k = Math.max(1, cfg.qualify[qualifyKey(groupKey, bracket)] ?? DEFAULT_QUALIFY)
+  const maxRound = Math.max(...ms.map(m => m.round))
+  const byRound = (r: number) => ms.filter(m => m.round === r)
+  const enteringRound = (r: number) => Array.from(new Set(byRound(r).flatMap(m => [m.p1UserId, m.p2UserId]).filter(isRealPlayer))) as string[]
+
+  // r=0: nobody eliminated yet — the round-1 seed list itself.
+  let best: { candidates: string[]; atRound: number } = { candidates: enteringRound(1), atRound: 0 }
+  for (let r = 1; r <= maxRound; r++) {
+    const rms = byRound(r)
+    if (!rms.every(m => m.status === 'done')) break
+    const survivors = r < maxRound
+      ? enteringRound(r + 1)
+      : (isRealPlayer(rms[0]?.winnerUserId) ? [rms[0].winnerUserId as string] : [])
+    if (survivors.length < k) break   // any further round would only shrink below k
+    best = { candidates: survivors, atRound: r }
+  }
+  return { ...best, aliveCount: best.candidates.length, exact: best.candidates.length === k }
+}
+
+// ── assemble / re-assemble the final bracket from the final pool ──
+// One pool row = one account's سهم count in the final. Multi-entry accounts
+// get spread entries (own copies meet only in the late rounds).
 export async function assembleFinal(compId: string): Promise<{ seats: number; players: number; capped: boolean }> {
   const cfg = getEventConfig(compId)
   const cap = getEvent(compId)?.finalSize ?? 128
 
-  const quals = computeQualifiers(compId)
-  const counts = new Map<string, number>()
-  for (const q of quals) counts.set(q.userId, (counts.get(q.userId) ?? 0) + 1)
-  let entries = [...counts.entries()].map(([userId, count]) => ({ userId, count }))
+  const pool = getFinalPool(compId)
+  if (pool.length === 0) throw new Error('EMPTY_POOL')
+  let entries = pool.map(p => ({ userId: p.userId, count: Math.max(1, Math.floor(p.sahm)) }))
 
   // manual seeding order (first seat of each listed account first), else random
   if (cfg.finalSeeding?.length) {
@@ -1118,6 +1220,9 @@ export async function assembleFinal(compId: string): Promise<{ seats: number; pl
   await clearMatchesByStage(compId, 'final')
   const seats = spreadSeats(kept, seedFrom(compId + 'final-tree'))
   if (seats.filter(Boolean).length >= 2) buildTree(compId, 'final', '', 0, seats, seedFrom(compId + 'final-tree'), true)
+  // a (re)assembly is a draft until the admin explicitly publishes it — same
+  // "چیدن ≠ انتشار" rule a fresh prelim draw already follows.
+  setEventConfig(compId, { publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false } })
   syncFinalEntries(compId)
   return { seats: seatSum, players: kept.length, capped }
 }

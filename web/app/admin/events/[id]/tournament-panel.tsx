@@ -17,8 +17,12 @@ type Props = {
   groupMode: 'city' | 'province'
   brackets: BracketInfo[]
   bracketSchedule?: BracketSchedule
-  qualifierCount: number
-  finalExists: boolean; finalSeats: number
+  finalExists?: boolean
+  // Team (2v2) events still use the old one-button auto-assemble flow — the
+  // final-pool rework (final-pool-panel.tsx) only covers solo prelims events.
+  qualifierCount?: number
+  finalSeats?: number
+  finalSize?: number
   prelimVenues?: Record<string, PrelimVenue>
   gamenetOptions: { id: string; name: string; city: string; province?: string }[]
   batchPlayers?: BatchPlayer[]
@@ -26,10 +30,9 @@ type Props = {
   teamSize?: number
   provincePools?: ProvincePool[]
   directPublished?: boolean
-  finalSize?: number
 }
 
-const BRACKET_SIZES = [4, 8, 16, 32, 64, 128]
+export const BRACKET_SIZES = [4, 8, 16, 32, 64, 128]
 function nextPow2(n: number) { let s = 2; while (s < n) s *= 2; return s }
 function suggestSize(tickets: number, n: number) {
   const per = Math.ceil(Math.max(1, tickets) / Math.max(1, n))
@@ -98,16 +101,16 @@ export default function TournamentPanel(p: Props) {
     const j = await post('/api/admin/clear-brackets', { compId: p.compId, all: true }, 'clrall')
     if (j) setMsg({ ok: true, text: `همهٔ گروه‌ها پاک شد · ${j.deleted} مسابقه حذف شد${j.finalCleared ? ' · فینال هم پاک شد' : ''}` })
   }
-  const finalSize = p.finalSize ?? 128
   async function resetDirect() {
     if (!confirm('کل جدول این رشته پاک می‌شه (نتیجه‌های ثبت‌شده هم از بین می‌رن) تا بشه نوع جدول رو عوض کرد. مطمئنی؟')) return
     const j = await post('/api/admin/reset-bracket', { compId: p.compId }, 'reset')
     if (j) setMsg({ ok: true, text: `جدول پاک شد · ${j.deleted} بازی حذف شد — حالا می‌تونی نوع جدول رو از «ویرایش» عوض کنی` })
   }
-  async function assemble() {
+  // team (2v2) events only — solo events use the final-pool panel instead.
+  async function assembleTeam() {
     if (p.finalExists && !confirm('فینال از قبل چیده شده؛ نتیجه‌های ثبت‌شده پاک می‌شن و از نو چیده می‌شه. مطمئنی؟')) return
     const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
-    if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ` (به ${finalSize} محدود شد)` : ''}` })
+    if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ` (به ${p.finalSize ?? 128} محدود شد)` : ''}` })
   }
   async function setQualify(b: BracketInfo, count: number) {
     await post('/api/admin/qualify', { compId: p.compId, groupKey: b.groupKey, bracket: b.bracket, count }, `q${b.groupKey}${b.bracket}`)
@@ -117,12 +120,48 @@ export default function TournamentPanel(p: Props) {
   }
   const schedOf = (groupKey: string, bracket: number) => p.bracketSchedule?.[`${groupKey}#${bracket}`] ?? {}
 
+  // ── «بفرست به استخر» per bracket — see bracketQualifyCandidates (lib/bracket.ts):
+  // these matches were about the سهم, not the bracket championship, so a
+  // candidate list doesn't need the bracket to finish. Picked here, landed in
+  // the final pool by the admin (see final-pool-panel.tsx), never automatic.
+  type Candidate = { userId: string; name: string; tag?: string }
+  type PoolPicker = { key: string; loading: boolean; error?: string; data?: { candidates: Candidate[]; atRound: number; aliveCount: number; exact: boolean }; selected: Set<string> }
+  const [poolPicker, setPoolPicker] = useState<PoolPicker | null>(null)
+
+  async function openPoolPicker(b: BracketInfo) {
+    const key = `${b.groupKey}#${b.bracket}`
+    if (poolPicker?.key === key) { setPoolPicker(null); return }
+    setPoolPicker({ key, loading: true, selected: new Set() })
+    try {
+      const url = `/api/admin/final-candidates?compId=${encodeURIComponent(p.compId)}&groupKey=${encodeURIComponent(b.groupKey)}&bracket=${b.bracket}`
+      const res = await fetch(url)
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error || 'خطا')
+      const selected = new Set<string>(j.exact ? j.candidates.map((c: Candidate) => c.userId) : [])
+      setPoolPicker({ key, loading: false, data: j, selected })
+    } catch (e: any) {
+      setPoolPicker({ key, loading: false, selected: new Set(), error: e.message })
+    }
+  }
+  function toggleCandidate(uid: string) {
+    setPoolPicker(cur => {
+      if (!cur) return cur
+      const sel = new Set(cur.selected)
+      if (sel.has(uid)) sel.delete(uid); else sel.add(uid)
+      return { ...cur, selected: sel }
+    })
+  }
+  async function sendToPool() {
+    if (!poolPicker?.selected.size) return
+    const j = await post('/api/admin/final-pool', { compId: p.compId, action: 'send', userIds: [...poolPicker.selected] }, 'sendpool')
+    if (j) { setMsg({ ok: true, text: `${poolPicker.selected.size} نفر به استخر فینال اضافه شدن` }); setPoolPicker(null) }
+  }
+
   const groups = new Map<string, { label: string; brackets: BracketInfo[] }>()
   for (const b of p.brackets) {
     if (!groups.has(b.groupKey)) groups.set(b.groupKey, { label: b.groupLabel, brackets: [] })
     groups.get(b.groupKey)!.brackets.push(b)
   }
-  const totalQualify = p.brackets.reduce((s, b) => s + b.qualify, 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -241,20 +280,53 @@ export default function TournamentPanel(p: Props) {
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {g.brackets.map(b => (
-                    <div key={b.bracket} style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 11px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: C.tbody, minWidth: 58 }}>براکت {b.bracket}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
-                          {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
-                        </span>
-                        <Stepper value={b.qualify} disabled={busy != null} max={MAX_BRACKET_QUALIFY} onChange={n => setQualify(b, n)} />
+                  {g.brackets.map(b => {
+                    const pickerKey = `${b.groupKey}#${b.bracket}`
+                    return (
+                      <div key={b.bracket} style={{ background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 11px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.tbody, minWidth: 58 }}>براکت {b.bracket}</span>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: b.complete ? C.win : C.tmut }}>
+                            {b.players} نفر · {b.complete ? 'تمام شد ✓' : `${b.done}/${b.total} بازی`}
+                          </span>
+                          <Stepper value={b.qualify} disabled={busy != null} max={MAX_BRACKET_QUALIFY} onChange={n => setQualify(b, n)} />
+                          <button type="button" disabled={busy != null} onClick={() => openPoolPicker(b)} style={poolPicker?.key === pickerKey ? poolBtnOn : poolBtn}>
+                            → استخر
+                          </button>
+                        </div>
+                        <div style={{ marginTop: 8 }}>
+                          <ScheduleEditor init={schedOf(b.groupKey, b.bracket)} disabled={busy != null} onSave={v => saveSchedule(b.groupKey, b.bracket, v)} />
+                        </div>
+                        {poolPicker?.key === pickerKey && (
+                          <div style={{ marginTop: 9, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 10 }}>
+                            {poolPicker.loading && <div style={{ fontSize: 11.5, color: C.tmut }}>در حال بارگذاری…</div>}
+                            {poolPicker.error && <div style={{ fontSize: 11.5, color: C.live }}>{poolPicker.error}</div>}
+                            {poolPicker.data && (
+                              <>
+                                <div style={{ fontSize: 11, color: C.tmut, marginBottom: 8, lineHeight: 1.7 }}>
+                                  {poolPicker.data.exact
+                                    ? `${poolPicker.data.aliveCount} سید نهایی که به عدد کوالیفای (${b.qualify}) رسیدن`
+                                    : `عدد کوالیفای (${b.qualify}) دقیقاً روی هیچ دوری نمی‌شینه — از ${poolPicker.data.aliveCount} نفری که تا الان زنده‌ن انتخاب کن`}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10, maxHeight: 220, overflowY: 'auto' }}>
+                                  {poolPicker.data.candidates.map(cnd => (
+                                    <label key={cnd.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: C.thi, cursor: 'pointer' }}>
+                                      <input type="checkbox" checked={poolPicker.selected.has(cnd.userId)} onChange={() => toggleCandidate(cnd.userId)} />
+                                      {cnd.name}{cnd.tag ? ` · @${cnd.tag}` : ''}
+                                    </label>
+                                  ))}
+                                  {poolPicker.data.candidates.length === 0 && <span style={{ fontSize: 11.5, color: C.tmut }}>هنوز کسی به این مرحله نرسیده</span>}
+                                </div>
+                                <button type="button" disabled={busy != null || poolPicker.selected.size === 0} onClick={sendToPool} style={primaryBtn(false, busy != null || poolPicker.selected.size === 0)}>
+                                  {busy === 'sendpool' ? 'در حال افزودن…' : `افزودن ${poolPicker.selected.size || ''} نفر به استخر فینال`}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div style={{ marginTop: 8 }}>
-                        <ScheduleEditor init={schedOf(b.groupKey, b.bracket)} disabled={busy != null} onSave={v => saveSchedule(b.groupKey, b.bracket, v)} />
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))}
@@ -265,14 +337,13 @@ export default function TournamentPanel(p: Props) {
         </Section>
       )}
 
-      {!direct && p.drawn && (
-        <Section title={`۳ · فینال ${finalSize} نفره`}>
+      {team && !direct && p.drawn && (
+        <Section title={`۳ · فینال ${p.finalSize ?? 128} نفره`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <Stat label="کوالیفای‌شده" value={p.qualifierCount} c={C.accent} />
-            <Stat label="ظرفیت فینال فعلی" value={totalQualify} c={C.gold} />
-            {p.finalExists && <Stat label="در فینال" value={p.finalSeats} c={C.win} />}
+            <Stat label="کوالیفای‌شده" value={p.qualifierCount ?? 0} c={C.accent} />
+            {p.finalExists && <Stat label="در فینال" value={p.finalSeats ?? 0} c={C.win} />}
           </div>
-          <button onClick={assemble} disabled={busy != null || p.qualifierCount < 2} style={primaryBtn(p.finalExists, busy === 'assemble' || p.qualifierCount < 2)}>
+          <button onClick={assembleTeam} disabled={busy != null || (p.qualifierCount ?? 0) < 2} style={primaryBtn(!!p.finalExists, busy === 'assemble' || (p.qualifierCount ?? 0) < 2)}>
             {busy === 'assemble' ? 'در حال چیدن…' : p.finalExists ? 'چیدن مجدد فینال' : 'مونتاژ فینال'}
           </button>
         </Section>
@@ -309,7 +380,7 @@ function ScheduleEditor({ init, onSave, disabled }: { init: { date?: string; tim
 const schInp = (w: number): React.CSSProperties => ({ background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 8, padding: '7px 9px', color: C.thi, fontSize: 12.5, outline: 'none', width: w || undefined, boxSizing: 'border-box' })
 const sel: React.CSSProperties = { width: '100%', background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 10, padding: '10px 12px', color: C.thi, fontSize: 13, outline: 'none' }
 
-function Stepper({ value, onChange, disabled, max }: { value: number; onChange: (n: number) => void; disabled?: boolean; max: number }) {
+export function Stepper({ value, onChange, disabled, max }: { value: number; onChange: (n: number) => void; disabled?: boolean; max: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <button type="button" disabled={disabled || value <= 0} onClick={() => onChange(value - 1)} style={stepBtn}>−</button>
@@ -318,7 +389,7 @@ function Stepper({ value, onChange, disabled, max }: { value: number; onChange: 
     </div>
   )
 }
-function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+export function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <div style={{ background: C.sf1, border: `1px solid ${C.line}`, borderRadius: 14, padding: 15 }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: C.thi, marginBottom: sub ? 3 : 12 }}>{title}</div>
@@ -327,7 +398,7 @@ function Section({ title, sub, children }: { title: string; sub?: string; childr
     </div>
   )
 }
-function Stat({ label, value, c }: { label: string; value: number; c: string }) {
+export function Stat({ label, value, c }: { label: string; value: number; c: string }) {
   return (
     <div style={{ flex: 1, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '9px 0', textAlign: 'center' }}>
       <div className="gl-num" style={{ fontSize: 20, fontWeight: 800, color: c }}>{value}</div>
@@ -338,8 +409,10 @@ function Stat({ label, value, c }: { label: string; value: number; c: string }) 
 const seg = (on: boolean): React.CSSProperties => ({ all: 'unset', cursor: 'pointer', flex: 1, textAlign: 'center', minHeight: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, fontSize: 13, fontWeight: 700, background: on ? C.accentSoft : C.sf2, color: on ? C.accent : C.tbody, border: `1px solid ${on ? C.accent : C.line}` })
 const stepBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, fontSize: 18, fontWeight: 700, background: C.sf2, color: C.thi, border: `1px solid ${C.line2}` }
 const clearBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.live, background: C.liveSoft, border: `1px solid ${C.live}44`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
-const dangerBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 42, lineHeight: '42px', background: 'transparent', border: `1px solid ${C.live}`, color: C.live, fontWeight: 700, fontSize: 12.5, borderRadius: 11 }
+export const dangerBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 42, lineHeight: '42px', background: 'transparent', border: `1px solid ${C.live}`, color: C.live, fontWeight: 700, fontSize: 12.5, borderRadius: 11 }
 const pubBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, border: `1px solid ${C.accent}55`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
-function primaryBtn(secondary: boolean, disabled: boolean): React.CSSProperties {
+const poolBtn: React.CSSProperties = { all: 'unset', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: C.gold, background: `${C.gold}1c`, border: `1px solid ${C.gold}55`, borderRadius: 8, padding: '5px 10px', flexShrink: 0 }
+const poolBtnOn: React.CSSProperties = { ...poolBtn, background: C.gold, color: '#0B0A08' }
+export function primaryBtn(secondary: boolean, disabled: boolean): React.CSSProperties {
   return { all: 'unset', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', minHeight: 48, lineHeight: '48px', background: secondary ? 'transparent' : C.accent, border: secondary ? `1px solid ${C.accent}` : 'none', color: secondary ? C.accent : '#0B0A08', fontWeight: 800, fontSize: 14, borderRadius: 11, opacity: disabled ? 0.5 : 1 }
 }

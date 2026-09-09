@@ -5,7 +5,9 @@ import { getEvent, getEventConfig } from '@/lib/store'
 import { assembleFinal } from '@/lib/bracket'
 import { assembleTeamFinal } from '@/lib/bracket-team'
 
-// Admin assembles (or re-assembles) the final 128 bracket from all qualifiers.
+// Admin assembles (or re-assembles) the final bracket from the admin-curated
+// final pool (see lib/bracket.ts assembleFinal/getFinalPool). Team events
+// still assemble from computeTeamQualifiers (lib/bracket-team.ts) — untouched.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   const role = (session as any)?.role
@@ -14,6 +16,11 @@ export async function POST(req: Request) {
   const { compId } = await req.json().catch(() => ({}))
   if (!compId || !getEvent(compId)) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
 
-  const r = getEventConfig(compId).teamSize === 2 ? await assembleTeamFinal(compId) : await assembleFinal(compId)
-  return NextResponse.json({ ok: true, ...r })
+  try {
+    const r = getEventConfig(compId).teamSize === 2 ? await assembleTeamFinal(compId) : await assembleFinal(compId)
+    return NextResponse.json({ ok: true, ...r })
+  } catch (e: any) {
+    const map: Record<string, string> = { EMPTY_POOL: 'استخر فینال خالیه — اول بازیکن اضافه کن' }
+    return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })
+  }
 }

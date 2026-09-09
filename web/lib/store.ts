@@ -2014,8 +2014,10 @@ export interface EventConfig {
   // grouping, everyone seeded straight in. undefined ⇒ defaultBracketMode(disc).
   // Frozen once isDrawn(compId) — enforced in the edit route.
   bracketMode?: 'prelims' | 'direct'
-  // Max distinct entries one account can carry into the assembled final.
-  // undefined ⇒ 2 seeds. Ticket/سهم buy cap is separately 6.
+  // Max distinct entries one account can carry into the final tree (direct
+  // bracket, or the pool below). undefined ⇒ entryCapFor()'s per-mode default
+  // (lib/bracket.ts: 6 for direct, 2 for the prelim→final pool). Ticket/سهم
+  // buy cap is separately 6.
   entryCap?: number
   // Per-bracket schedule, keyed by qualifyKey(groupKey, bracket). Label only +
   // drives bracketState() 'not-started' checks for re-entry (MD-5b).
@@ -2023,6 +2025,11 @@ export interface EventConfig {
   // Per-group publish. Missing key / missing map = already public (legacy draws).
   // New draws set the group's key to false until admin presses انتشار.
   publishedGroups?: Record<string, boolean>
+  // Admin-curated final pool: {userId, sahm} rows staged before assembling the
+  // final tree. lib/bracket.ts assembleFinal() reads ONLY this — nothing lands
+  // here automatically. Populated via "بفرست به استخر" per prelim bracket or
+  // "افزودن بازیکن" (any account) in the admin final-pool panel.
+  finalPool?: { userId: string; sahm: number }[]
   // بازماندگان (survivors) sign-up switch for THIS رشته. When on, its
   // registration page shows a «جدول بازماندگان» box that opens a سهم-capped
   // (LEFTOVER_ATTEMPTS_CAP) sign-up ON THE SAME event — those سهم land in the
