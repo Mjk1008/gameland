@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, getEventConfig } from '@/lib/store'
+import { getEvent } from '@/lib/store'
 import { bracketModeOf, clearAllPrelimGroups, clearPrelimGroup } from '@/lib/bracket'
 
+// clearPrelimGroup/clearAllPrelimGroups (lib/bracket.ts) only touch generic
+// Match rows by stage/groupKey — team-agnostic under the hood, so this route
+// works for a 2v2 event's province groups exactly like a solo one's.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   const role = (session as any)?.role
@@ -11,7 +14,6 @@ export async function POST(req: Request) {
 
   const { compId, groupKey, all } = await req.json().catch(() => ({}))
   if (!compId || !getEvent(compId)) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
-  if (getEventConfig(compId).teamSize === 2) return NextResponse.json({ error: 'فقط رشتهٔ انفرادی' }, { status: 400 })
   if (bracketModeOf(compId) !== 'prelims') return NextResponse.json({ error: 'فقط مسابقات مقدماتی' }, { status: 400 })
 
   try {

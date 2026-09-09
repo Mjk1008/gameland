@@ -107,7 +107,7 @@ export function distributeIntoBrackets(
   return brackets
 }
 
-function countsOf(seats: string[]): { userId: string; count: number }[] {
+export function countsOf(seats: string[]): { userId: string; count: number }[] {
   const m = new Map<string, number>()
   for (const u of seats) m.set(u, (m.get(u) ?? 0) + 1)
   return [...m.entries()].map(([userId, count]) => ({ userId, count }))

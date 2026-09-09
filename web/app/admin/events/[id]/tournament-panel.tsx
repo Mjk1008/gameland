@@ -66,8 +66,11 @@ export default function TournamentPanel(p: Props) {
   }
 
   const direct = p.bracketMode === 'direct'
-  const team = (p.teamSize ?? 1) === 2
-  const provinceDraw = !direct && !team && pools.length > 0
+  // Same province-by-province tool for team and solo prelims — the moment
+  // there are pools to pick from, this is the only draw path (matches the
+  // fc26/solo behavior exactly); the plain one-shot button below is only
+  // ever seen pre-registration, when there's nothing to group by yet.
+  const provinceDraw = !direct && pools.length > 0
   const destDrawn = p.brackets.some(b => b.groupKey === `province:${dest}`)
 
   async function draw() {
@@ -156,7 +159,7 @@ export default function TournamentPanel(p: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {!direct && (
         <Section title="۰ · محل برگزاری مقدماتی">
-          <PrelimVenuePanel compId={p.compId} groupMode={team ? p.groupMode : 'province'} prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
+          <PrelimVenuePanel compId={p.compId} groupMode="province" prelimVenues={p.prelimVenues ?? {}} gamenetOptions={p.gamenetOptions} />
         </Section>
       )}
 
@@ -164,17 +167,10 @@ export default function TournamentPanel(p: Props) {
         {!direct && p.batchPlayers && p.batchPlayers.length > 0 && (
           <PrelimBatchPanel compId={p.compId} groupMode={p.groupMode} players={p.batchPlayers} />
         )}
-        {direct || team ? (
+        {direct ? (
           <>
-            {!direct && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                {(['city', 'province'] as const).map(m => (
-                  <button key={m} type="button" onClick={() => setMode(m)} style={seg(mode === m)}>{m === 'city' ? 'بر اساس شهر' : 'بر اساس استان'}</button>
-                ))}
-              </div>
-            )}
             <button onClick={draw} disabled={busy != null || p.regCount === 0} style={primaryBtn(p.drawn, busy === 'draw' || p.regCount === 0)}>
-              {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? (direct ? 'چیدن مجدد جدول' : 'چیدن مجدد براکت‌های مقدماتی') : (direct ? 'ساخت جدول مسابقه' : 'ساخت براکت‌های مقدماتی')}
+              {busy === 'draw' ? 'در حال چیدن…' : p.drawn ? 'چیدن مجدد جدول' : 'ساخت جدول مسابقه'}
             </button>
           </>
         ) : provinceDraw ? (

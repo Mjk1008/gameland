@@ -3,7 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { drawEligibleRegistrations, getEventConfig, seatableTeamsForComp } from '@/lib/store'
 import { generatePrelims, generateProvincePrelims, generateDirectBracket, bracketModeOf, isDrawn } from '@/lib/bracket'
-import { generateTeamPrelims } from '@/lib/bracket-team'
+import { generateTeamPrelims, generateTeamProvincePrelims } from '@/lib/bracket-team'
+
+const PROVINCE_ERROR_MAP: Record<string, string> = {
+  BRACKET_COUNT: 'تعداد براکت نامعتبره',
+  BRACKET_SIZE: 'ظرفیت براکت نامعتبره',
+  NO_TICKETS: 'هیچ سهمی در این استان نیست',
+  TOO_MANY_BRACKETS: 'تعداد براکت از تعداد سهم بیشتره',
+  CAPACITY: 'ظرفیت براکت‌ها برای این سهم‌ها کمه',
+}
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -14,8 +22,25 @@ export async function POST(req: Request) {
   const { compId, groupMode, destProvince, sourceProvince, nBrackets, bracketSize } = body
   if (!compId) return NextResponse.json({ error: 'compId الزامی' }, { status: 400 })
   const mode = groupMode === 'province' ? 'province' : 'city'
+  const hasDest = typeof destProvince === 'string' && destProvince.trim()
 
   if (getEventConfig(compId).teamSize === 2) {
+    // Same province-by-province tool as solo prelims (fc26) — one province
+    // at a time, admin-chosen bracket count/size — when destProvince is
+    // given; the old one-shot full draw (every group at once) stays as the
+    // fallback for the empty-pools edge case (no province picker shown yet).
+    if (hasDest) {
+      try {
+        const result = await generateTeamProvincePrelims({
+          compId, destProvince,
+          sourceProvince: typeof sourceProvince === 'string' ? sourceProvince : destProvince,
+          nBrackets: Number(nBrackets), bracketSize: Number(bracketSize),
+        })
+        return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
+      } catch (e: any) {
+        return NextResponse.json({ error: PROVINCE_ERROR_MAP[e.message] || e.message }, { status: 400 })
+      }
+    }
     const teams = seatableTeamsForComp(compId)
     if (teams.length === 0) return NextResponse.json({ error: 'هیچ تیمِ کاملی نداریم' }, { status: 400 })
     const result = await generateTeamPrelims({ compId, teams, groupMode: mode })
@@ -31,7 +56,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, mode: 'direct', ...result, redrawn: isDrawn(compId) })
   }
 
-  if (typeof destProvince === 'string' && destProvince.trim()) {
+  if (hasDest) {
     try {
       const result = await generateProvincePrelims({
         compId,
@@ -42,14 +67,7 @@ export async function POST(req: Request) {
       })
       return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
     } catch (e: any) {
-      const map: Record<string, string> = {
-        BRACKET_COUNT: 'تعداد براکت نامعتبره',
-        BRACKET_SIZE: 'ظرفیت براکت نامعتبره',
-        NO_TICKETS: 'هیچ سهمی در این استان نیست',
-        TOO_MANY_BRACKETS: 'تعداد براکت از تعداد سهم بیشتره',
-        CAPACITY: 'ظرفیت براکت‌ها برای این سهم‌ها کمه',
-      }
-      return NextResponse.json({ error: map[e.message] || e.message }, { status: 400 })
+      return NextResponse.json({ error: PROVINCE_ERROR_MAP[e.message] || e.message }, { status: 400 })
     }
   }
 

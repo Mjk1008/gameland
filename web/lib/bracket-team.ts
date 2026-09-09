@@ -12,13 +12,13 @@
 
 import {
   Match, GroupMode, Team,
-  clearMatchesForComp, clearMatchesByStage, pushMatch, saveMatch, matchesForComp, getMatch,
-  findNextMatch, prelimGroupKeys, currentTeamMembers, getUserById,
+  clearMatchesForComp, clearMatchesByStage, clearMatchesForGroup, pushMatch, saveMatch, matchesForComp, getMatch,
+  findNextMatch, prelimGroupKeys, currentTeamMembers, getUserById, seatableTeamsForComp,
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
   getRegistration, settledAttempts,
 } from './store'
-import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY, getFinalPool } from './bracket'
-import { drawProvinceOf, resolveProvince } from './iran-geo'
+import { rng, shuffle, seedFrom, distributeSeats, distributeIntoBrackets, spreadSeats, countsOf, DEFAULT_QUALIFY, getFinalPool } from './bracket'
+import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 
 // Team's group key: captain's city/province (surfaced at team-creation time),
 // same `${mode}:${value}` format as the solo groupKeyOf — so prelimGroupKeys(),
@@ -39,13 +39,15 @@ function feedTeamWinner(m: Match) {
   saveMatch(next)
 }
 
-function buildTeamTree(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number, seats: string[], seed: number) {
-  const teams = shuffle(seats, rng(seed))
-  let size = 1
-  while (size < teams.length) size *= 2
+// `preordered` = seats is already positioned (spreadSeats) — don't reshuffle,
+// treat '' entries as intentional byes at their exact index. Same contract
+// as bracket.ts's buildTree(preordered). Non-preordered callers (the
+// one-shot draw, the final) keep the old shuffle-then-pad behavior.
+function buildTeamTree(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number, seats: string[], seed: number, preordered = false) {
+  const padded = preordered ? seats.slice() : padTeamSeats(seats, seed)
+  let size = padded.length
+  if (size === 0) return
   size = Math.max(2, size)
-  const padded = teams.slice()
-  while (padded.length < size) padded.push('')
 
   for (let i = 0; i < size / 2; i++) {
     const p1 = padded[i * 2], p2 = padded[i * 2 + 1]
@@ -71,6 +73,18 @@ function buildTeamTree(compId: string, stage: 'prelim' | 'final', groupKey: stri
     count = Math.floor(count / 2); round++
   }
   resolveTeamByes(compId, stage, groupKey, bracketIdx)
+}
+
+// Old shuffle-then-pad path for non-preordered callers (the one-shot draw,
+// the final) — unchanged behavior from before `preordered` existed.
+function padTeamSeats(seats: string[], seed: number): string[] {
+  const shuffled = shuffle(seats, rng(seed))
+  let size = 1
+  while (size < shuffled.length) size *= 2
+  size = Math.max(2, size)
+  const out = shuffled.slice()
+  while (out.length < size) out.push('')
+  return out
 }
 
 function resolveTeamByes(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number) {
@@ -135,6 +149,89 @@ export async function generateTeamPrelims({ compId, teams, groupMode }: TeamDraw
   for (const gk of groups.keys()) unpublished[gk] = false
   setEventConfig(compId, { groupMode: mode, qualify, publishedGroups: unpublished })
   return { groups: groups.size, brackets: bracketCount, matches: matchesForComp(compId).length }
+}
+
+export interface TeamProvinceDrawInput {
+  compId: string
+  destProvince: string
+  sourceProvince: string
+  nBrackets: number
+  bracketSize: number
+}
+
+// Team twin of bracket.ts's generateProvincePrelims — draw ONE province's
+// teams at a time, admin-chosen bracket count/size, other provinces' brackets
+// stay put. Same seatable-teams-only rule as generateTeamPrelims above.
+export async function generateTeamProvincePrelims(input: TeamProvinceDrawInput): Promise<{
+  province: string; source: string; groups: number; brackets: number; seats: number; matches: number; teamIds: string[]
+}> {
+  const dest = drawProvinceOf((input.destProvince || '').trim() || 'نامشخص')
+  const src = (input.sourceProvince || '').trim() || dest
+  const N = Math.floor(input.nBrackets)
+  const size = Math.floor(input.bracketSize)
+  if (N < 1 || N > 16) throw new Error('BRACKET_COUNT')
+  if (size < 2 || (size & (size - 1)) !== 0 || size > 128) throw new Error('BRACKET_SIZE')
+
+  const gk = `province:${dest}`
+  await clearMatchesForGroup(input.compId, 'prelim', gk)
+  if (matchesForComp(input.compId).some(m => m.stage === 'final')) {
+    await clearMatchesByStage(input.compId, 'final')
+  }
+
+  const seated = new Set<string>()
+  for (const m of matchesForComp(input.compId)) {
+    if (m.stage !== 'prelim') continue
+    if (m.p1TeamId) seated.add(m.p1TeamId)
+    if (m.p2TeamId) seated.add(m.p2TeamId)
+  }
+
+  const allowed = new Set(src === dest ? provincesInDrawGroup(dest) : [src])
+  const teamSeats: { userId: string; attempts: number }[] = []
+  for (const t of seatableTeamsForComp(input.compId)) {
+    if (seated.has(t.id)) continue
+    const captain = getUserById(t.captainId)
+    if (!allowed.has(resolveProvince(captain?.province, captain?.city))) continue
+    const capReg = getRegistration(t.captainId, input.compId)
+    const k = capReg ? settledAttempts(capReg) : 0
+    if (k < 1) continue
+    teamSeats.push({ userId: t.id, attempts: k })   // distributeIntoBrackets is opaque on the id field — a team id works verbatim
+  }
+
+  const tickets = teamSeats.reduce((s, p) => s + p.attempts, 0)
+  if (tickets === 0) throw new Error('NO_TICKETS')
+  if (N > tickets) throw new Error('TOO_MANY_BRACKETS')
+  if (tickets > N * size) throw new Error('CAPACITY')
+
+  const dist = distributeIntoBrackets(teamSeats, N, seedFrom(input.compId + gk + 'into'))
+  const cfg = getEventConfig(input.compId)
+  const qualify = { ...cfg.qualify }
+  for (const k of Object.keys(qualify)) if (k.startsWith(gk + '#')) delete qualify[k]
+
+  let bracketCount = 0
+  let seatCount = 0
+  dist.forEach((seats, idx) => {
+    if (seats.length === 0) return
+    const bIdx = idx + 1
+    const ordered = spreadSeats(countsOf(seats), seedFrom(input.compId + gk + bIdx + 'spread'), size)
+    buildTeamTree(input.compId, 'prelim', gk, bIdx, ordered, seedFrom(input.compId + gk + bIdx), true)
+    qualify[qualifyKey(gk, bIdx)] = DEFAULT_QUALIFY
+    bracketCount++
+    seatCount += seats.length
+  })
+
+  setEventConfig(input.compId, {
+    groupMode: 'province', qualify,
+    publishedGroups: { ...(getEventConfig(input.compId).publishedGroups ?? {}), [gk]: false },
+  })
+  return {
+    province: dest,
+    source: src,
+    groups: 1,
+    brackets: bracketCount,
+    seats: seatCount,
+    matches: matchesForComp(input.compId).filter(m => m.groupKey === gk).length,
+    teamIds: [...new Set(dist.flat())],
+  }
 }
 
 export function setTeamMatchWinner(matchId: string, winnerTeamId: string, score?: string): Match {
