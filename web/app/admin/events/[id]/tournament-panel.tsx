@@ -18,11 +18,6 @@ type Props = {
   brackets: BracketInfo[]
   bracketSchedule?: BracketSchedule
   finalExists?: boolean
-  // Team (2v2) events still use the old one-button auto-assemble flow — the
-  // final-pool rework (final-pool-panel.tsx) only covers solo prelims events.
-  qualifierCount?: number
-  finalSeats?: number
-  finalSize?: number
   prelimVenues?: Record<string, PrelimVenue>
   gamenetOptions: { id: string; name: string; city: string; province?: string }[]
   batchPlayers?: BatchPlayer[]
@@ -105,12 +100,6 @@ export default function TournamentPanel(p: Props) {
     if (!confirm('کل جدول این رشته پاک می‌شه (نتیجه‌های ثبت‌شده هم از بین می‌رن) تا بشه نوع جدول رو عوض کرد. مطمئنی؟')) return
     const j = await post('/api/admin/reset-bracket', { compId: p.compId }, 'reset')
     if (j) setMsg({ ok: true, text: `جدول پاک شد · ${j.deleted} بازی حذف شد — حالا می‌تونی نوع جدول رو از «ویرایش» عوض کنی` })
-  }
-  // team (2v2) events only — solo events use the final-pool panel instead.
-  async function assembleTeam() {
-    if (p.finalExists && !confirm('فینال از قبل چیده شده؛ نتیجه‌های ثبت‌شده پاک می‌شن و از نو چیده می‌شه. مطمئنی؟')) return
-    const j = await post('/api/admin/assemble-final', { compId: p.compId }, 'assemble')
-    if (j) setMsg({ ok: true, text: `فینال چیده شد · ${j.seats} نفر${j.capped ? ` (به ${p.finalSize ?? 128} محدود شد)` : ''}` })
   }
   async function setQualify(b: BracketInfo, count: number) {
     await post('/api/admin/qualify', { compId: p.compId, groupKey: b.groupKey, bracket: b.bracket, count }, `q${b.groupKey}${b.bracket}`)
@@ -334,18 +323,6 @@ export default function TournamentPanel(p: Props) {
           <Link href={`/competitions/${p.compId}/bracket`} style={{ display: 'block', textAlign: 'center', marginTop: 12, fontSize: 12.5, color: C.accent, textDecoration: 'none', fontWeight: 700 }}>
             برای ثبت نتیجهٔ بازی‌ها → جدول براکت
           </Link>
-        </Section>
-      )}
-
-      {team && !direct && p.drawn && (
-        <Section title={`۳ · فینال ${p.finalSize ?? 128} نفره`}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <Stat label="کوالیفای‌شده" value={p.qualifierCount ?? 0} c={C.accent} />
-            {p.finalExists && <Stat label="در فینال" value={p.finalSeats ?? 0} c={C.win} />}
-          </div>
-          <button onClick={assembleTeam} disabled={busy != null || (p.qualifierCount ?? 0) < 2} style={primaryBtn(!!p.finalExists, busy === 'assemble' || (p.qualifierCount ?? 0) < 2)}>
-            {busy === 'assemble' ? 'در حال چیدن…' : p.finalExists ? 'چیدن مجدد فینال' : 'مونتاژ فینال'}
-          </button>
         </Section>
       )}
 

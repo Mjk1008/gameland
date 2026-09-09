@@ -17,7 +17,7 @@ import {
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
   getRegistration, settledAttempts,
 } from './store'
-import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY } from './bracket'
+import { rng, shuffle, seedFrom, distributeSeats, DEFAULT_QUALIFY, getFinalPool } from './bracket'
 import { drawProvinceOf, resolveProvince } from './iran-geo'
 
 // Team's group key: captain's city/province (surfaced at team-creation time),
@@ -179,6 +179,8 @@ export function rankTeamBracket(compId: string, stage: 'prelim' | 'final', group
 }
 
 export interface TeamQualifier { teamId: string; groupKey: string; bracket: number; rank: number }
+// ESTIMATE for the admin panel only — assembleTeamFinal() below reads the
+// final pool (lib/bracket.ts getFinalPool), not this.
 export function computeTeamQualifiers(compId: string): TeamQualifier[] {
   const cfg = getEventConfig(compId)
   const all = matchesForComp(compId)
@@ -200,9 +202,37 @@ export function computeTeamQualifiers(compId: string): TeamQualifier[] {
   return out
 }
 
+/**
+ * Team twin of bracket.ts's bracketQualifyCandidates — same "the matches were
+ * about the ticket, not the bracket championship" rule, same round-boundary
+ * caveat for a non-power-of-two qualify count. Returns team ids.
+ */
+export function teamQualifyCandidates(compId: string, groupKey: string, bracket: number): { candidates: string[]; atRound: number; aliveCount: number; exact: boolean } | null {
+  const ms = matchesForComp(compId).filter(m => m.stage === 'prelim' && m.groupKey === groupKey && m.bracket === bracket)
+  if (ms.length === 0) return null
+  const cfg = getEventConfig(compId)
+  const k = Math.max(1, cfg.qualify[qualifyKey(groupKey, bracket)] ?? DEFAULT_QUALIFY)
+  const maxRound = Math.max(...ms.map(m => m.round))
+  const byRound = (r: number) => ms.filter(m => m.round === r)
+  const enteringRound = (r: number) => Array.from(new Set(byRound(r).flatMap(m => [m.p1TeamId, m.p2TeamId]).filter((id): id is string => !!id)))
+
+  let best: { candidates: string[]; atRound: number } = { candidates: enteringRound(1), atRound: 0 }
+  for (let r = 1; r <= maxRound; r++) {
+    const rms = byRound(r)
+    if (!rms.every(m => m.status === 'done')) break
+    const survivors = r < maxRound ? enteringRound(r + 1) : (rms[0]?.winnerTeamId ? [rms[0].winnerTeamId] : [])
+    if (survivors.length < k) break
+    best = { candidates: survivors, atRound: r }
+  }
+  return { ...best, aliveCount: best.candidates.length, exact: best.candidates.length === k }
+}
+
+// One pool row = one team (a team is always a single seat — there's no
+// per-team سهم multiplicity like the solo engine's spread entries).
 export async function assembleTeamFinal(compId: string): Promise<{ seats: number; capped: boolean }> {
   const cfg = getEventConfig(compId)
-  let ids = computeTeamQualifiers(compId).map(q => q.teamId)
+  let ids = [...new Set(getFinalPool(compId).map(p => p.userId))]
+  if (ids.length === 0) throw new Error('EMPTY_POOL')
   if (cfg.finalSeeding?.length) {
     const set = new Set(ids)
     const ordered = cfg.finalSeeding.filter(u => set.has(u))
@@ -217,5 +247,7 @@ export async function assembleTeamFinal(compId: string): Promise<{ seats: number
 
   await clearMatchesByStage(compId, 'final')
   if (ids.length >= 2) buildTeamTree(compId, 'final', '', 0, ids, seedFrom(compId + 'final-tree'))
+  // a (re)assembly is a draft until published — same rule as the solo final.
+  setEventConfig(compId, { publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false } })
   return { seats: ids.length, capped }
 }

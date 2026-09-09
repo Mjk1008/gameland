@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, getUserById, playerName } from '@/lib/store'
+import { getEvent, getEventConfig, getUserById, getTeam, playerName } from '@/lib/store'
 import { bracketQualifyCandidates } from '@/lib/bracket'
+import { teamQualifyCandidates } from '@/lib/bracket-team'
 
 // "بفرست به استخر" picker data for one prelim bracket — see
-// bracketQualifyCandidates in lib/bracket.ts for what "candidate" means here.
+// bracketQualifyCandidates (solo) / teamQualifyCandidates (2v2) in lib for
+// what "candidate" means here.
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   const role = (session as any)?.role
@@ -18,11 +20,13 @@ export async function GET(req: Request) {
   if (!compId || !getEvent(compId)) return NextResponse.json({ error: 'مسابقه پیدا نشد' }, { status: 404 })
   if (!Number.isFinite(bracket)) return NextResponse.json({ error: 'ورودی نامعتبر' }, { status: 400 })
 
-  const r = bracketQualifyCandidates(compId, groupKey, bracket)
+  const isTeam = getEventConfig(compId).teamSize === 2
+  const r = isTeam ? teamQualifyCandidates(compId, groupKey, bracket) : bracketQualifyCandidates(compId, groupKey, bracket)
   if (!r) return NextResponse.json({ error: 'براکت پیدا نشد' }, { status: 404 })
-  const candidates = r.candidates.map(uid => {
-    const u = getUserById(uid)
-    return { userId: uid, name: u ? playerName(u) : uid, tag: u?.tag }
+  const candidates = r.candidates.map(id => {
+    if (isTeam) { const t = getTeam(id); return { userId: id, name: t?.name ?? id, tag: undefined } }
+    const u = getUserById(id)
+    return { userId: id, name: u ? playerName(u) : id, tag: u?.tag }
   })
   return NextResponse.json({ ...r, candidates })
 }

@@ -5,6 +5,7 @@ import { C } from '@/components/ui'
 import { Section, Stat, Stepper, primaryBtn, BRACKET_SIZES } from './tournament-panel'
 
 export type FinalPoolMember = { userId: string; name: string; tag: string; sahm: number }
+export type TeamOption = { id: string; name: string; subtitle: string }
 type Props = {
   compId: string
   pool: FinalPoolMember[]
@@ -14,6 +15,12 @@ type Props = {
   finalSeats: number
   published: boolean
   qualifierEstimate: number
+  // Team (2v2) events: a team is always exactly one final seat — no سهم
+  // stepper, no per-player cap, and "افزودن" picks from this event's own
+  // teams (teams don't exist outside the event they registered for) instead
+  // of searching the whole user database.
+  isTeamEvent?: boolean
+  teamOptions?: TeamOption[]
 }
 
 type SearchUser = { id: string; name: string; tag: string; city?: string }
@@ -25,6 +32,8 @@ type SearchUser = { id: string; name: string; tag: string; city?: string }
 // چیدن (draft, unpublished) → انتشار.
 export default function FinalPoolPanel(p: Props) {
   const router = useRouter()
+  const isTeam = !!p.isTeamEvent
+  const unit = isTeam ? 'تیم' : 'نفر'
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [cap, setCap] = useState(String(p.entryCap))
@@ -38,6 +47,7 @@ export default function FinalPoolPanel(p: Props) {
   useEffect(() => setSize(p.finalSize), [p.finalSize])
 
   useEffect(() => {
+    if (p.isTeamEvent) return   // team picker filters p.teamOptions client-side, no search call
     if (debounce.current) clearTimeout(debounce.current)
     if (q.trim().length < 2) { setResults([]); return }
     setSearching(true)
@@ -50,7 +60,7 @@ export default function FinalPoolPanel(p: Props) {
       finally { setSearching(false) }
     }, 300)
     return () => { if (debounce.current) clearTimeout(debounce.current) }
-  }, [q])
+  }, [q, p.isTeamEvent])
 
   async function post(body: any, tag: string) {
     setBusy(tag); setMsg(null)
@@ -67,6 +77,9 @@ export default function FinalPoolPanel(p: Props) {
   async function addUser(u: SearchUser) {
     const j = await post({ action: 'add', userId: u.id, sahm: 1 }, `add${u.id}`)
     if (j) { setQ(''); setResults([]) }
+  }
+  async function addTeam(teamId: string) {
+    await post({ action: 'add', userId: teamId, sahm: 1 }, `add${teamId}`)
   }
   async function setSahm(userId: string, sahm: number) {
     await post({ action: 'sahm', userId, sahm }, `sahm${userId}`)
@@ -100,7 +113,7 @@ export default function FinalPoolPanel(p: Props) {
       const j = await res.json()
       if (!res.ok) throw new Error(j.error || 'انجام نشد')
       router.refresh()
-      setMsg({ ok: true, text: `فینال چیده شد (پیش‌نویس) · ${j.seats} نفر${j.capped ? ` (به ${size} محدود شد)` : ''} — قبل از انتشار مرور کن` })
+      setMsg({ ok: true, text: `فینال چیده شد (پیش‌نویس) · ${j.seats} ${unit}${j.capped ? ` (به ${size} محدود شد)` : ''} — قبل از انتشار مرور کن` })
     } catch (e: any) { setMsg({ ok: false, text: e.message }) }
     finally { setBusy(null) }
   }
@@ -117,25 +130,30 @@ export default function FinalPoolPanel(p: Props) {
   }
 
   const totalSahm = p.pool.reduce((s, m) => s + m.sahm, 0)
+  const teamCandidates = (p.teamOptions ?? []).filter(t =>
+    !p.pool.some(m => m.userId === t.id) && (q.trim() === '' || t.name.includes(q.trim()) || t.subtitle.includes(q.trim())),
+  )
 
   return (
     <Section title="۳ · استخر فینال">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <Stat label="نفرات استخر" value={p.pool.length} c={C.accent} />
-        <Stat label="سهم کل استخر" value={totalSahm} c={C.gold} />
+        <Stat label={`${unit === 'تیم' ? 'تیم‌های' : 'نفرات'} استخر`} value={p.pool.length} c={C.accent} />
+        {!isTeam && <Stat label="سهم کل استخر" value={totalSahm} c={C.gold} />}
         {p.finalExists && <Stat label="در فینال" value={p.finalSeats} c={C.win} />}
       </div>
       <div style={{ fontSize: 11, color: C.tmut, marginBottom: 12, lineHeight: 1.7 }}>
-        تخمین خودکار (اگه براکت‌های ناتموم تا آخر بازی بشن): {p.qualifierEstimate} نفر — این عدد خودش وارد استخر نمی‌شه، فقط برای مرجعه.
+        تخمین خودکار (اگه براکت‌های ناتموم تا آخر بازی بشن): {p.qualifierEstimate} {unit} — این عدد خودش وارد استخر نمی‌شه، فقط برای مرجعه.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <Field label="سقف سهم هر نفر">
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input value={cap} onChange={e => setCap(e.target.value)} inputMode="numeric" dir="ltr" style={inp} />
-            <button type="button" disabled={busy != null || cap === String(p.entryCap)} onClick={saveEntryCap} style={smallBtn}>ذخیره</button>
-          </div>
-        </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: isTeam ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        {!isTeam && (
+          <Field label="سقف سهم هر نفر">
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={cap} onChange={e => setCap(e.target.value)} inputMode="numeric" dir="ltr" style={inp} />
+              <button type="button" disabled={busy != null || cap === String(p.entryCap)} onClick={saveEntryCap} style={smallBtn}>ذخیره</button>
+            </div>
+          </Field>
+        )}
         <Field label="ظرفیت براکت فینال">
           <select value={size} disabled={busy != null} onChange={e => saveFinalSize(Number(e.target.value))} style={sel}>
             {BRACKET_SIZES.map(s => <option key={s} value={s}>{s} نفره</option>)}
@@ -144,10 +162,21 @@ export default function FinalPoolPanel(p: Props) {
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>افزودن بازیکن (از کل دیتابیس)</div>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="نام، @تگ یا شماره…" style={inp} />
-        {searching && <div style={{ fontSize: 11, color: C.tmut, marginTop: 6 }}>در حال جستجو…</div>}
-        {results.length > 0 && (
+        <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>{isTeam ? 'افزودن تیم (از تیم‌های همین رشته)' : 'افزودن بازیکن (از کل دیتابیس)'}</div>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder={isTeam ? 'اسم تیم…' : 'نام، @تگ یا شماره…'} style={inp} />
+        {!isTeam && searching && <div style={{ fontSize: 11, color: C.tmut, marginTop: 6 }}>در حال جستجو…</div>}
+        {isTeam && q.trim() !== '' && teamCandidates.length > 0 && (
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 6, maxHeight: 220, overflowY: 'auto' }}>
+            {teamCandidates.map(t => (
+              <button key={t.id} type="button" disabled={busy != null} onClick={() => addTeam(t.id)}
+                style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 7, fontSize: 12.5, color: C.thi }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}{t.subtitle ? ` · ${t.subtitle}` : ''}</span>
+                <span style={{ color: C.accent, fontWeight: 700 }}>+ افزودن</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!isTeam && results.length > 0 && (
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4, background: C.sf2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 6 }}>
             {results.map(u => (
               <button key={u.id} type="button" disabled={busy != null || p.pool.some(m => m.userId === u.id)} onClick={() => addUser(u)}
@@ -164,8 +193,8 @@ export default function FinalPoolPanel(p: Props) {
         {p.pool.length === 0 && <div style={{ fontSize: 12, color: C.tmut, textAlign: 'center', padding: '10px 0' }}>استخر خالیه — از براکت‌ها بفرست یا دستی اضافه کن</div>}
         {p.pool.map(m => (
           <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 10px' }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name} · @{m.tag}</span>
-            <Stepper value={m.sahm} disabled={busy != null} max={p.entryCap} onChange={n => setSahm(m.userId, n)} />
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}{!isTeam && m.tag ? ` · @${m.tag}` : ''}</span>
+            {!isTeam && <Stepper value={m.sahm} disabled={busy != null} max={p.entryCap} onChange={n => setSahm(m.userId, n)} />}
             <button type="button" disabled={busy != null} onClick={() => remove(m.userId)} style={rmBtn}>✕</button>
           </div>
         ))}

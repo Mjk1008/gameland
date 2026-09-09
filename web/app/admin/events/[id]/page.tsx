@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, teamsForComp } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY, getFinalPool, entryCapFor } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
 import { computeTeamQualifiers } from '@/lib/bracket-team'
@@ -158,13 +158,20 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   const qualifierCount = isTeamEvent ? computeTeamQualifiers(c.id).length : computeQualifiers(c.id).length
   const finalExists = all.some(m => m.stage === 'final')
   const finalSeats = new Set(all.filter(m => m.stage === 'final' && m.round === 1).flatMap(m => [seatOf(m, 1), seatOf(m, 2)].filter(Boolean))).size
-  const finalPool: FinalPoolMember[] = !isTeamEvent
-    ? getFinalPool(c.id).map(row => {
-        const u = getUserById(row.userId)
-        return { userId: row.userId, name: u ? playerName(u) : row.userId, tag: u?.tag || row.userId, sahm: row.sahm }
-      })
-    : []
+  const compTeams = isTeamEvent ? teamsForComp(c.id) : []
+  const finalPool: FinalPoolMember[] = getFinalPool(c.id).map(row => {
+    if (isTeamEvent) {
+      const t = compTeams.find(x => x.id === row.userId)
+      return { userId: row.userId, name: t?.name ?? row.userId, tag: '', sahm: 1 }
+    }
+    const u = getUserById(row.userId)
+    return { userId: row.userId, name: u ? playerName(u) : row.userId, tag: u?.tag || row.userId, sahm: row.sahm }
+  })
   const entryCap = entryCapFor(c.id)
+  const teamOptions = compTeams.map(t => {
+    const tags = currentTeamMembers(t.id).map(m => getUserById(m.userId)?.tag).filter(Boolean)
+    return { id: t.id, name: t.name, subtitle: tags.length ? `@${tags.join(' + @')}` : '' }
+  })
   const incompleteTeams = isTeamEvent ? incompleteTeamsForComp(c.id) : []
   const gamenetOptions = allGamenets().filter(g => g.status === 'verified').map(g => ({ id: g.id, name: g.name, city: g.city, province: g.province }))
   const batchPlayers: BatchPlayer[] = !isTeamEvent && bracketModeOf(c.id) === 'prelims'
@@ -271,18 +278,19 @@ export default async function AdminEventPage({ params }: { params: { id: string 
         compId={c.id} drawn={drawn} regCount={regs.length}
         bracketMode={bracketModeOf(c.id)}
         groupMode={cfg.groupMode} brackets={brackets} bracketSchedule={cfg.bracketSchedule}
-        finalExists={finalExists} qualifierCount={qualifierCount} finalSeats={finalSeats} finalSize={c.finalSize ?? 128}
+        finalExists={finalExists}
         prelimVenues={cfg.prelimVenues} gamenetOptions={gamenetOptions}
         batchPlayers={batchPlayers}
         emptySlotCount={emptySlots.length}
         teamSize={cfg.teamSize} provincePools={provincePools} directPublished={isDrawPublished(c.id, '')}
       />
 
-      {!isTeamEvent && bracketModeOf(c.id) === 'prelims' && drawn && (
+      {bracketModeOf(c.id) === 'prelims' && drawn && (
         <FinalPoolPanel
           compId={c.id} pool={finalPool} entryCap={entryCap}
           finalSize={c.finalSize ?? 128} finalExists={finalExists} finalSeats={finalSeats}
           published={isDrawPublished(c.id, '')} qualifierEstimate={qualifierCount}
+          isTeamEvent={isTeamEvent} teamOptions={teamOptions}
         />
       )}
 
