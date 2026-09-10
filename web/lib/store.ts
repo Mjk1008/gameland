@@ -2030,6 +2030,11 @@ export interface EventConfig {
   // here automatically. Populated via "بفرست به استخر" per prelim bracket or
   // "افزودن بازیکن" (any account) in the admin final-pool panel.
   finalPool?: { userId: string; sahm: number }[]
+  // undefined/false ⇒ assembleFinal() spreads one account's own multiple final
+  // entries apart (spreadSeats) so they only meet late. true ⇒ a plain random
+  // draw instead (lib/bracket.ts randomSeats) — an admin choice per event, set
+  // from the final-pool panel right before چیدن.
+  finalRandomSeeding?: boolean
   // بازماندگان (survivors) sign-up switch for THIS رشته. When on, its
   // registration page shows a «جدول بازماندگان» box that opens a سهم-capped
   // (LEFTOVER_ATTEMPTS_CAP) sign-up ON THE SAME event — those سهم land in the

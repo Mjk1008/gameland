@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEvent, getEventConfig, getUserById, getTeam } from '@/lib/store'
-import { addToFinalPool, removeFromFinalPool, setFinalPoolSahm, setEntryCap } from '@/lib/bracket'
+import { addToFinalPool, removeFromFinalPool, setFinalPoolSahm, setEntryCap, setFinalRandomSeeding } from '@/lib/bracket'
 
 // Admin-curated final pool (see lib/bracket.ts finalPool). One route, five
 // actions — they all touch the same {userId, sahm}[] list on the event. For a
@@ -55,6 +55,10 @@ export async function POST(req: Request) {
     const n = Math.floor(Number(cap))
     if (!Number.isFinite(n) || n < 1) return NextResponse.json({ error: 'سقف نامعتبره' }, { status: 400 })
     setEntryCap(compId, n)
+    return NextResponse.json({ ok: true })
+  }
+  if (action === 'randomSeeding') {
+    setFinalRandomSeeding(compId, body.enabled === true)
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ error: 'عملیات نامعتبر' }, { status: 400 })

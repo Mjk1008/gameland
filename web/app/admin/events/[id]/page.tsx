@@ -291,6 +291,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
           finalSize={c.finalSize ?? 128} finalExists={finalExists} finalSeats={finalSeats}
           published={isDrawPublished(c.id, '')} qualifierEstimate={qualifierCount}
           isTeamEvent={isTeamEvent} teamOptions={teamOptions}
+          randomSeeding={cfg.finalRandomSeeding === true}
         />
       )}
 

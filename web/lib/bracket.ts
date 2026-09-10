@@ -369,6 +369,29 @@ export function seedBracketSlots(players: string[], seed: number): string[] {
   return spreadSeats(players.map(userId => ({ userId, count: 1 })), seed)
 }
 
+// Fully random seeding — the opposite of spreadSeats: no separating an
+// account's own multiple entries, no band-avoidance for byes. Every seat
+// (each of an account's `count` copies counted separately) is thrown into
+// one flat shuffle, so two entries of the same account can land anywhere,
+// including facing each other round 1. Used only where an admin explicitly
+// wants a plain random draw instead of the deliberate spread (final-pool
+// panel's "کاملاً رندوم" toggle) — everywhere else keeps using spreadSeats.
+export function randomSeats(entries: { userId: string; count: number }[], seed: number, minSize = 0): string[] {
+  const flat: string[] = []
+  for (const e of entries) for (let i = 0; i < Math.max(1, e.count); i++) flat.push(e.userId)
+  if (flat.length === 0) return []
+  let size = 1
+  while (size < flat.length) size *= 2
+  size = Math.max(2, size)
+  if (minSize > size) {
+    let s = Math.floor(minSize)
+    if (s & (s - 1)) { let p = 1; while (p < s) p *= 2; s = p }
+    size = Math.max(size, s)
+  }
+  while (flat.length < size) flat.push('')
+  return shuffle(flat, rng(seed))
+}
+
 // place a finished match's winner into the next round's correct slot
 function feedWinner(m: Match) {
   const next = findNextMatch(m)
@@ -1154,6 +1177,10 @@ export function setEntryCap(compId: string, cap: number): void {
   setEventConfig(compId, { entryCap: n, finalPool: pool })
 }
 
+export function setFinalRandomSeeding(compId: string, enabled: boolean): void {
+  setEventConfig(compId, { finalRandomSeeding: enabled })
+}
+
 /**
  * Candidates for "send to final pool" from one prelim bracket. These matches
  * were never about becoming bracket champion — they were about the ticket —
@@ -1218,7 +1245,9 @@ export async function assembleFinal(compId: string): Promise<{ seats: number; pl
   }
 
   await clearMatchesByStage(compId, 'final')
-  const seats = spreadSeats(kept, seedFrom(compId + 'final-tree'))
+  const seats = cfg.finalRandomSeeding
+    ? randomSeats(kept, seedFrom(compId + 'final-tree'))
+    : spreadSeats(kept, seedFrom(compId + 'final-tree'))
   if (seats.filter(Boolean).length >= 2) buildTree(compId, 'final', '', 0, seats, seedFrom(compId + 'final-tree'), true)
   // a (re)assembly is a draft until the admin explicitly publishes it — same
   // "چیدن ≠ انتشار" rule a fresh prelim draw already follows.

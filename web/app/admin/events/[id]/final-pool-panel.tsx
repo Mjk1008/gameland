@@ -21,6 +21,10 @@ type Props = {
   // of searching the whole user database.
   isTeamEvent?: boolean
   teamOptions?: TeamOption[]
+  // Solo events only: true ⇒ چیدن throws every seat into one flat random
+  // shuffle (randomSeats) instead of spreading one account's own multiple
+  // final entries apart (spreadSeats, the default).
+  randomSeeding?: boolean
 }
 
 type SearchUser = { id: string; name: string; tag: string; city?: string }
@@ -93,6 +97,9 @@ export default function FinalPoolPanel(p: Props) {
     const j = await post({ action: 'cap', cap: n }, 'cap')
     if (j) setMsg({ ok: true, text: `سقف سهم هر نفر شد ${n}` })
   }
+  async function toggleRandomSeeding(enabled: boolean) {
+    await post({ action: 'randomSeeding', enabled }, 'randomSeeding')
+  }
   async function saveFinalSize(n: number) {
     setSize(n)
     setBusy('size'); setMsg(null)
@@ -160,6 +167,13 @@ export default function FinalPoolPanel(p: Props) {
           </select>
         </Field>
       </div>
+
+      {!isTeam && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 12.5, color: C.thi, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!p.randomSeeding} disabled={busy != null} onChange={e => toggleRandomSeeding(e.target.checked)} />
+          سیدینگ کاملاً رندوم (سهم‌های یک نفر از هم جدا نگه داشته نمی‌شن)
+        </label>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>{isTeam ? 'افزودن تیم (از تیم‌های همین رشته)' : 'افزودن بازیکن (از کل دیتابیس)'}</div>
