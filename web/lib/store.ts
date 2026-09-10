@@ -62,9 +62,10 @@ export interface User {
 // access. Independent of Role: a plain 'gamer' account can hold these.
 // Only the super admin (see isSuperAdmin) can grant/revoke them, from
 // /admin/access.
-export type Permission = 'result_entry'
+export type Permission = 'result_entry' | 'live_broadcast'
 export const PERMISSIONS: { key: Permission; label: string; desc: string }[] = [
   { key: 'result_entry', label: 'ثبت نتیجه براکت', desc: 'فقط ثبت برنده روی مسابقه‌های براکت — بدون آنالیتیکس، سهم بازیکن‌ها یا ساخت/ویرایش براکت' },
+  { key: 'live_broadcast', label: 'پخاش (پخش زنده)', desc: 'فقط شروع/پایان پخش زنده از /broadcast — بدون هیچ دسترسی دیگر' },
 ]
 
 export function hasPermission(u: User | undefined | null, perm: Permission): boolean {
