@@ -1256,6 +1256,42 @@ export async function assembleFinal(compId: string): Promise<{ seats: number; pl
   return { seats: seatSum, players: kept.length, capped }
 }
 
+// ── assemble the final EXACTLY as given — mirrors a draw run outside the app
+// (e.g. on Challonge, when admins ran out of time) instead of running it
+// through spreadSeats/randomSeats. seats[i] is the userId sitting in bracket
+// position i (0-based); '' is an explicit bye. Position 0 plays position 1,
+// 2 plays 3, and so on — exactly the reading order of a normal bracket image
+// (round-1 box 1, box 2, …). Nothing is reshuffled or re-spread. Replaces the
+// final pool with the account/سهم counts actually seated, so the rest of the
+// panel (totals, cap) stays consistent with what's really in the tree. Same
+// "چیدن ≠ انتشار" draft rule as assembleFinal — the admin still reviews and
+// hits انتشار separately.
+export async function assembleFinalExact(compId: string, seats: string[]): Promise<{ seats: number; players: number }> {
+  const cap = getEvent(compId)?.finalSize ?? 128
+  const real = seats.filter(isRealPlayer)
+  if (real.length < 2) throw new Error('TOO_FEW_PLAYERS')
+  if (real.length > cap) throw new Error('CAPACITY_EXCEEDED')
+
+  let size = 1
+  while (size < seats.length) size *= 2
+  size = Math.max(2, size)
+  const padded = seats.slice(0, size)
+  while (padded.length < size) padded.push('')
+
+  await clearMatchesByStage(compId, 'final')
+  buildTree(compId, 'final', '', 0, padded, seedFrom(compId + 'final-exact'), true)
+
+  const counts = new Map<string, number>()
+  for (const u of real) counts.set(u, (counts.get(u) ?? 0) + 1)
+  const pool: FinalPoolEntry[] = [...counts.entries()].map(([userId, sahm]) => ({ userId, sahm }))
+  setEventConfig(compId, {
+    finalPool: pool,
+    publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false },
+  })
+  syncFinalEntries(compId)
+  return { seats: real.length, players: pool.length }
+}
+
 export function setFinalSeeding(compId: string, orderedUserIds: string[]) {
   setEventConfig(compId, { finalSeeding: orderedUserIds })
   return assembleFinal(compId)

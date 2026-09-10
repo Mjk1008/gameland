@@ -16,6 +16,7 @@ import RunPanel, { type RunMatch } from './run-panel'
 import AddPlayerPanel, { type EmptySlot } from './add-player-panel'
 import TournamentPanel, { type BracketInfo, type ProvincePool } from './tournament-panel'
 import FinalPoolPanel, { type FinalPoolMember } from './final-pool-panel'
+import ExactSeedPanel from './exact-seed-panel'
 import { type BatchPlayer } from './prelim-batch-panel'
 import DeleteEventButton from './delete-button'
 import LeftoverToggle from './leftover-toggle'
@@ -293,6 +294,10 @@ export default async function AdminEventPage({ params }: { params: { id: string 
           isTeamEvent={isTeamEvent} teamOptions={teamOptions}
           randomSeeding={cfg.finalRandomSeeding === true}
         />
+      )}
+
+      {bracketModeOf(c.id) === 'prelims' && drawn && !isTeamEvent && (
+        <ExactSeedPanel compId={c.id} finalExists={finalExists} />
       )}
 
       {!isTeamEvent && drawn && <RunPanel matches={runMatches} canReopen={canReopenMatches} />}
