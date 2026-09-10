@@ -12,6 +12,7 @@ import NewsSlider from './news-slider'
 import { CompetitionCard, DisciplineCard } from './competitions/cards'
 import { EnamadSeal } from '@/components/EnamadSeal'
 import HonorPoster from '@/components/HonorPoster'
+import LiveBanner from '@/components/LiveBanner'
 import KickoffBar from '@/components/KickoffBar'
 import { kickoffAtMs, kickoffPosters } from '@/lib/kickoff'
 
@@ -102,6 +103,9 @@ export default async function HomePage() {
     <div className="animate-fade-up" style={{ padding: '14px 16px 28px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
       <KickoffBar posters={posters} targetMs={kickoffAtMs()} />
+
+      {/* Live streams happening right now — renders nothing when none are live */}
+      <LiveBanner />
 
       {/* Honorary arcade poster — server-rendered null for everyone whose phone
           isn't in HONOR_USER_PHONE, so nobody else even receives the markup */}
