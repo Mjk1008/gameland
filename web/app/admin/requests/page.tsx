@@ -1,4 +1,4 @@
-import { pendingRegistrations, getUserById, getEvent, receiptCoversPendingPayment } from '@/lib/store'
+import { pendingRegistrations, getUserById, getEvent, teamReceiptCoversPendingPayment } from '@/lib/store'
 import { regAdminReview } from '@/lib/promoter'
 import RequestList from './request-list'
 
@@ -16,7 +16,7 @@ export default function RequestsAdmin() {
       promoCode: review.codeLabel, discountPercent: review.discountPercent, totalOffPercent: review.totalOffPercent,
       promoterName: review.promoterName, promoterTag: review.promoterTag,
       name: u?.name ?? '?', tag: u?.tag ?? '?', phone: u?.phone ?? '', city: u?.city ?? '',
-      event: c?.title ?? r.compId, hasReceipt: receiptCoversPendingPayment(r),
+      event: c?.title ?? r.compId, hasReceipt: teamReceiptCoversPendingPayment(r),
       unitPrice: review.unitPrice, fullUnitPrice: review.fullUnitPrice,
       expectedTotal: review.expectedTotal, revenueTotal: review.revenueTotal,
       slots: review.slots,

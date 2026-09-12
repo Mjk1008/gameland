@@ -258,6 +258,26 @@ export function receiptCoversPendingPayment(reg: Registration): boolean {
   // there, not here.
   return true
 }
+
+// The other current member of this registration's 2v2 team (captain ↔ partner).
+export function teammateRegistration(r: Registration): Registration | undefined {
+  if (!r.teamId) return undefined
+  const t = teams.get(r.teamId)
+  if (!t || t.status === 'disbanded') return undefined
+  const other = currentTeamMembers(t.id).find(m => m.userId !== r.userId)
+  if (!other) return undefined
+  return getRegistration(other.userId, r.compId)
+}
+
+// Old 2v2 flow: both members paid. The partner sometimes uploaded the فیش
+// while the captain's row stayed receipt-less — pendingRegistrations() only
+// shows the captain, so the request vanished from /admin/requests. Treat a
+// covering teammate receipt as covering this row too (queue + approve).
+export function teamReceiptCoversPendingPayment(reg: Registration): boolean {
+  if (receiptCoversPendingPayment(reg)) return true
+  const other = teammateRegistration(reg)
+  return !!other && receiptCoversPendingPayment(other)
+}
 export function markReceipt(regId: string): void { receiptRegIds.add(regId) }
 export function attachReceiptToBatch(reg: Registration): void {
   markReceipt(reg.id)
@@ -1109,8 +1129,8 @@ export function pendingRegistrations(): Registration[] {
     .filter(r => r.status !== 'rejected' && !isTeamPartnerReg(r))
     .filter(r => {
       const unpaid = unpaidAttempts(r)
-      if (r.status === 'pending') return unpaid === 0 || receiptCoversPendingPayment(r)
-      return r.status === 'approved' && unpaid > 0 && receiptCoversPendingPayment(r)
+      if (r.status === 'pending') return unpaid === 0 || teamReceiptCoversPendingPayment(r)
+      return r.status === 'approved' && unpaid > 0 && teamReceiptCoversPendingPayment(r)
     })
     .sort((a, b) => b.createdAt - a.createdAt)
 }

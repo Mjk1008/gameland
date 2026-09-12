@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getUserById, getRegistrationById, setRegistrationStatus, settleRegistrationAttempts, rejectTopUp, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, receiptCoversPendingPayment } from '@/lib/store'
+import { getUserById, getRegistrationById, setRegistrationStatus, settleRegistrationAttempts, rejectTopUp, getEvent, pushNotif, matchesForComp, grantReferralRewards, unpaidAttempts, teamReceiptCoversPendingPayment } from '@/lib/store'
 import { isRealPlayer } from '@/lib/bracket-slots'
 import { trackServer, trackUserProps } from '@/lib/track-server'
 import { recordPromoterEarning, voidPendingEarningsForReg } from '@/lib/promoter'
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     if (seated) return NextResponse.json({ error: 'این گیمر تو براکت نشسته — رد ممکن نیست' }, { status: 409 })
   }
 
-  if (action === 'approve' && unpaidAttempts(r) > 0 && !receiptCoversPendingPayment(r)) {
+  if (action === 'approve' && unpaidAttempts(r) > 0 && !teamReceiptCoversPendingPayment(r)) {
     return NextResponse.json({ error: 'فیش پرداخت آپلود نشده' }, { status: 400 })
   }
 
