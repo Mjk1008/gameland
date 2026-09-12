@@ -2,10 +2,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getEvent, registrationsForComp, getUserById, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, teamsForComp } from '@/lib/store'
+import { getEvent, registrationsForComp, getUserById, getRegistration, isSuperAdmin, matchesForComp, placementsForComp, prelimGroupKeys, getEventConfig, qualifyKey, getCompetition, incompleteTeamsForComp, seatableTeamsForComp, currentTeamMembers, allGamenets, hasEventCover, isTeamPartnerReg, playerName, drawEligibleRegistrations, settledAttempts, unpaidAttempts, teamsForComp } from '@/lib/store'
 import { computeQualifiers, bracketModeOf, bracketState, leftoverPlayers, seatCountInPrelims, isDrawPublished, matchNumberMap, DEFAULT_QUALIFY, getFinalPool, entryCapFor } from '@/lib/bracket'
 import { isCancelledSlot, isRealPlayer, isRestSlot, restIndex, MAX_BRACKET_QUALIFY } from '@/lib/bracket-slots'
-import { computeTeamQualifiers } from '@/lib/bracket-team'
+import { computeTeamQualifiers, seatCountInTeamPrelims } from '@/lib/bracket-team'
 import { attemptsForComp, entryIndexForComp } from '@/lib/bracket-dto'
 import { drawProvinceOf, resolveProvince } from '@/lib/iran-geo'
 import { DISC } from '@/lib/mock-data'
@@ -175,8 +175,27 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   })
   const incompleteTeams = isTeamEvent ? incompleteTeamsForComp(c.id) : []
   const gamenetOptions = allGamenets().filter(g => g.status === 'verified').map(g => ({ id: g.id, name: g.name, city: g.city, province: g.province }))
-  const batchPlayers: BatchPlayer[] = !isTeamEvent && bracketModeOf(c.id) === 'prelims'
-    ? regs.map(r => {
+  const batchPlayers: BatchPlayer[] = bracketModeOf(c.id) !== 'prelims' ? []
+    : isTeamEvent
+    ? seatableTeamsForComp(c.id).map(t => {
+        const captain = getUserById(t.captainId)
+        const capReg = getRegistration(t.captainId, c.id)
+        const attempts = capReg ? settledAttempts(capReg) : 0
+        const seated = seatCountInTeamPrelims(c.id, t.id)
+        const tags = currentTeamMembers(t.id).map(m => getUserById(m.userId)?.tag).filter(Boolean)
+        return {
+          userId: t.id,
+          tag: tags.join(' + ') || t.name,
+          name: t.name,
+          city: captain?.city || 'نامشخص',
+          province: drawProvinceOf(resolveProvince(captain?.province, captain?.city)),
+          attempts,
+          seated,
+          assigned: attempts > 0 && seated >= attempts,
+          viaLeftover: leftoverAccounts.has(t.captainId),
+        }
+      })
+    : regs.map(r => {
         const u = getUserById(r.userId)
         const seated = seatCountInPrelims(c.id, r.userId)
         return {
@@ -191,7 +210,6 @@ export default async function AdminEventPage({ params }: { params: { id: string 
           viaLeftover: leftoverAccounts.has(r.userId),
         }
       })
-    : []
 
   const byProv = new Map<string, ProvincePool>()
   for (const r of regs) {

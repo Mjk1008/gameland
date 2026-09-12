@@ -17,14 +17,14 @@ import {
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
   getRegistration, settledAttempts,
 } from './store'
-import { rng, shuffle, seedFrom, distributeSeats, distributeIntoBrackets, spreadSeats, countsOf, DEFAULT_QUALIFY, getFinalPool } from './bracket'
+import { rng, shuffle, seedFrom, distributeSeats, distributeIntoBrackets, distributeSeatsToCount, spreadSeats, countsOf, DEFAULT_QUALIFY, getFinalPool } from './bracket'
 import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 
 // Team's group key: captain's city/province (surfaced at team-creation time),
 // same `${mode}:${value}` format as the solo groupKeyOf — so prelimGroupKeys(),
 // BracketView's scope list, and the city-grouped display all need zero changes
 // to handle a team event (docs/27 §4.2, founder call §12 Q1).
-function teamGroupKeyOf(team: Team, mode: GroupMode): string {
+export function teamGroupKeyOf(team: Team, mode: GroupMode): string {
   const captain = getUserById(team.captainId)
   if (mode === 'province') return `province:${drawProvinceOf(resolveProvince(captain?.province, captain?.city))}`
   return `city:${captain?.city || 'نامشخص'}`
@@ -231,6 +231,73 @@ export async function generateTeamProvincePrelims(input: TeamProvinceDrawInput):
     seats: seatCount,
     matches: matchesForComp(input.compId).filter(m => m.groupKey === gk).length,
     teamIds: [...new Set(dist.flat())],
+  }
+}
+
+/** Round-1 prelim seats already held by this team (any group/bracket). */
+export function seatCountInTeamPrelims(compId: string, teamId: string): number {
+  let c = 0
+  for (const m of matchesForComp(compId)) {
+    if (m.stage !== 'prelim' || m.round !== 1) continue
+    if (m.p1TeamId === teamId) c++
+    if (m.p2TeamId === teamId) c++
+  }
+  return c
+}
+
+// Twin of generatePrelimBatch — add prelim brackets for a subset of teams
+// (the ترکیبی / leftover pool) without wiping other groups.
+export async function generateTeamPrelimBatch(input: {
+  compId: string
+  groupKey: string
+  bracketCount: number
+  capacityPerBracket: number
+  players: { userId: string; attempts: number }[]
+}): Promise<{ brackets: number; matches: number; bracketFrom: number; bracketTo: number }> {
+  const { compId, groupKey, capacityPerBracket } = input
+  const bracketCount = Math.min(6, Math.max(1, Math.floor(input.bracketCount)))
+  const cap = Math.min(2048, Math.max(2, Math.floor(capacityPerBracket)))
+  const players = input.players
+    .filter(p => p.userId && p.attempts > 0)
+    .map(p => {
+      const seated = seatCountInTeamPrelims(compId, p.userId)
+      const remaining = p.attempts - seated
+      return remaining > 0 ? { userId: p.userId, attempts: remaining } : null
+    })
+    .filter((p): p is { userId: string; attempts: number } => p != null)
+  if (players.length === 0) throw new Error('NO_PLAYERS')
+
+  const existing = matchesForComp(compId).filter(m => m.stage === 'prelim' && m.groupKey === groupKey)
+  const maxIdx = existing.length ? Math.max(...existing.map(m => m.bracket)) : 0
+  const startIdx = maxIdx + 1
+
+  const dist = distributeSeatsToCount(players, bracketCount, seedFrom(compId + groupKey + startIdx), cap)
+  const cfg = getEventConfig(compId)
+  const qualify = { ...cfg.qualify }
+  let built = 0
+
+  for (let i = 0; i < bracketCount; i++) {
+    const { seats, preordered } = dist[i] ?? { seats: [], preordered: false }
+    const seatCount = seats.filter(Boolean).length
+    if (seatCount === 0) continue
+    if (seatCount > cap) throw new Error(`CAPACITY_EXCEEDED:${seatCount}:${cap}`)
+    const bIdx = startIdx + built
+    buildTeamTree(compId, 'prelim', groupKey, bIdx, seats, seedFrom(compId + groupKey + bIdx), preordered)
+    qualify[qualifyKey(groupKey, bIdx)] = qualify[qualifyKey(groupKey, bIdx)] ?? DEFAULT_QUALIFY
+    built++
+  }
+  if (built === 0) throw new Error('NO_PLAYERS')
+
+  const patch: Parameters<typeof setEventConfig>[1] = { qualify }
+  if (groupKey.startsWith('province:')) patch.groupMode = 'province'
+  else if (groupKey.startsWith('city:')) patch.groupMode = 'city'
+  if (maxIdx === 0) patch.publishedGroups = { ...(cfg.publishedGroups ?? {}), [groupKey]: false }
+  setEventConfig(compId, patch)
+  return {
+    brackets: built,
+    matches: matchesForComp(compId).length,
+    bracketFrom: startIdx,
+    bracketTo: startIdx + built - 1,
   }
 }
 
