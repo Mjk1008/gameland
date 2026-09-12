@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { drawEligibleRegistrations, getEventConfig, seatableTeamsForComp } from '@/lib/store'
 import { generatePrelims, generateProvincePrelims, generateDirectBracket, bracketModeOf, isDrawn } from '@/lib/bracket'
-import { generateTeamPrelims, generateTeamProvincePrelims } from '@/lib/bracket-team'
+import { generateTeamPrelims, generateTeamProvincePrelims, generateTeamDirectBracket } from '@/lib/bracket-team'
 
 const PROVINCE_ERROR_MAP: Record<string, string> = {
   BRACKET_COUNT: 'تعداد براکت نامعتبره',
@@ -25,10 +25,15 @@ export async function POST(req: Request) {
   const hasDest = typeof destProvince === 'string' && destProvince.trim()
 
   if (getEventConfig(compId).teamSize === 2) {
-    // Same province-by-province tool as solo prelims (fc26) — one province
-    // at a time, admin-chosen bracket count/size — when destProvince is
-    // given; the old one-shot full draw (every group at once) stays as the
-    // fallback for the empty-pools edge case (no province picker shown yet).
+    const teams = seatableTeamsForComp(compId)
+    if (teams.length === 0) return NextResponse.json({ error: 'هیچ تیمِ کاملی نداریم' }, { status: 400 })
+
+    // Same dispatch as solo: direct → one tree; destProvince → one province;
+    // otherwise the one-shot city/province prelims.
+    if (bracketModeOf(compId) === 'direct') {
+      const result = await generateTeamDirectBracket({ compId, teams })
+      return NextResponse.json({ ok: true, mode: 'direct', ...result, redrawn: isDrawn(compId) })
+    }
     if (hasDest) {
       try {
         const result = await generateTeamProvincePrelims({
@@ -41,10 +46,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: PROVINCE_ERROR_MAP[e.message] || e.message }, { status: 400 })
       }
     }
-    const teams = seatableTeamsForComp(compId)
-    if (teams.length === 0) return NextResponse.json({ error: 'هیچ تیمِ کاملی نداریم' }, { status: 400 })
     const result = await generateTeamPrelims({ compId, teams, groupMode: mode })
-    return NextResponse.json({ ok: true, ...result, redrawn: isDrawn(compId) })
+    return NextResponse.json({ ok: true, mode: 'prelims', ...result, redrawn: isDrawn(compId) })
   }
 
   const regs = drawEligibleRegistrations(compId)

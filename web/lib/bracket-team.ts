@@ -17,7 +17,7 @@ import {
   getEventConfig, setEventConfig, qualifyKey, pushNotif, getEvent,
   getRegistration, settledAttempts,
 } from './store'
-import { rng, shuffle, seedFrom, distributeSeats, distributeIntoBrackets, distributeSeatsToCount, spreadSeats, countsOf, DEFAULT_QUALIFY, getFinalPool } from './bracket'
+import { rng, shuffle, seedFrom, distributeSeats, distributeIntoBrackets, distributeSeatsToCount, spreadSeats, randomSeats, seedBracketSlots, countsOf, DEFAULT_QUALIFY, getFinalPool, entryCapFor } from './bracket'
 import { drawProvinceOf, provincesInDrawGroup, resolveProvince } from './iran-geo'
 
 // Team's group key: captain's city/province (surfaced at team-creation time),
@@ -39,12 +39,13 @@ function feedTeamWinner(m: Match) {
   saveMatch(next)
 }
 
-// `preordered` = seats is already positioned (spreadSeats) — don't reshuffle,
-// treat '' entries as intentional byes at their exact index. Same contract
-// as bracket.ts's buildTree(preordered). Non-preordered callers (the
-// one-shot draw, the final) keep the old shuffle-then-pad behavior.
+// `preordered` = seats is already positioned (spreadSeats / randomSeats) —
+// don't reshuffle, treat '' entries as intentional byes at their exact index.
+// Same contract as bracket.ts's buildTree(preordered). Non-preordered callers
+// (the one-shot prelim draw) use seedBracketSlots so rests spread the same
+// way as solo — not piled at the end of the tree.
 function buildTeamTree(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number, seats: string[], seed: number, preordered = false) {
-  const padded = preordered ? seats.slice() : padTeamSeats(seats, seed)
+  const padded = preordered ? seats.slice() : seedBracketSlots(seats.filter(Boolean), seed)
   let size = padded.length
   if (size === 0) return
   size = Math.max(2, size)
@@ -73,18 +74,6 @@ function buildTeamTree(compId: string, stage: 'prelim' | 'final', groupKey: stri
     count = Math.floor(count / 2); round++
   }
   resolveTeamByes(compId, stage, groupKey, bracketIdx)
-}
-
-// Old shuffle-then-pad path for non-preordered callers (the one-shot draw,
-// the final) — unchanged behavior from before `preordered` existed.
-function padTeamSeats(seats: string[], seed: number): string[] {
-  const shuffled = shuffle(seats, rng(seed))
-  let size = 1
-  while (size < shuffled.length) size *= 2
-  size = Math.max(2, size)
-  const out = shuffled.slice()
-  while (out.length < size) out.push('')
-  return out
 }
 
 function resolveTeamByes(compId: string, stage: 'prelim' | 'final', groupKey: string, bracketIdx: number) {
@@ -149,6 +138,36 @@ export async function generateTeamPrelims({ compId, teams, groupMode }: TeamDraw
   for (const gk of groups.keys()) unpublished[gk] = false
   setEventConfig(compId, { groupMode: mode, qualify, publishedGroups: unpublished })
   return { groups: groups.size, brackets: bracketCount, matches: matchesForComp(compId).length }
+}
+
+// Twin of generateDirectBracket — one tree, no grouping. A team's k سهم
+// become min(k, entryCap) spread seats (own copies meet only late), same as
+// treating the team as one account.
+export async function generateTeamDirectBracket(
+  { compId, teams }: { compId: string; teams: Team[] },
+): Promise<{ seats: number; players: number; matches: number }> {
+  await clearMatchesForComp(compId)
+  const cap = entryCapFor(compId)
+  const entries = teams
+    .map(t => {
+      const capReg = getRegistration(t.captainId, compId)
+      const k = capReg ? settledAttempts(capReg) : 0
+      return { userId: t.id, count: Math.min(Math.max(0, k), cap) }
+    })
+    .filter(e => e.count > 0)
+  const seats = spreadSeats(entries, seedFrom(compId + 'direct'))
+  if (seats.filter(Boolean).length >= 2) {
+    buildTeamTree(compId, 'final', '', 0, seats, seedFrom(compId + 'direct-tree'), true)
+  }
+  setEventConfig(compId, {
+    bracketMode: 'direct',
+    publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false },
+  })
+  return {
+    seats: seats.filter(Boolean).length,
+    players: entries.length,
+    matches: matchesForComp(compId).length,
+  }
 }
 
 export interface TeamProvinceDrawInput {
@@ -348,19 +367,26 @@ export interface TeamQualifier { teamId: string; groupKey: string; bracket: numb
 export function computeTeamQualifiers(compId: string): TeamQualifier[] {
   const cfg = getEventConfig(compId)
   const all = matchesForComp(compId)
+  const seedCap = entryCapFor(compId)
+  const held = new Map<string, number>()
   const out: TeamQualifier[] = []
-  const seen = new Set<string>()
   for (const gk of prelimGroupKeys(compId)) {
-    const brackets = Array.from(new Set(all.filter(m => m.stage === 'prelim' && m.groupKey === gk).map(m => m.bracket)))
+    const brackets = Array.from(new Set(all.filter(m => m.stage === 'prelim' && m.groupKey === gk).map(m => m.bracket))).sort((a, b) => a - b)
     for (const b of brackets) {
       const ms = all.filter(m => m.stage === 'prelim' && m.groupKey === gk && m.bracket === b)
       if (!ms.every(m => m.status === 'done')) continue
       const k = cfg.qualify[qualifyKey(gk, b)] ?? DEFAULT_QUALIFY
-      rankTeamBracket(compId, 'prelim', gk, b).slice(0, k).forEach((teamId, i) => {
-        if (seen.has(teamId)) return
-        seen.add(teamId)
+      if (k <= 0) continue
+      const ranked = rankTeamBracket(compId, 'prelim', gk, b)
+      let taken = 0
+      for (let i = 0; i < ranked.length && taken < k; i++) {
+        const teamId = ranked[i]
+        if (!teamId) continue
+        if ((held.get(teamId) ?? 0) >= seedCap) continue
+        held.set(teamId, (held.get(teamId) ?? 0) + 1)
         out.push({ teamId, groupKey: gk, bracket: b, rank: i + 1 })
-      })
+        taken++
+      }
     }
   }
   return out
@@ -391,27 +417,36 @@ export function teamQualifyCandidates(compId: string, groupKey: string, bracket:
   return { ...best, aliveCount: best.candidates.length, exact: best.candidates.length === k }
 }
 
-// One pool row = one team (a team is always a single seat — there's no
-// per-team سهم multiplicity like the solo engine's spread entries).
-export async function assembleTeamFinal(compId: string): Promise<{ seats: number; capped: boolean }> {
+// Twin of assembleFinal — one pool row = one team's سهم count. Multi-entry
+// teams get spread seats unless the admin turns on finalRandomSeeding.
+export async function assembleTeamFinal(compId: string): Promise<{ seats: number; players: number; capped: boolean }> {
   const cfg = getEventConfig(compId)
-  let ids = [...new Set(getFinalPool(compId).map(p => p.userId))]
-  if (ids.length === 0) throw new Error('EMPTY_POOL')
-  if (cfg.finalSeeding?.length) {
-    const set = new Set(ids)
-    const ordered = cfg.finalSeeding.filter(u => set.has(u))
-    const rest = ids.filter(u => !ordered.includes(u))
-    ids = [...ordered, ...rest]
-  } else {
-    ids = shuffle(ids, rng(seedFrom(compId + 'final')))
-  }
   const cap = getEvent(compId)?.finalSize ?? 128
-  const capped = ids.length > cap
-  if (capped) ids = ids.slice(0, cap)
+
+  const pool = getFinalPool(compId)
+  if (pool.length === 0) throw new Error('EMPTY_POOL')
+  let entries = pool.map(p => ({ userId: p.userId, count: Math.max(1, Math.floor(p.sahm)) }))
+
+  if (cfg.finalSeeding?.length) {
+    const rankOf = new Map(cfg.finalSeeding.map((u, i) => [u, i]))
+    entries.sort((a, b) => (rankOf.get(a.userId) ?? 1e9) - (rankOf.get(b.userId) ?? 1e9))
+  } else {
+    entries = shuffle(entries, rng(seedFrom(compId + 'final')))
+  }
+
+  let capped = false
+  const kept: typeof entries = []
+  let seatSum = 0
+  for (const e of entries) {
+    if (seatSum + e.count > cap) { capped = true; break }
+    kept.push(e); seatSum += e.count
+  }
 
   await clearMatchesByStage(compId, 'final')
-  if (ids.length >= 2) buildTeamTree(compId, 'final', '', 0, ids, seedFrom(compId + 'final-tree'))
-  // a (re)assembly is a draft until published — same rule as the solo final.
+  const seats = cfg.finalRandomSeeding
+    ? randomSeats(kept, seedFrom(compId + 'final-tree'))
+    : spreadSeats(kept, seedFrom(compId + 'final-tree'))
+  if (seats.filter(Boolean).length >= 2) buildTeamTree(compId, 'final', '', 0, seats, seedFrom(compId + 'final-tree'), true)
   setEventConfig(compId, { publishedGroups: { ...(getEventConfig(compId).publishedGroups ?? {}), final: false } })
-  return { seats: ids.length, capped }
+  return { seats: seatSum, players: kept.length, capped }
 }

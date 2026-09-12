@@ -163,7 +163,7 @@ export default async function AdminEventPage({ params }: { params: { id: string 
   const finalPool: FinalPoolMember[] = getFinalPool(c.id).map(row => {
     if (isTeamEvent) {
       const t = compTeams.find(x => x.id === row.userId)
-      return { userId: row.userId, name: t?.name ?? row.userId, tag: '', sahm: 1 }
+      return { userId: row.userId, name: t?.name ?? row.userId, tag: '', sahm: row.sahm }
     }
     const u = getUserById(row.userId)
     return { userId: row.userId, name: u ? playerName(u) : row.userId, tag: u?.tag || row.userId, sahm: row.sahm }

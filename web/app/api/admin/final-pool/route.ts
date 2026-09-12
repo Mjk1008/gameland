@@ -6,8 +6,8 @@ import { addToFinalPool, removeFromFinalPool, setFinalPoolSahm, setEntryCap, set
 
 // Admin-curated final pool (see lib/bracket.ts finalPool). One route, five
 // actions — they all touch the same {userId, sahm}[] list on the event. For a
-// team (2v2) event the "userId" slot in that list holds a teamId instead — a
-// team is always exactly one final seat, so سهم there is forced to 1.
+// team (2v2) event the "userId" slot holds a teamId; سهم counts work the same
+// way as a solo account.
 function validId(compId: string, isTeam: boolean, id: unknown): id is string {
   if (typeof id !== 'string' || !id) return false
   return isTeam ? getTeam(id)?.compId === compId : !!getUserById(id)
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (action === 'add') {
     const { userId, sahm } = body
     if (!validId(compId, isTeam, userId)) return NextResponse.json({ error: isTeam ? 'تیم پیدا نشد' : 'کاربر پیدا نشد' }, { status: 404 })
-    const pool = addToFinalPool(compId, userId, isTeam ? 1 : Math.max(1, Math.floor(Number(sahm) || 1)))
+    const pool = addToFinalPool(compId, userId, Math.max(1, Math.floor(Number(sahm) || 1)))
     return NextResponse.json({ ok: true, pool })
   }
   if (action === 'send') {
@@ -37,7 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, added: userIds.length, pool })
   }
   if (action === 'sahm') {
-    if (isTeam) return NextResponse.json({ error: 'برای رشته‌های دو‌به‌دو سهم قابل تغییر نیست — هر تیم یک صندلی' }, { status: 400 })
     const { userId, sahm } = body
     if (!userId) return NextResponse.json({ error: 'ورودی نامعتبر' }, { status: 400 })
     const pool = setFinalPoolSahm(compId, userId, Math.floor(Number(sahm) || 0))
@@ -50,7 +49,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, pool })
   }
   if (action === 'cap') {
-    if (isTeam) return NextResponse.json({ error: 'برای رشته‌های دو‌به‌دو سقف سهم کاربردی نداره' }, { status: 400 })
     const { cap } = body
     const n = Math.floor(Number(cap))
     if (!Number.isFinite(n) || n < 1) return NextResponse.json({ error: 'سقف نامعتبره' }, { status: 400 })

@@ -15,15 +15,14 @@ type Props = {
   finalSeats: number
   published: boolean
   qualifierEstimate: number
-  // Team (2v2) events: a team is always exactly one final seat — no سهم
-  // stepper, no per-player cap, and "افزودن" picks from this event's own
-  // teams (teams don't exist outside the event they registered for) instead
-  // of searching the whole user database.
+  // Team (2v2) events: "افزودن" picks from this event's own teams instead of
+  // searching the whole user database. سهم / cap / random seeding are the
+  // same controls as solo — a team is one account.
   isTeamEvent?: boolean
   teamOptions?: TeamOption[]
-  // Solo events only: true ⇒ چیدن throws every seat into one flat random
-  // shuffle (randomSeats) instead of spreading one account's own multiple
-  // final entries apart (spreadSeats, the default).
+  // true ⇒ چیدن throws every seat into one flat random shuffle (randomSeats)
+  // instead of spreading one account's (or team's) own multiple final entries
+  // apart (spreadSeats, the default).
   randomSeeding?: boolean
 }
 
@@ -95,7 +94,7 @@ export default function FinalPoolPanel(p: Props) {
     const n = Math.floor(Number(cap))
     if (!Number.isFinite(n) || n < 1) { setMsg({ ok: false, text: 'سقف نامعتبره' }); return }
     const j = await post({ action: 'cap', cap: n }, 'cap')
-    if (j) setMsg({ ok: true, text: `سقف سهم هر نفر شد ${n}` })
+    if (j) setMsg({ ok: true, text: `سقف سهم هر ${unit} شد ${n}` })
   }
   async function toggleRandomSeeding(enabled: boolean) {
     await post({ action: 'randomSeeding', enabled }, 'randomSeeding')
@@ -145,22 +144,20 @@ export default function FinalPoolPanel(p: Props) {
     <Section title="۳ · استخر فینال">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Stat label={`${unit === 'تیم' ? 'تیم‌های' : 'نفرات'} استخر`} value={p.pool.length} c={C.accent} />
-        {!isTeam && <Stat label="سهم کل استخر" value={totalSahm} c={C.gold} />}
+        <Stat label="سهم کل استخر" value={totalSahm} c={C.gold} />
         {p.finalExists && <Stat label="در فینال" value={p.finalSeats} c={C.win} />}
       </div>
       <div style={{ fontSize: 11, color: C.tmut, marginBottom: 12, lineHeight: 1.7 }}>
         تخمین خودکار (اگه براکت‌های ناتموم تا آخر بازی بشن): {p.qualifierEstimate} {unit} — این عدد خودش وارد استخر نمی‌شه، فقط برای مرجعه.
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isTeam ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        {!isTeam && (
-          <Field label="سقف سهم هر نفر">
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input value={cap} onChange={e => setCap(e.target.value)} inputMode="numeric" dir="ltr" style={inp} />
-              <button type="button" disabled={busy != null || cap === String(p.entryCap)} onClick={saveEntryCap} style={smallBtn}>ذخیره</button>
-            </div>
-          </Field>
-        )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <Field label={`سقف سهم هر ${unit}`}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input value={cap} onChange={e => setCap(e.target.value)} inputMode="numeric" dir="ltr" style={inp} />
+            <button type="button" disabled={busy != null || cap === String(p.entryCap)} onClick={saveEntryCap} style={smallBtn}>ذخیره</button>
+          </div>
+        </Field>
         <Field label="ظرفیت براکت فینال">
           <select value={size} disabled={busy != null} onChange={e => saveFinalSize(Number(e.target.value))} style={sel}>
             {BRACKET_SIZES.map(s => <option key={s} value={s}>{s} نفره</option>)}
@@ -168,12 +165,10 @@ export default function FinalPoolPanel(p: Props) {
         </Field>
       </div>
 
-      {!isTeam && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 12.5, color: C.thi, cursor: 'pointer' }}>
-          <input type="checkbox" checked={!!p.randomSeeding} disabled={busy != null} onChange={e => toggleRandomSeeding(e.target.checked)} />
-          سیدینگ کاملاً رندوم (سهم‌های یک نفر از هم جدا نگه داشته نمی‌شن)
-        </label>
-      )}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 12.5, color: C.thi, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!p.randomSeeding} disabled={busy != null} onChange={e => toggleRandomSeeding(e.target.checked)} />
+        سیدینگ کاملاً رندوم (سهم‌های یک {unit} از هم جدا نگه داشته نمی‌شن)
+      </label>
 
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11.5, color: C.tmut, marginBottom: 6 }}>{isTeam ? 'افزودن تیم (از تیم‌های همین رشته)' : 'افزودن بازیکن (از کل دیتابیس)'}</div>
@@ -208,7 +203,7 @@ export default function FinalPoolPanel(p: Props) {
         {p.pool.map(m => (
           <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: '8px 10px' }}>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, color: C.thi, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}{!isTeam && m.tag ? ` · @${m.tag}` : ''}</span>
-            {!isTeam && <Stepper value={m.sahm} disabled={busy != null} max={p.entryCap} onChange={n => setSahm(m.userId, n)} />}
+            <Stepper value={m.sahm} disabled={busy != null} max={p.entryCap} onChange={n => setSahm(m.userId, n)} />
             <button type="button" disabled={busy != null} onClick={() => remove(m.userId)} style={rmBtn}>✕</button>
           </div>
         ))}

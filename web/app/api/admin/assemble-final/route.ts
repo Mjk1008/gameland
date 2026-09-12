@@ -6,8 +6,8 @@ import { assembleFinal } from '@/lib/bracket'
 import { assembleTeamFinal } from '@/lib/bracket-team'
 
 // Admin assembles (or re-assembles) the final bracket from the admin-curated
-// final pool (see lib/bracket.ts assembleFinal/getFinalPool). Team events
-// still assemble from computeTeamQualifiers (lib/bracket-team.ts) — untouched.
+// final pool. Team events use the same pool + spread/random seating as solo,
+// with team ids in the userId slot.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   const role = (session as any)?.role
